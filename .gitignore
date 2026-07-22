@@ -1,0 +1,12 @@
+# data (large; download separately — see README)
+data/
+# python
+__pycache__/
+*.pyc
+# logs / scratch
+*.log
+# latex build artifacts
+*.aux
+*.out
+*.synctex.gz
+report.pdf

@@ -1,0 +1,12 @@
+{
+  "z_slow->regime_acc": 0.995703125,
+  "z_slow->u_r2": 0.3096570372581482,
+  "z_slow->phase_r2": 0.22533220052719116,
+  "z_fast->regime_acc": 0.996484375,
+  "z_fast->u_r2": 0.7771032452583313,
+  "z_fast->phase_r2": 0.9118703603744507,
+  "z_full->regime_acc": 0.996875,
+  "z_full->u_r2": 0.791832685470581,
+  "z_full->phase_r2": 0.9298832416534424,
+  "regime_majority_acc": 0.41015625
+}

@@ -1,0 +1,9 @@
+{
+  "tag": "hapt_ar_g0_d0_s1",
+  "z_slow->activity_f1": 0.45317421173699274,
+  "z_slow->accmag_r2": 0.6000075340270996,
+  "z_fast->activity_f1": 0.6855824675053511,
+  "z_fast->accmag_r2": 0.6863890886306763,
+  "z_full->activity_f1": 0.7094021209007849,
+  "z_full->accmag_r2": 0.7029451131820679
+}

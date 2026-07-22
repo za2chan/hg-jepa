@@ -1,0 +1,14 @@
+{
+  "tag": "real_nepa_g1_d1_s0",
+  "n_train": 1039,
+  "n_test": 1039,
+  "z_slow->rul_spearman": 0.7238438834088364,
+  "z_slow->stage_f1": 0.6185408393044985,
+  "z_slow->kurt_r2": 0.37139201164245605,
+  "z_fast->rul_spearman": 0.8619926500644387,
+  "z_fast->stage_f1": 0.7550704702037123,
+  "z_fast->kurt_r2": 0.4460177421569824,
+  "z_full->rul_spearman": 0.8818691241963991,
+  "z_full->stage_f1": 0.7679171898020728,
+  "z_full->kurt_r2": 0.47294706106185913
+}

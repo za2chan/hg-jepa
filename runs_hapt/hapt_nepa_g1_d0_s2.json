@@ -1,0 +1,9 @@
+{
+  "tag": "hapt_nepa_g1_d0_s2",
+  "z_slow->activity_f1": 0.6755703187378784,
+  "z_slow->accmag_r2": 0.23707377910614014,
+  "z_fast->activity_f1": 0.7438798263804229,
+  "z_fast->accmag_r2": 0.6866550445556641,
+  "z_full->activity_f1": 0.7682975303419085,
+  "z_full->accmag_r2": 0.7102296352386475
+}

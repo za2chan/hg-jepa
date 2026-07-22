@@ -1,0 +1,12 @@
+{
+  "tag": "nepa_g1_d1_s0_tau16_ds16_lam1",
+  "z_slow->regime_acc": 0.9953125,
+  "z_slow->u_r2": 0.2579852342605591,
+  "z_slow->phase_r2": 0.19999811053276062,
+  "z_fast->regime_acc": 0.863671875,
+  "z_fast->u_r2": 0.7849975824356079,
+  "z_fast->phase_r2": 0.9123197197914124,
+  "z_full->regime_acc": 0.99609375,
+  "z_full->u_r2": 0.8014922142028809,
+  "z_full->phase_r2": 0.9314400553703308
+}
