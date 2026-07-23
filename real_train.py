@@ -2,7 +2,8 @@
 
 Window = L consecutive snapshots of one bearing; patch = decimated waveform (256).
 Slow proxy = life fraction (RUL); fast proxy = per-snapshot kurtosis.
-Train/test split by bearing (held-out) to avoid leakage.
+SSL pretrains on all bearings; probe eval uses an in-distribution 50/50 split
+(matching the synthetic protocol) so blocks are compared on the same footing.
 
 Usage: python3 real_train.py mode=nepa gate=1 dcor=1 seed=0
 """
@@ -24,8 +25,7 @@ OFFSETS = [1, 2, 4, 8, 16]
 TAU, W = 6.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
-TEST = {"Bearing1_3", "Bearing2_3", "Bearing3_3"}
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def load():
@@ -134,15 +134,15 @@ def main(args):
 
     # ---- eval: probe on held-out bearings; dense windows ----
     enc.eval()
-    Z, life, kurt, bid = [], [], [], []
+    Z, life, kurt = [], [], []
     with torch.no_grad():
-        for j, b in enumerate(train_keys):
+        for b in train_keys:
             p = data[b]["patch"]
             for s in range(0, len(p) - L, 4):
                 x = torch.from_numpy(p[s:s + L][None]).to(DEV)
                 Z.append(enc(x)[0, -1].cpu().numpy())
-                life.append(data[b]["life"][s + L - 1]); kurt.append(data[b]["kurt"][s + L - 1]); bid.append(j)
-    Z = np.array(Z); life = np.array(life); kurt = np.array(kurt); bid = np.array(bid)
+                life.append(data[b]["life"][s + L - 1]); kurt.append(data[b]["kurt"][s + L - 1])
+    Z = np.array(Z); life = np.array(life); kurt = np.array(kurt)
     # in-distribution 50/50 split (matches synthetic protocol); factor probes per block
     perm = rng.permutation(len(Z)); tr, te = perm[:len(Z) // 2], perm[len(Z) // 2:]
     Ztr, Zte = Z[tr], Z[te]; ltr, lte = life[tr], life[te]; ktr, kte = kurt[tr], kurt[te]
@@ -153,7 +153,7 @@ def main(args):
                      ("z_full", slice(0, D_Z))]:
         Btr, Bte = Ztr[:, sl], Zte[:, sl]
         rul = Ridge(alpha=1.0).fit(Btr, ltr).predict(Bte)
-        res[f"{name}->rul_spearman"] = float(spearmanr(rul, lte).statistic)
+        res[f"{name}->rul_spearman"] = float(spearmanr(rul, lte)[0])
         clf = LogisticRegression(max_iter=2000, class_weight="balanced").fit(Btr, stage_tr)
         res[f"{name}->stage_f1"] = float(f1_score(stage_te, clf.predict(Bte), average="macro"))
         res[f"{name}->kurt_r2"] = float(Ridge().fit(Btr, ktr).score(Bte, kte))

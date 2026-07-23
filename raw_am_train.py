@@ -20,7 +20,7 @@ OFFSETS = [1, 2, 4, 16, 64]
 TAU, W = 6.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def load():

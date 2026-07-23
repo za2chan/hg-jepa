@@ -14,8 +14,14 @@ on raw windows (N, L, C):
   C3 window adequacy: tau_fast < tau_slow < L (slow factor varies within,
      but is slower than the fast one).
 
-Run on our four datasets to test whether the screen predicts observed
-separation success (HAPT/synthetic strong, PTB-XL weak, XJTU none).
+This statistical screen is a coarse, cheap first pass: with the current
+descriptor set and gap>=5 threshold, C1 is conservative -- on our four
+datasets the measured descriptor-vs-signal gap never quite clears the bar
+(see screen_results.json), so it does not by itself separate the datasets
+that do disentangle (HAPT, synthetic) from those that do not. The model-based
+screen (screen_model.py), which lets the encoder discover its own descriptor
+via long-horizon embedding predictability, is the discriminating test; use
+this one only as a rough sanity check on timescale structure.
 """
 import json
 

@@ -1,8 +1,7 @@
-"""HC-NEPA on XJTU raw AM windows: does z_slow capture the envelope (slow)
-and z_fast the carrier (fast)? Also a low-pass baseline that, per our thesis,
-cannot recover the fault-bearing envelope from the low band.
+"""HC-NEPA on HAPT inertial windows: does z_slow capture the activity class
+(slow, persists ~12 s) and z_fast the instantaneous motion (fast, gait-scale)?
 
-Usage: python3 raw_am_train.py mode=nepa gate=1 dcor=1 seed=0
+Usage: python3 hapt_train.py mode=nepa gate=1 dcor=1 seed=0
 """
 import json
 import os
@@ -20,7 +19,7 @@ OFFSETS = [1, 2, 4, 8, 16, 32]
 TAU, W = 5.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def load():
@@ -110,13 +109,16 @@ def main(args):
         if step % 1000 == 0:
             print(f"[{tag}] step {step} loss {loss.item():.4f}", flush=True)
 
-    # ---- probe: activity (slow) vs instantaneous acc mag (fast), in-dist 50/50 ----
+    # ---- probe: activity (slow) vs instantaneous acc mag (fast) ----
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import f1_score
     enc.eval()
     with torch.no_grad():
         Z = torch.cat([enc(Wt[i:i + 256])[:, -1] for i in range(0, len(Wt), 256)]).cpu().numpy()
-    perm = rng.permutation(len(Z)); tr, te = perm[:len(Z) // 2], perm[len(Z) // 2:]
+    # time-ordered split: windows overlap by half (prep stride = WIN/2), so a
+    # random split leaks near-duplicates across probe train/test
+    n = len(Z) // 2
+    tr, te = np.arange(n), np.arange(n, len(Z))
     res = {"tag": tag}
     for name, sl in [("z_slow", slice(0, D_SLOW)), ("z_fast", slice(D_SLOW, D_Z)),
                      ("z_full", slice(0, D_Z))]:

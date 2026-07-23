@@ -9,6 +9,7 @@ Usage: python3 train.py mode=nepa gate=1 dcor=0 seed=0 [tau=16] [dslow=16] [lam=
 Writes runs/<tag>.json with block-factor probe matrix.
 """
 import json
+import os
 import sys
 
 import numpy as np
@@ -26,7 +27,7 @@ OFFSETS = [1, 4, 16, 64, 128]  # horizons (patches) = 8..1024 steps
 W = 4.0                        # gate softness (patches)
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Encoder(nn.Module):
@@ -73,10 +74,13 @@ def main(args):
     tau = float(args.get("tau", 16))
     d_slow = int(args.get("dslow", 16))
     lam = float(args.get("lam", 4))
+    out = args.get("out", "runs")
     tag = f"{mode}_g{int(gated)}_d{int(dcor)}_s{seed}_tau{int(tau)}_ds{d_slow}_lam{int(lam)}"
 
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
+    # data seed is fixed across runs: seeds vary only model init and batch
+    # sampling, so the 3-seed spread measures training (not data) variance
     train = make_dataset(1_000_000, seed=0)
     evald = make_dataset(200_000, seed=99)
 
@@ -146,7 +150,8 @@ def main(args):
         res[f"{name}->u_r2"] = Ridge().fit(B[:ntr], yu[:ntr]).score(B[ntr:], yu[ntr:])
         res[f"{name}->phase_r2"] = Ridge().fit(B[:ntr], yphi[:ntr]).score(B[ntr:], yphi[ntr:])
     print(json.dumps(res, indent=2), flush=True)
-    json.dump(res, open(f"runs/{tag}.json", "w"), indent=2)
+    os.makedirs(out, exist_ok=True)
+    json.dump(res, open(f"{out}/{tag}.json", "w"), indent=2)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,7 @@
-"""HC-NEPA on XJTU raw AM windows: does z_slow capture the envelope (slow)
-and z_fast the carrier (fast)? Also a low-pass baseline that, per our thesis,
-cannot recover the fault-bearing envelope from the low band.
+"""HC-NEPA on PTB-XL ECG windows: does z_slow capture the diagnosis label
+(slow, constant over the record) and z_fast the within-beat waveform (fast)?
 
-Usage: python3 raw_am_train.py mode=nepa gate=1 dcor=1 seed=0
+Usage: python3 ptbxl_train.py mode=nepa gate=1 dcor=1 seed=0
 """
 import json
 import os
@@ -20,7 +19,7 @@ OFFSETS = [1, 2, 4, 8, 16, 32]
 TAU, W = 5.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def load():
@@ -65,7 +64,7 @@ def main(args):
     tag = f"ptbxl_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}"
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
-    Wall, act, accmag = load()  # act=norm label, accmag=ecg end value
+    Wall, norm, ecgend = load()
     Wt = torch.from_numpy(Wall).to(DEV)
 
     enc = Encoder().to(DEV)
@@ -110,7 +109,8 @@ def main(args):
         if step % 1000 == 0:
             print(f"[{tag}] step {step} loss {loss.item():.4f}", flush=True)
 
-    # ---- probe: activity (slow) vs instantaneous acc mag (fast), in-dist 50/50 ----
+    # ---- probe: diagnosis NORM (slow) vs instantaneous ECG value (fast) ----
+    # random 50/50 split is fine here: one window per record, no overlap
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import f1_score
     enc.eval()
@@ -121,9 +121,9 @@ def main(args):
     for name, sl in [("z_slow", slice(0, D_SLOW)), ("z_fast", slice(D_SLOW, D_Z)),
                      ("z_full", slice(0, D_Z))]:
         B = Z[:, sl]
-        clf = LogisticRegression(max_iter=2000, class_weight="balanced").fit(B[tr], act[tr])
-        res[f"{name}->norm_f1"] = float(f1_score(act[te], clf.predict(B[te]), average="macro"))
-        res[f"{name}->ecg_r2"] = float(Ridge().fit(B[tr], accmag[tr]).score(B[te], accmag[te]))
+        clf = LogisticRegression(max_iter=2000, class_weight="balanced").fit(B[tr], norm[tr])
+        res[f"{name}->norm_f1"] = float(f1_score(norm[te], clf.predict(B[te]), average="macro"))
+        res[f"{name}->ecg_r2"] = float(Ridge().fit(B[tr], ecgend[tr]).score(B[te], ecgend[te]))
     print(json.dumps(res, indent=2), flush=True)
     json.dump(res, open(f"runs_ptbxl/{tag}.json", "w"), indent=2)
 
