@@ -1,9 +1,11 @@
 {
   "tag": "hapt_nepa_g0_d0_s0",
-  "z_slow->activity_f1": 0.5919244008790736,
-  "z_slow->accmag_r2": 0.5703232288360596,
-  "z_fast->activity_f1": 0.7748626367126316,
-  "z_fast->accmag_r2": 0.6718802452087402,
-  "z_full->activity_f1": 0.786458295168914,
-  "z_full->accmag_r2": 0.6849240064620972
+  "n_test_subj": 10,
+  "rankme": 36.48692321777344,
+  "z_slow->activity_f1": 0.5627944923151461,
+  "z_slow->accmag_r2": 0.6259621381759644,
+  "z_fast->activity_f1": 0.8210802663487877,
+  "z_fast->accmag_r2": 0.7191282510757446,
+  "z_full->activity_f1": 0.8153419045325531,
+  "z_full->accmag_r2": 0.7283138036727905
 }

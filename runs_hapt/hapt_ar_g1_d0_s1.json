@@ -1,9 +1,11 @@
 {
   "tag": "hapt_ar_g1_d0_s1",
-  "z_slow->activity_f1": 0.5259632360412596,
-  "z_slow->accmag_r2": 0.5435303449630737,
-  "z_fast->activity_f1": 0.6886810618920028,
-  "z_fast->accmag_r2": 0.7151615023612976,
-  "z_full->activity_f1": 0.7185770036083715,
-  "z_full->accmag_r2": 0.7356472015380859
+  "n_test_subj": 10,
+  "rankme": 35.849342346191406,
+  "z_slow->activity_f1": 0.47883056149112124,
+  "z_slow->accmag_r2": 0.575406014919281,
+  "z_fast->activity_f1": 0.6897662953086175,
+  "z_fast->accmag_r2": 0.7381415367126465,
+  "z_full->activity_f1": 0.72748085781026,
+  "z_full->accmag_r2": 0.7543271780014038
 }

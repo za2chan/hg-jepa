@@ -1,10 +1,10 @@
 {
   "tag": "am_nepa_g1_d1_s0",
-  "z_slow->envelope_r2": 0.20055830478668213,
-  "z_slow->carrier_r2": 0.2885574698448181,
-  "z_fast->envelope_r2": 0.6307166814804077,
-  "z_fast->carrier_r2": 0.9853153228759766,
-  "z_full->envelope_r2": 0.6515779495239258,
-  "z_full->carrier_r2": 0.9882611036300659,
+  "z_slow->envelope_r2": 0.20746946334838867,
+  "z_slow->carrier_r2": 0.2970006465911865,
+  "z_fast->envelope_r2": 0.6285300254821777,
+  "z_fast->carrier_r2": 0.984091579914093,
+  "z_full->envelope_r2": 0.6483956575393677,
+  "z_full->carrier_r2": 0.9880666136741638,
   "lowpass->envelope_r2": -0.1934463283444694
 }

@@ -24,7 +24,7 @@ OFFSETS = [1, 2, 4, 8, 16]
 TAU, W = 6.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 TEST = {"Bearing1_3", "Bearing2_3", "Bearing3_3"}
 
 
@@ -88,7 +88,8 @@ def main(args):
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     data = load()
-    train_keys = list(data)                       # SSL pretrain on all bearings
+    train_keys = [b for b in data if b not in TEST]   # SSL pretrain on train bearings
+    test_keys = [b for b in data if b in TEST]         # held-out bearings for probe
 
     enc = Encoder().to(DEV)
     pred = Predictor(D_Z if mode == "nepa" else PATCH).to(DEV)
@@ -132,20 +133,20 @@ def main(args):
         if step % 1000 == 0:
             print(f"[{tag}] step {step} loss {loss.item():.4f}", flush=True)
 
-    # ---- eval: probe on held-out bearings; dense windows ----
+    # ---- eval: probe fit on TRAIN bearings, tested on HELD-OUT bearings ----
     enc.eval()
-    Z, life, kurt, bid = [], [], [], []
-    with torch.no_grad():
-        for j, b in enumerate(train_keys):
-            p = data[b]["patch"]
-            for s in range(0, len(p) - L, 4):
-                x = torch.from_numpy(p[s:s + L][None]).to(DEV)
-                Z.append(enc(x)[0, -1].cpu().numpy())
-                life.append(data[b]["life"][s + L - 1]); kurt.append(data[b]["kurt"][s + L - 1]); bid.append(j)
-    Z = np.array(Z); life = np.array(life); kurt = np.array(kurt); bid = np.array(bid)
-    # in-distribution 50/50 split (matches synthetic protocol); factor probes per block
-    perm = rng.permutation(len(Z)); tr, te = perm[:len(Z) // 2], perm[len(Z) // 2:]
-    Ztr, Zte = Z[tr], Z[te]; ltr, lte = life[tr], life[te]; ktr, kte = kurt[tr], kurt[te]
+    def embed(keys):
+        Z, life, kurt = [], [], []
+        with torch.no_grad():
+            for b in keys:
+                p = data[b]["patch"]
+                for s in range(0, len(p) - L, 4):
+                    x = torch.from_numpy(p[s:s + L][None]).to(DEV)
+                    Z.append(enc(x)[0, -1].cpu().numpy())
+                    life.append(data[b]["life"][s + L - 1]); kurt.append(data[b]["kurt"][s + L - 1])
+        return np.array(Z), np.array(life), np.array(kurt)
+    Ztr, ltr, ktr = embed(train_keys)
+    Zte, lte, kte = embed(test_keys)
     stage_tr = np.digitize(ltr, [0.5, 0.8]); stage_te = np.digitize(lte, [0.5, 0.8])
 
     res = {"tag": tag, "n_train": len(Ztr), "n_test": len(Zte)}
@@ -153,7 +154,7 @@ def main(args):
                      ("z_full", slice(0, D_Z))]:
         Btr, Bte = Ztr[:, sl], Zte[:, sl]
         rul = Ridge(alpha=1.0).fit(Btr, ltr).predict(Bte)
-        res[f"{name}->rul_spearman"] = float(spearmanr(rul, lte).statistic)
+        res[f"{name}->rul_spearman"] = float(spearmanr(rul, lte)[0])
         clf = LogisticRegression(max_iter=2000, class_weight="balanced").fit(Btr, stage_tr)
         res[f"{name}->stage_f1"] = float(f1_score(stage_te, clf.predict(Bte), average="macro"))
         res[f"{name}->kurt_r2"] = float(Ridge().fit(Btr, ktr).score(Bte, kte))

@@ -1,8 +1,8 @@
-"""HC-NEPA on XJTU raw AM windows: does z_slow capture the envelope (slow)
-and z_fast the carrier (fast)? Also a low-pass baseline that, per our thesis,
-cannot recover the fault-bearing envelope from the low band.
+"""HG-JEPA on PTB-XL ECG windows: does z_slow capture the diagnosis (slow)
+and z_fast the instantaneous ECG value / beat morphology (fast)?
+Probe uses a PATIENT-group split (held-out patients) -- leak-free.
 
-Usage: python3 raw_am_train.py mode=nepa gate=1 dcor=1 seed=0
+Usage: python3 ptbxl_train.py mode=nepa gate=1 dcor=1 seed=0
 """
 import json
 import os
@@ -20,12 +20,18 @@ OFFSETS = [1, 2, 4, 8, 16, 32]
 TAU, W = 5.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def load():
     d = np.load("data/ptbxl.npz")
-    return d["W"], d["norm"], d["ecgend"]
+    return d["W"], d["norm"], d["ecgend"], d["pid"]
+
+
+def rankme(Z, eps=1e-7):
+    s = np.linalg.svd(Z - Z.mean(0), compute_uv=False)
+    p = s / (s.sum() + eps) + eps
+    return float(np.exp(-(p * np.log(p)).sum()))
 
 
 class Encoder(nn.Module):
@@ -65,8 +71,13 @@ def main(args):
     tag = f"ptbxl_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}"
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
-    Wall, act, accmag = load()  # act=norm label, accmag=ecg end value
+    Wall, norm, ecgend, pid = load()
+    # patient-group split: hold out ~1/3 of patients entirely
+    pats = np.unique(pid)
+    test_p = set(rng.permutation(pats)[:max(1, len(pats) // 3)].tolist())
+    is_test = np.array([p in test_p for p in pid])
     Wt = torch.from_numpy(Wall).to(DEV)
+    tr_idx = np.flatnonzero(~is_test)
 
     enc = Encoder().to(DEV)
     pred = Predictor(D_Z if mode == "nepa" else PATCH).to(DEV)
@@ -79,7 +90,7 @@ def main(args):
 
     n_anchor = 8
     for step in range(STEPS):
-        bi_win = torch.from_numpy(rng.integers(0, len(Wt), BATCH)).to(DEV)
+        bi_win = torch.from_numpy(rng.choice(tr_idx, BATCH)).to(DEV)  # train patients only
         xb = Wt[bi_win]
         z = enc(xb)
         anchors = torch.from_numpy(rng.integers(32, L - max(OFFSETS), (BATCH, n_anchor))).to(DEV)
@@ -110,20 +121,21 @@ def main(args):
         if step % 1000 == 0:
             print(f"[{tag}] step {step} loss {loss.item():.4f}", flush=True)
 
-    # ---- probe: activity (slow) vs instantaneous acc mag (fast), in-dist 50/50 ----
+    # ---- probe: diagnosis (slow) vs instantaneous ECG value (fast) ----
+    # PATIENT-group split: fit on train patients, test on held-out patients.
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import f1_score
     enc.eval()
     with torch.no_grad():
         Z = torch.cat([enc(Wt[i:i + 256])[:, -1] for i in range(0, len(Wt), 256)]).cpu().numpy()
-    perm = rng.permutation(len(Z)); tr, te = perm[:len(Z) // 2], perm[len(Z) // 2:]
-    res = {"tag": tag}
+    tr, te = tr_idx, np.flatnonzero(is_test)
+    res = {"tag": tag, "n_test_pat": len(test_p), "rankme": float(rankme(Z))}
     for name, sl in [("z_slow", slice(0, D_SLOW)), ("z_fast", slice(D_SLOW, D_Z)),
                      ("z_full", slice(0, D_Z))]:
         B = Z[:, sl]
-        clf = LogisticRegression(max_iter=2000, class_weight="balanced").fit(B[tr], act[tr])
-        res[f"{name}->norm_f1"] = float(f1_score(act[te], clf.predict(B[te]), average="macro"))
-        res[f"{name}->ecg_r2"] = float(Ridge().fit(B[tr], accmag[tr]).score(B[te], accmag[te]))
+        clf = LogisticRegression(max_iter=2000, class_weight="balanced").fit(B[tr], norm[tr])
+        res[f"{name}->norm_f1"] = float(f1_score(norm[te], clf.predict(B[te]), average="macro"))
+        res[f"{name}->ecg_r2"] = float(Ridge().fit(B[tr], ecgend[tr]).score(B[te], ecgend[te]))
     print(json.dumps(res, indent=2), flush=True)
     json.dump(res, open(f"runs_ptbxl/{tag}.json", "w"), indent=2)
 

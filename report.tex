@@ -92,10 +92,13 @@ Amplitudes are identical across regimes, so \emph{no short-window statistic
 reveals the regime}; identifying it requires integrating hundreds of steps.
 Fast ground truth is $(u,\sin\varphi,\cos\varphi)$.
 \textbf{Protocol.} Train on 1M steps; evaluate on a held-out 200k-step series.
-Linear probes read each block; we report \emph{normalized information}:
-probe score of a block divided by the full-embedding score (chance-corrected
-for the regime). All variants share one backbone ($\sim$0.5M params), recipe,
-and compute; $n{=}3$ seeds.
+Linear probes read each block; we report \emph{absolute} scores (regime
+accuracy, factor $R^2$). Probe train/test use \textbf{disjoint windows with a
+contiguous time split} (real datasets use group splits: HAPT by subject,
+PTB-XL by patient, XJTU by bearing) so no near-duplicate window crosses the
+split. We monitor RankMe (effective rank) to rule out partial collapse
+inflating leak ratios. All variants share one backbone ($\sim$0.5M params),
+recipe, and compute; $n{=}3$ seeds.
 \textbf{Variants.} Ours (gate$+$dcor, $\lambda{=}4$); gate only; no gate
 (= ungated horizon-JEPA, i.e.\ HEPA-style; its ``slow'' block is the same 16
 indices, controlling for arbitrary splits); dcor only; and, for H3, an AR head
@@ -106,57 +109,63 @@ identical gate.
 \centering
 \includegraphics[width=\linewidth]{fig_main.pdf}
 \vspace{-6mm}
-\caption{\small \textbf{A:} fraction of the full embedding's information
-retained in $z_{\mathrm{slow}}$ (3 seeds, $\pm$ sd). Ours keeps 98\% of the
-slow factor while admitting only 22\%/15\% of the fast factors; without the
-gate the slow block is a near-copy of everything (88\%/77\%); on raw-signal
-prediction (AR) the identical gate separates nothing (rightmost pair).
-\textbf{C:} the same contrast reproduced on real inertial data (HAPT).
-\textbf{B:}
-block$\times$factor matrices (ours vs.\ no gate).}
+\caption{\small Absolute $z_{\mathrm{slow}}$ probe scores, leak-free (3 seeds,
+$\pm$ sd). \textbf{A:} ours (gate+dcor) keeps the slow factor (regime acc
+$0.80$) while cutting fast leak to $R^2\,0.19/0.27$; no gate leaks $0.79/0.73$;
+the identical gate on raw-signal (AR) prediction separates nothing (fast leak
+$\ge0.78$). \textbf{B:} block$\times$factor matrices (ours vs.\ no gate).
+\textbf{C:} reproduced on real inertial data (HAPT, subject-split): gate cuts
+fast leak $0.56\!\to\!0.17$ while keeping activity F1 $0.71$.}
 \vspace{-3mm}
 \end{figure}
 
 \section{Preliminary results}
 \textbf{F1 --- the gate separates (H1).} With gate$+$dcor, $z_{\mathrm{slow}}$
-(16 of 64 dims) retains $0.98$ of the full embedding's regime information
-while fast-factor leakage drops to $0.22$ ($u$) and $0.15$ (phase), vs.\
-$0.88/0.77$ for the ungated control --- a $4\times$ reduction, consistent
-across seeds ($0.198\pm.023$ raw $R^2$). Reverse exclusion also emerges:
-$z_{\mathrm{fast}}\!\to\!$regime drops $0.89\!\to\!0.73$.
+(16 of 64 dims) keeps the slow factor (regime acc $0.80$, matching the full
+embedding's $0.69$) while fast-factor leakage falls to $R^2\,0.19$ ($u$) and
+$0.27$ (phase), vs.\ $0.79/0.73$ for the ungated control --- a $3$--$4\times$
+reduction. RankMe stays $\sim$32--36 of 64, so the drop is genuine exclusion,
+not collapse. That $z_{\mathrm{slow}}$ reads the regime \emph{better} than the
+full embedding is itself the selective-use payoff: dropping fast dimensions
+removes noise for the slow task.
 \textbf{F2 --- latent targets are necessary (H3).} On raw-patch prediction
-the identical gate moves fast leakage only from $0.95$ to $0.88$ ($u$) and
-$0.99$ to $0.96$ (phase) --- essentially nothing, against $0.88\!\to\!0.22$
-for latent prediction: horizon gating is specifically synergistic with the
-JEPA family, not a generic trick. Contrastive methods (TS2Vec) admit no gate
-at all --- their objectives contain no horizon variable.
-\textbf{F3 --- structure assigns, penalty purifies (H2).} Gate alone reduces
-leakage but incompletely ($0.68/0.61$); dcor alone \emph{degenerates} --- the
-model satisfies decorrelation by emptying the slow block (regime probe
-$0.53$, vs.\ $0.86$ full). Only the combination works: the gate gives each
-block a job; the penalty removes duplicates.
-\textbf{F4 --- tuning confirms the theory.} Sweeps: $\tau$ is best at
-$\approx\!2.5\,T_{\mathrm{ac}}$ (worse at $0.6\times$ and $10\times$),
-matching the intended placement between the fast lifetime and the slow dwell;
-shrinking the slow block $16\!\to\!8$ dims cuts leakage to $0.11/0.00$ at
-unchanged regime accuracy, directly evidencing the capacity-pressure
-mechanism of H2; $\lambda{=}4$ balances purity vs.\ informativeness.
-An earlier iteration also \emph{failed} informatively: when the fast factor's
-lifetime was shorter than the shortest horizon, the gate had nothing to
-separate --- the effect requires (and thus reflects) genuine multi-scale
-structure in the data.
-\textbf{F5 --- real data (Fig.~C, Tab.~1).} On two real datasets with a
-genuine timescale gap the gate reproduces the synthetic separation ($n{=}3$
-seeds). HAPT (smartphone inertial signals; slow = activity persisting
-$\sim$12\,s, fast = gait, $T_{\mathrm{ac}}\!\sim\!0.1$\,s): the slow block's
-activity information rises to $0.88$ of the full embedding (vs.\ $0.72$
-ungated) while fast leakage drops $0.76\!\to\!0.31$. PTB-XL ECG (slow =
-diagnosis, fast = beat morphology): a smaller but consistent effect (fast
-leakage $0.66\!\to\!0.53$, or $0.40$ with dcor). On the AR head the gate does
-nothing on both (H3). The decorrelation penalty \emph{hurts} on HAPT yet
-\emph{helps} on PTB-XL --- its value is data-dependent, and the weaker PTB-XL
-effect is expected since diagnostic cues partly live at the beat timescale,
-blurring the slow/fast split. On XJTU-SY bearing vibration we
+the identical gate leaves fast leakage at the ungated level ($u\,0.78$ vs.\
+$0.81$; phase $0.96$ vs.\ $0.97$) --- essentially nothing, against
+$0.79\!\to\!0.19$ for latent prediction: horizon gating is synergistic with
+latent-target (JEPA-family) prediction, not raw-target prediction. (Whether
+this is specific to regression vs.\ a latent \emph{contrastive} target, e.g.\
+gated CPC-InfoNCE, is a controlled cell we leave to future work.)
+\textbf{F3 --- structure assigns, penalty purifies (H2).} Gate alone barely
+lowers leakage ($u\,0.74$, phase $0.79$, near the ungated $0.79/0.73$); dcor
+alone \emph{degenerates} --- the model satisfies decorrelation by emptying the
+slow block (regime probe $0.55$). Only the combination separates ($0.19/0.27$):
+the gate gives each block a job, the penalty removes duplicates. This is
+consistent with H2 --- the objective has no term that removes fast information
+from $z_{\mathrm{slow}}$; exclusion is done by capacity pressure and dcor, not
+by the gate alone.
+\textbf{F4 --- the capacity mechanism is direct.} Shrinking the slow block
+$16\!\to\!8$ dims cuts leakage to $0.08$ ($u$) / $0.23$ (phase) at unchanged
+regime accuracy ($0.82$), while widening to $32$ dims restores leakage
+($0.78/0.87$) --- direct evidence that exclusion rides on the block bottleneck
+(and a caveat for wide foundation-model backbones). The $\tau$ sweep is weaker
+under the leak-free protocol (best near $2.5\,T_{\mathrm{ac}}$ but within
+seed noise), which we note honestly. An earlier iteration \emph{failed}
+informatively: when the fast factor's lifetime was shorter than the shortest
+horizon, the gate had nothing to separate --- the effect requires genuine
+multi-scale structure.
+\textbf{F5 --- real data, group-split (Fig.~C, Tab.~1).} With held-out
+subjects/patients (leak-free, and a domain-shift test), the gate reproduces
+the synthetic separation ($n{=}3$ seeds). HAPT (slow = activity persisting
+$\sim$12\,s, fast = gait, $T_{\mathrm{ac}}\!\sim\!0.1$\,s): gate cuts fast
+leakage $0.56\!\to\!0.17$ while keeping activity F1 $0.71$ (vs.\ full $0.80$)
+--- and this holds on \emph{unseen subjects}, evidence for the selective
+domain-robustness the method is meant to give. PTB-XL ECG: a smaller but
+consistent effect (fast leakage $0.61\!\to\!0.41$ with dcor). On the AR head
+the gate does nothing on both (H3). RankMe ($\sim$26--36) confirms no collapse.
+The decorrelation penalty \emph{hurts} on HAPT yet \emph{helps} on PTB-XL ---
+its value is data-dependent, and the weaker PTB-XL effect is expected since
+diagnostic cues partly live at the beat timescale (a static-content setting,
+which we flag as a limitation). On XJTU-SY bearing vibration we
 obtained two complementary results instead of a separation showcase:
 (i) a low-pass baseline cannot recover the fault-carrying envelope
 ($R^2{=}{-}0.19$ vs.\ $0.65$ for the learned embedding) --- real-data
@@ -168,17 +177,18 @@ with F4: the method separates only where a genuine timescale gap exists.
 
 \begin{table}[t]
 \centering\small
-\caption{\small Real-data separation (3 seeds). Slow-info = slow block's slow
-factor score as a fraction of the full embedding (higher better); fast-leak =
-slow block's fast-factor score, normalized (lower better).}
+\caption{\small Real-data separation, group-split, absolute scores (3 seeds).
+Slow-kept = $z_{\mathrm{slow}}$ label score (higher better); fast-leak =
+$z_{\mathrm{slow}}$ fast-factor $R^2$ (lower better). Full-embedding label
+score in brackets.}
 \begin{tabular}{@{}llcc@{}}
 \toprule
-Dataset & Variant & slow-info $\uparrow$ & fast-leak $\downarrow$ \\
+Dataset & Variant & slow-kept $\uparrow$ & fast-leak $\downarrow$ \\
 \midrule
-HAPT   & gate    & \textbf{0.91} & \textbf{0.31} \\
-       & no gate & 0.78 & 0.76 \\
-PTB-XL & gate+dcor & 0.97 & \textbf{0.40} \\
-       & no gate & 0.96 & 0.66 \\
+HAPT (act F1)   & gate    & \textbf{0.71} [0.80] & \textbf{0.17} \\
+                & no gate & 0.62 & 0.56 \\
+PTB-XL (norm F1) & gate+dcor & 0.70 [0.74] & \textbf{0.41} \\
+                 & no gate & 0.71 & 0.61 \\
 \bottomrule
 \end{tabular}
 \end{table}

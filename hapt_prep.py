@@ -18,9 +18,10 @@ OUT = "data/hapt.npz"
 
 def main():
     labels = np.loadtxt(f"{RAW}/labels.txt", dtype=int)   # exp,user,act,start,end
-    W, act, accmag = [], [], []
+    W, act, accmag, subj = [], [], [], []
     for accf in sorted(glob.glob(f"{RAW}/acc_exp*.txt")):
         exp = int(accf.split("exp")[1][:2])
+        user = int(accf.split("user")[1][:2])              # subject id (for group split)
         acc = np.loadtxt(accf).astype(np.float32)          # (T,3), gravity units
         per = np.zeros(len(acc), dtype=int)                # per-sample activity
         for _, _, a, s, e in labels[labels[:, 0] == exp]:
@@ -33,10 +34,13 @@ def main():
                 continue
             w = acc[s:s + WIN]
             w = (w - w.mean(0)) / (w.std(0) + 1e-6)
-            W.append(w.reshape(L, PATCH * 3)); act.append(a - 1); accmag.append(mag[end])
-    W = np.stack(W); act = np.array(act); accmag = np.array(accmag, np.float32)
-    np.savez_compressed(OUT, W=W, act=act, accmag=accmag)
-    print("windows", W.shape, "classes", np.bincount(act), "-> saved", OUT)
+            W.append(w.reshape(L, PATCH * 3)); act.append(a - 1)
+            accmag.append(mag[end]); subj.append(user)
+    W = np.stack(W); act = np.array(act)
+    accmag = np.array(accmag, np.float32); subj = np.array(subj)
+    np.savez_compressed(OUT, W=W, act=act, accmag=accmag, subj=subj)
+    print("windows", W.shape, "classes", np.bincount(act),
+          "subjects", len(np.unique(subj)), "-> saved", OUT)
 
 
 if __name__ == "__main__":

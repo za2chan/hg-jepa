@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.linear_model import Ridge
 
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 D_MODEL, D_Z = 96, 64
 STEPS = 800
 SHORT, LONG = 2, 64          # horizons (patches) for the predictability curve

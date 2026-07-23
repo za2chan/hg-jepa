@@ -1,11 +1,12 @@
-"""Pilot: horizon-conditioned gating on latent prediction (NEPA) vs raw-signal
+"""Synthetic pilot: horizon-gated latent prediction (HG-JEPA) vs raw-signal
 prediction (AR / next-token family), on two-timescale synthetic data.
 
 Usage: python3 train.py mode=nepa gate=1 dcor=0 seed=0 [tau=16] [dslow=16] [lam=4]
-  mode=nepa : predict future EMA-encoder embeddings (JEPA/NEPA family)
+  mode=nepa : predict future EMA-encoder embeddings (JEPA family)
   mode=ar   : predict future raw patches (next-token / reconstruction family)
   gate=1    : predictor's access to z_fast decays for horizons beyond tau
   dcor=1    : cross-covariance penalty between z_slow / z_fast blocks
+Probe eval uses disjoint windows + a contiguous time split (leak-free).
 Writes runs/<tag>.json with block-factor probe matrix.
 """
 import json
@@ -26,7 +27,7 @@ OFFSETS = [1, 4, 16, 64, 128]  # horizons (patches) = 8..1024 steps
 W = 4.0                        # gate softness (patches)
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Encoder(nn.Module):
@@ -77,6 +78,7 @@ def main(args):
 
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
+    # data fixed across seeds by design; seeds vary only init + sampling order
     train = make_dataset(1_000_000, seed=0)
     evald = make_dataset(200_000, seed=99)
 
@@ -110,6 +112,7 @@ def main(args):
         else:                                   # ar: predict raw future patch
             ztgt = xb[bi.flatten(), (anchors + dvals).flatten()]
         loss = ((zhat - ztgt) ** 2).mean()
+        loss = loss + F.relu(1.0 - z.reshape(-1, D_Z).std(0)).mean()  # anti-collapse
         if dcor:
             zc = za - za.mean(0)
             C = (zc[:, :d_slow].T @ zc[:, d_slow:]) / (len(za) - 1)
@@ -125,19 +128,24 @@ def main(args):
                   f"std {zs[:d_slow].mean():.3f}/{zs[d_slow:].mean():.3f}", flush=True)
 
     # ---- probe evaluation ----
+    # Leak-free: tile the eval series into DISJOINT windows and split by a
+    # contiguous time cut, so no probe-train window overlaps a probe-test one.
     enc.eval()
+    x = evald["x"]
+    starts = np.arange(0, len(x) - L * P, L * P)          # non-overlapping
     embs, ys, yu, yphi = [], [], [], []
     with torch.no_grad():
-        for _ in range(80):
-            xb, starts = batches(evald["x"], rng, 64)
+        for i in range(0, len(starts), 64):
+            bs = starts[i:i + 64]
+            xb = torch.from_numpy(np.stack([x[s:s + L * P].reshape(L, P) for s in bs])).to(DEV)
             embs.append(enc(xb)[:, -1].cpu().numpy())
-            end = starts + L * P - 1
+            end = bs + L * P - 1
             ys.append(evald["s"][end]); yu.append(evald["u"][end])
             yphi.append(np.stack([evald["sin_phi"][end], evald["cos_phi"][end]], 1))
     Z = np.concatenate(embs); ys = np.concatenate(ys)
     yu = np.concatenate(yu); yphi = np.concatenate(yphi)
-    ntr = len(Z) // 2
-    res = {"tag": tag}
+    ntr = len(Z) // 2                                     # contiguous cut (early=train)
+    res = {"tag": tag, "n_probe": int(len(Z))}
     for name, sl in [("z_slow", slice(0, d_slow)), ("z_fast", slice(d_slow, D_Z)),
                      ("z_full", slice(0, D_Z))]:
         B = Z[:, sl]
@@ -150,4 +158,5 @@ def main(args):
 
 
 if __name__ == "__main__":
+    import os; os.makedirs("runs", exist_ok=True)
     main(dict(a.split("=") for a in sys.argv[1:]))

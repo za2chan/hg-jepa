@@ -23,7 +23,7 @@ def main():
     rng = np.random.default_rng(0)
     sel = pd.concat([df[df.norm == c].sample(min(N_PER_CLASS, (df.norm == c).sum()),
                                               random_state=0) for c in (0, 1)])
-    W, norm, ecgend = [], [], []
+    W, norm, ecgend, pid = [], [], [], []
     for _, r in sel.iterrows():
         sig, _ = wfdb.rdsamp(f"{B}/{r.filename_lr}")     # (1000, 12)
         x = sig[:, LEAD].astype(np.float32)
@@ -31,10 +31,13 @@ def main():
         if len(x) < L * PATCH:
             continue
         x = x[:L * PATCH]
-        W.append(x.reshape(L, PATCH)); norm.append(int(r.norm)); ecgend.append(x[-1])
-    W = np.stack(W); norm = np.array(norm); ecgend = np.array(ecgend, np.float32)
-    np.savez_compressed(OUT, W=W, norm=norm, ecgend=ecgend)
-    print("windows", W.shape, "norm balance", np.bincount(norm), "-> saved", OUT)
+        W.append(x.reshape(L, PATCH)); norm.append(int(r.norm))
+        ecgend.append(x[-1]); pid.append(int(r.patient_id))
+    W = np.stack(W); norm = np.array(norm)
+    ecgend = np.array(ecgend, np.float32); pid = np.array(pid)
+    np.savez_compressed(OUT, W=W, norm=norm, ecgend=ecgend, pid=pid)
+    print("windows", W.shape, "norm balance", np.bincount(norm),
+          "patients", len(np.unique(pid)), "-> saved", OUT)
 
 
 if __name__ == "__main__":

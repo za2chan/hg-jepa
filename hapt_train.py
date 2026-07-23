@@ -1,8 +1,10 @@
-"""HC-NEPA on XJTU raw AM windows: does z_slow capture the envelope (slow)
-and z_fast the carrier (fast)? Also a low-pass baseline that, per our thesis,
-cannot recover the fault-bearing envelope from the low band.
+"""HG-JEPA on HAPT inertial windows: does z_slow capture the activity (slow)
+and z_fast the instantaneous acceleration (fast)?
+Probe uses a SUBJECT-group split (held-out subjects) -- leak-free and doubles
+as the domain-robustness test (does z_slow transfer to unseen subjects better
+than z_full?).
 
-Usage: python3 raw_am_train.py mode=nepa gate=1 dcor=1 seed=0
+Usage: python3 hapt_train.py mode=nepa gate=1 dcor=1 seed=0
 """
 import json
 import os
@@ -20,12 +22,19 @@ OFFSETS = [1, 2, 4, 8, 16, 32]
 TAU, W = 5.0, 2.0
 EMA = 0.996
 STEPS, BATCH, LR = 3000, 64, 3e-4
-DEV = "cuda"
+DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def load():
     d = np.load("data/hapt.npz")
-    return d["W"], d["act"], d["accmag"]
+    return d["W"], d["act"], d["accmag"], d["subj"]
+
+
+def rankme(Z, eps=1e-7):
+    """Effective rank (RankMe, Garrido et al. 2023): collapse monitor."""
+    s = np.linalg.svd(Z - Z.mean(0), compute_uv=False)
+    p = s / (s.sum() + eps) + eps
+    return float(np.exp(-(p * np.log(p)).sum()))
 
 
 class Encoder(nn.Module):
@@ -65,8 +74,13 @@ def main(args):
     tag = f"hapt_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}"
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
-    Wall, act, accmag = load()
+    Wall, act, accmag, subj = load()
+    # subject-group split: hold out ~1/3 of subjects entirely (SSL + probe)
+    users = np.unique(subj)
+    test_u = set(rng.permutation(users)[:max(1, len(users) // 3)].tolist())
+    is_test = np.array([u in test_u for u in subj])
     Wt = torch.from_numpy(Wall).to(DEV)
+    tr_idx = np.flatnonzero(~is_test)                     # pretrain + probe-fit pool
 
     enc = Encoder().to(DEV)
     pred = Predictor(D_Z if mode == "nepa" else PATCH).to(DEV)
@@ -79,7 +93,7 @@ def main(args):
 
     n_anchor = 8
     for step in range(STEPS):
-        bi_win = torch.from_numpy(rng.integers(0, len(Wt), BATCH)).to(DEV)
+        bi_win = torch.from_numpy(rng.choice(tr_idx, BATCH)).to(DEV)  # train subjects only
         xb = Wt[bi_win]
         z = enc(xb)
         anchors = torch.from_numpy(rng.integers(32, L - max(OFFSETS), (BATCH, n_anchor))).to(DEV)
@@ -110,14 +124,15 @@ def main(args):
         if step % 1000 == 0:
             print(f"[{tag}] step {step} loss {loss.item():.4f}", flush=True)
 
-    # ---- probe: activity (slow) vs instantaneous acc mag (fast), in-dist 50/50 ----
+    # ---- probe: activity (slow) vs instantaneous acc mag (fast) ----
+    # SUBJECT-group split: fit on train subjects, test on held-out subjects.
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import f1_score
     enc.eval()
     with torch.no_grad():
         Z = torch.cat([enc(Wt[i:i + 256])[:, -1] for i in range(0, len(Wt), 256)]).cpu().numpy()
-    perm = rng.permutation(len(Z)); tr, te = perm[:len(Z) // 2], perm[len(Z) // 2:]
-    res = {"tag": tag}
+    tr, te = tr_idx, np.flatnonzero(is_test)
+    res = {"tag": tag, "n_test_subj": len(test_u), "rankme": float(rankme(Z))}
     for name, sl in [("z_slow", slice(0, D_SLOW)), ("z_fast", slice(D_SLOW, D_Z)),
                      ("z_full", slice(0, D_Z))]:
         B = Z[:, sl]

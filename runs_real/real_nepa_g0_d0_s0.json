@@ -1,14 +1,14 @@
 {
   "tag": "real_nepa_g0_d0_s0",
-  "n_train": 1039,
-  "n_test": 1039,
-  "z_slow->rul_spearman": 0.8204146686370503,
-  "z_slow->stage_f1": 0.6635283908734756,
-  "z_slow->kurt_r2": 0.33903002738952637,
-  "z_fast->rul_spearman": 0.8819656701550653,
-  "z_fast->stage_f1": 0.776088684982586,
-  "z_fast->kurt_r2": 0.5098919868469238,
-  "z_full->rul_spearman": 0.8961288199973515,
-  "z_full->stage_f1": 0.7735161760023487,
-  "z_full->kurt_r2": 0.5303766131401062
+  "n_train": 1859,
+  "n_test": 219,
+  "z_slow->rul_spearman": -0.016294400584962357,
+  "z_slow->stage_f1": 0.3553551711446448,
+  "z_slow->kurt_r2": -1.2699315547943115,
+  "z_fast->rul_spearman": 0.24585099455025308,
+  "z_fast->stage_f1": 0.39897467657583263,
+  "z_fast->kurt_r2": -2.2518582344055176,
+  "z_full->rul_spearman": 0.09479246403966778,
+  "z_full->stage_f1": 0.39897467657583263,
+  "z_full->kurt_r2": -0.9672256708145142
 }

@@ -1,20 +1,18 @@
 #!/bin/bash
+# Synthetic sweep -> runs/ (consumed by figures.py). Hard two-timescale data.
+# Probe eval is leak-free (disjoint windows + contiguous split).
 set -e
 cd "$(dirname "$0")"
-# reproducibility: 3 seeds x {nepa, ar} x {gate on/off} (+ dcor for nepa)
 for s in 0 1 2; do
-  for m in nepa ar; do
-    python3 train.py mode=$m gate=1 dcor=0 seed=$s
-    python3 train.py mode=$m gate=0 dcor=0 seed=$s
-  done
-  python3 train.py mode=nepa gate=1 dcor=1 seed=$s
-  python3 train.py mode=nepa gate=0 dcor=1 seed=$s
+  python3 train.py mode=nepa gate=1 dcor=1 seed=$s        # ours
+  python3 train.py mode=nepa gate=1 dcor=0 seed=$s        # gate only
+  python3 train.py mode=nepa gate=0 dcor=0 seed=$s        # no gate
+  python3 train.py mode=nepa gate=0 dcor=1 seed=$s        # dcor only
+  python3 train.py mode=ar   gate=1 dcor=0 seed=$s        # AR + gate (H3)
+  python3 train.py mode=ar   gate=0 dcor=0 seed=$s        # AR no gate
 done
 # tuning sweeps (seed 0)
-python3 train.py mode=nepa gate=1 dcor=0 seed=0 tau=4
-python3 train.py mode=nepa gate=1 dcor=0 seed=0 tau=64
-python3 train.py mode=nepa gate=1 dcor=0 seed=0 dslow=8
-python3 train.py mode=nepa gate=1 dcor=0 seed=0 dslow=32
-python3 train.py mode=nepa gate=1 dcor=1 seed=0 lam=1
-python3 train.py mode=nepa gate=1 dcor=1 seed=0 lam=16
-echo ALL_DONE
+for tau in 4 64;   do python3 train.py mode=nepa gate=1 dcor=0 seed=0 tau=$tau; done
+for ds  in 8 32;   do python3 train.py mode=nepa gate=1 dcor=0 seed=0 dslow=$ds; done
+for lam in 1 16;   do python3 train.py mode=nepa gate=1 dcor=1 seed=0 lam=$lam; done
+echo SYNTH_DONE
