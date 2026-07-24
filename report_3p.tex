@@ -140,8 +140,10 @@ leaks.}
 
 \section{Experiments}
 \textbf{Datasets (Tab.~1).} Each dataset supplies a labeled \emph{slow}
-factor (used only to \emph{verify} separation) and a measurable \emph{fast}
-factor (to quantify leak); training never sees labels.
+factor and a measurable \emph{fast} factor, used to evaluate separation
+(slow kept, fast leaked). \emph{Training} never sees labels; labels enter only
+at evaluation, and --- as a limitation we return to --- in choosing
+$d_{\mathrm{slow}}$ and $\lambda$.
 
 \emph{Synthetic two-timescale oscillator} --- the mechanism testbed, with
 recorded ground truth for both factors. The observation is a single
