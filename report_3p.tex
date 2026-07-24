@@ -130,7 +130,8 @@ guarantee.
 \caption{\small \textbf{Mechanism (synthetic, group/time-split, 3 seeds).}
 \textbf{A:} $z^{\mathrm{slow}}$ probe scores --- blue is slow kept (higher
 better), yellow/green are fast leak (lower better). Only gate+dcor separates;
-the contrastive cell (CPC) is best; raw-target (AR) fails. \textbf{B:}
+swapping the JEPA loss for a contrastive latent one (CPC, F2) does slightly
+better; the raw-target (AR) baseline fails. \textbf{B:}
 block$\times$factor score matrices. \textbf{C:} fast leak vs.\ width --- a
 fixed 16-dim block holds at $d_z{=}256$ while a proportionally scaled block
 leaks.}
@@ -222,10 +223,15 @@ PCA (top 16)     & 0.76 & 0.80 & 0.91 \\
 
 \textbf{F2 --- latent targets, either objective (Fig.~2A).} The identical gate
 on raw-patch (AR) targets separates nothing: raw targets force fast detail
-into every dimension. On a latent \emph{contrastive} objective (CPC-InfoNCE)
-it separates as well or better, with $z^{\mathrm{fast}}$ still holding the
-fast factors (no collapse). So the mechanism needs a latent target, but is
-not specific to JEPA regression.
+into every dimension. Our main backbone uses the JEPA regression loss, but to
+test whether the effect is specific to it we also swap in a latent
+\emph{contrastive} objective (CPC-InfoNCE, which scores the true future
+embedding against in-batch negatives instead of regressing it). It separates
+at least as well --- in fact slightly better here, with $z^{\mathrm{fast}}$
+still holding the fast factors (no collapse). We read this as evidence that
+the mechanism needs a \emph{latent} target rather than the JEPA loss
+specifically; why contrastive edges ahead is an open observation, not yet a
+settled conclusion, so we keep JEPA as the default backbone.
 \textbf{F3 --- gate assigns, penalty purifies (Fig.~2A; Claim~2).} Gate-alone
 barely reduces leak. dcor-alone degenerates, satisfying decorrelation by
 emptying the slow block. Only the combination separates: the gate gives each
@@ -305,8 +311,10 @@ rejects broken configs but cannot fine-tune); anomaly attribution via
 horizon-split residuals (point detection works in a pilot, contextual does
 not); more datasets with pre-registered gap screening (Sleep-EDF
 \cite{kemp2000analysis}, C-MAPSS \cite{saxena2008damage}); external baselines
-(TS2Vec \cite{yue2022ts2vec}, masked reconstruction); and a nonlinear (HSIC)
-penalty for the linear-level limitation.
+(TS2Vec \cite{yue2022ts2vec}, masked reconstruction); a nonlinear (HSIC)
+penalty for the linear-level limitation; and understanding why the contrastive
+objective separates slightly better than JEPA regression (F2), which may
+motivate revisiting the default backbone.
 
 \clearpage
 \begin{thebibliography}{99}\setlength{\itemsep}{2pt}
