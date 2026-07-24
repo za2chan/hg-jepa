@@ -176,12 +176,17 @@ test at the edge of our assumptions, not a showcase.
 but both live at one timescale within a window, so the method predicts
 non-separation (F5).
 
-\textbf{Protocol.} Probes are fit on training groups and evaluated on held-out
-groups (Tab.~1, ``held out'') over disjoint windows, so no near-duplicate
-window crosses the split and HAPT/PTB-XL double as domain-shift tests. We
-report \emph{absolute} scores (accuracy / $R^2$ / macro-F1), with RankMe
-\cite{garrido2023rankme} monitoring collapse so a low leak cannot be an
-artifact of an empty block. $n{=}3$ seeds, one backbone and budget for all
+\textbf{Protocol.} To check what a block encodes we fit a simple probe on top
+of it and read its score. The probe is trained on one set of groups and
+tested on entirely different, held-out groups (Tab.~1: subjects for HAPT,
+patients for PTB-XL, bearings for XJTU). This avoids the standard time-series
+leak, where overlapping windows put near-identical snippets on both sides of
+the split and inflate the score; here no window overlaps and no group is
+shared. A useful side effect: because the test groups are unseen, HAPT and
+PTB-XL also measure generalization to new subjects/patients (domain shift),
+the selective robustness we motivate. We report \emph{absolute} scores
+(accuracy / $R^2$ / macro-F1), with RankMe \cite{garrido2023rankme} monitoring
+collapse so a low leak cannot be an artifact of an empty block. $n{=}3$ seeds, one backbone and budget for all
 variants; one patch is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span
 $8$--$1024$ steps. Results are findings F1--F5.
 
