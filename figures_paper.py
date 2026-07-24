@@ -177,7 +177,8 @@ a2.plot(dz, [f["z_slow->u"][0] for f in fixed], "o-", color=BLUE, lw=1.6, ms=4,
 a2.plot(dz, [p["z_slow->u"][0] for p in prop], "s--", color=RED, lw=1.6, ms=4,
         label="block scaled with width")
 for z, f, p in zip(dz, fixed, prop):
-    a2.text(z, f["z_slow->u"][0] - 0.09, f"{f['z_slow->u'][0]:.2f}", ha="center",
+    fv = f["z_slow->u"][0]
+    a2.text(z, fv + 0.05 if fv < 0.12 else fv - 0.09, f"{fv:.2f}", ha="center",
             fontsize=5.8, color=BLUE)
     a2.text(z, p["z_slow->u"][0] + 0.05, f"{p['z_slow->u'][0]:.2f}", ha="center",
             fontsize=5.8, color=RED)
@@ -190,7 +191,8 @@ a2.set_xscale("log", base=2); a2.set_xticks(dz, [str(z) for z in dz], fontsize=6
 a2.set_xlabel("embedding width $d_z$", fontsize=6.8)
 a2.set_ylabel("fast leak: $u$ $R^2$ in $z_{slow}$", fontsize=6.8)
 a2.set_ylim(0, 0.95)
-a2.legend(fontsize=6.0, frameon=False, loc="center left")
+a2.legend(fontsize=6.0, frameon=False, loc="upper left",
+          bbox_to_anchor=(0.01, 1.0), handlelength=1.6)
 style(a2)
 a2.set_title("C  Exclusion rides on absolute block size (and is linear)",
              fontsize=8, loc="left")
@@ -237,7 +239,7 @@ a1.set_title("B  PTB-XL (held-out patients): dcor helps", fontsize=8,
 # C: XJTU negative — life (RUL) probe, held-out bearings, learned vs classical
 Xs = stats("runs_am/am_nepa_g1_d1_s*.json")
 hb = json.load(open("runs_am/hilbert_baseline.json"))
-names = ["$z_{slow}$\n(ours)", "$z_{full}$", "Hilbert\nenvelope", "low-pass"]
+names = ["$z_{slow}$\n(ours)", "$z_{full}$", "envelope\nanalysis", "low-pass"]
 vals = [Xs["z_slow->life_r2"][0], Xs["z_full->life_r2"][0],
         hb["hilbert->life_r2"], hb["lowpass->life_r2"]]
 cols = [BLUE, MUTED, RED, RED]
