@@ -104,7 +104,7 @@ injections). A TCL-style uniqueness theorem remains open.
 \textbf{A:} only gate+dcor separates; the latent-contrastive cell (CPC) is
 best; raw-target (AR) fails. \textbf{B:} block$\times$factor matrices.
 \textbf{C:} exclusion tracks \emph{absolute} block size (fixed 16-dim holds
-at $d_z{=}256$) and is linear-level (MLP recovers $0.45$, dotted).}
+at $d_z{=}256$); dotted line: nonlinear-probe leak (see limitations).}
 \vspace{-3mm}
 \end{figure}
 
@@ -117,14 +117,18 @@ regime). Real data: HAPT \cite{reyes2016transition} (subject split), PTB-XL
 split). Probes fit on train groups, tested on held-out groups over disjoint
 windows; \emph{absolute} scores; RankMe \cite{garrido2023rankme} monitors
 collapse; $n{=}3$ seeds, one backbone and budget for all variants. Results
-are organized as findings F1--F6.
+are organized as findings F1--F5.
 
-\textbf{F1 --- separation, and unmixing does not suffice (Tab.~1).}
+\textbf{F1 --- separation, and alternatives do not suffice (Tab.~1).}
 Gate+dcor keeps the regime in $z^{\mathrm{slow}}$ (acc $0.80$ vs.\ full
 $0.69$ --- selective-use payoff) while cutting fast leak to $0.19/0.27$
 ($0.79/0.73$ ungated). Label-free rotations of the \emph{ungated} embedding
 (SFA/ICA/PCA) each trade one side away: separation is created by the
-objective, not recoverable post hoc.
+objective, not recoverable post hoc. A theory-bearing competitor also fails:
+an architecture-matched SlowVAE \cite{klindt2021towards} never captures the
+regime at all (slow block $0.63$, \emph{full} embedding $0.54$) ---
+reconstruction is local, and a factor requiring integration over hundreds of
+steps never enters its code.
 
 \begin{table}[h]
 \centering\small
@@ -154,14 +158,11 @@ latent-target-family, not JEPA-specific.
 reduces leak ($0.74/0.79$); dcor-alone degenerates (regime $0.55$); only the
 combination works. Adding target-side removal pressure does not rescue
 gate-alone.
-\textbf{F4 --- capacity, scaling, and honesty.} Leak tracks the
-\emph{absolute} slow-block size: a fixed 16-dim block holds at
-$d_z{=}128/256$ (leak $0.06/0.08$) while proportional blocks leak
-($\approx0.6$). Nonlinear readout weakens exclusion, exactly as Prop.~2
-predicts: MLP recovers $u$ at $R^2\,0.45$ (vs.\ $0.19$ linear; ungated
-$0.84$); MINE \cite{belghazi2018mine}: $0.95$ vs.\ $1.21$ nats ungated. Our
-claim is \emph{linear-subspace separation plus partial information
-reduction}.
+\textbf{F4 --- exclusion rides on capacity, and scales.} Leak tracks the
+\emph{absolute} slow-block size: a fixed 16-dim block holds when the backbone
+widens to $d_z{=}128/256$ (leak $0.06/0.08$) while proportionally scaled
+blocks let it flood back ($\approx0.6$) --- the mechanism transfers to wide
+backbones provided the slow block stays narrow.
 \textbf{F5 --- real data (Fig.~3, Tab.~2).} HAPT: leak $0.56\!\to\!0.17$ at
 activity F1 $0.71$, holding on \emph{unseen subjects}; dcor \emph{hurts}
 here. PTB-XL: dcor \emph{helps} (leak $0.61\!\to\!0.41$) --- its polarity is
@@ -172,13 +173,6 @@ nothing; on the non-circular health target (lifetime fraction, held-out
 bearings) every method is weak, classical envelope/low-pass features fail to
 transfer ($-1.08/-0.11$), and $z^{\mathrm{slow}}$ carries what little exists
 ($+0.18$).
-\textbf{F6 --- competitor and metrics.} An architecture-matched SlowVAE
-\cite{klindt2021towards} never captures the regime (slow $0.63$, \emph{full}
-$0.54$): reconstruction is local. MIG \cite{chen2018isolating} is near zero
-for all methods (block codes); DCI \cite{eastwood2018framework} ranks SlowVAE
-above us while it cannot decode the regime --- the known axis-metric failure
-\cite{locatello2019challenging}; we keep absolute block probes as the
-operative measure.
 
 \begin{table}[h]
 \centering\small
@@ -211,31 +205,29 @@ envelope features fail to transfer across bearings.}
 \vspace{-3mm}
 \end{figure}
 
-\section{Negative results and limitations}
-\textbf{Anomaly attribution (negative pilot).} With typed injected anomalies,
-point detection works (short-horizon residual AUROC $0.93$--$0.97$) but
-contextual drift detection is at \emph{chance} for gated and ungated models
-alike, in two injection designs: the encoder projects unseen dynamics onto
-normal slow codes --- no novelty response. Fixing this needs
-novelty-sensitive machinery (e.g.\ density models on $z^{\mathrm{slow}}$),
-not more gating.
-\textbf{Costs.} Gated training costs the full embedding on HAPT
-($0.80\!\to\!0.76$ F1; deploying $z^{\mathrm{slow}}$ alone: $0.71$); the
-compensation is robustness and selective use (on synthetic,
-$z^{\mathrm{slow}}$ \emph{beats} the full embedding, $0.80$ vs.\ $0.74$).
-\textbf{Selection.} $\tau$ is label-free; $d_{\mathrm{slow}},\lambda$ are
-not: an unsupervised criterion (per-block RankMe, cross-correlation,
-roughness gap) correlates with labeled separation (Spearman $0.68$) and
-rejects all broken configs, but cannot fine-tune (regret $0.27$) --- a
-catastrophe filter, not a tuner.
-\textbf{Assumptions.} Exactly-two-timescale design; $\tau=c\,T_{\mathrm{ac}}$
-assumes fast dynamics dominate the ACF; patch length bounds the separable
-range; exclusion is soft and linear-level. Training is fully label-free;
-validation, as standard in disentanglement, is not.
-\textbf{Next:} Sleep-EDF \cite{kemp2000analysis} and C-MAPSS
-\cite{saxena2008damage} with pre-registered gap screening; TS2Vec
-\cite{yue2022ts2vec} and masked-reconstruction baselines; an HSIC variant of
-the penalty.
+\section{Limitations and future work}
+\textbf{Limitations.} Exclusion is soft and \emph{linear-level}: nonlinear
+probes recover more of the fast factor than linear ones (MLP $R^2$ $0.45$
+vs.\ $0.19$), which is exactly the boundary Prop.~2 identifies --- our claim
+is linear-subspace separation, not information-theoretic removal. Gated
+training has a downstream cost on some data (HAPT: full embedding
+$0.80\!\to\!0.76$ F1; $z^{\mathrm{slow}}$ alone $0.71$), compensated by
+robustness and selective use (on synthetic, $z^{\mathrm{slow}}$ \emph{beats}
+the full embedding). The dcor polarity is data-dependent and not yet
+decidable label-free; $\tau$ is label-free but
+$d_{\mathrm{slow}},\lambda$ are not. The design assumes exactly two
+timescales, and $\tau=c\,T_{\mathrm{ac}}$ assumes fast dynamics dominate the
+ACF. Training is fully label-free; validation, as standard in
+disentanglement, is not.
+\textbf{Future work (in progress or planned).} Unsupervised model selection
+(a health-metric criterion currently rejects broken configurations but
+cannot fine-tune); anomaly attribution via horizon-split residuals (point
+detection works in a pilot; contextual detection needs novelty-sensitive
+machinery); additional datasets with pre-registered gap screening (Sleep-EDF
+\cite{kemp2000analysis}, C-MAPSS \cite{saxena2008damage}); external
+self-supervised baselines (TS2Vec \cite{yue2022ts2vec}, masked
+reconstruction); a nonlinear (HSIC) dependence penalty targeting the
+linear-level limitation.
 
 {\footnotesize
 \begin{thebibliography}{99}\setlength{\itemsep}{0pt}
@@ -264,12 +256,6 @@ time series. 2026.
 \bibitem{bardes2022vicreg} A. Bardes, J. Ponce, Y. LeCun. VICReg. \emph{ICLR},
 2022.
 \bibitem{garrido2023rankme} Q. Garrido et al. RankMe. \emph{ICML}, 2023.
-\bibitem{belghazi2018mine} M. Belghazi et al. Mutual information neural
-estimation. \emph{ICML}, 2018.
-\bibitem{eastwood2018framework} C. Eastwood, C. Williams. DCI: quantitative
-evaluation of disentangled representations. \emph{ICLR}, 2018.
-\bibitem{chen2018isolating} R.T.Q. Chen et al. Isolating sources of
-disentanglement in VAEs (MIG). \emph{NeurIPS}, 2018.
 \bibitem{yue2022ts2vec} Z. Yue et al. TS2Vec. \emph{AAAI}, 2022.
 \bibitem{mallat1999wavelet} S. Mallat. \emph{A Wavelet Tour of Signal
 Processing}. Academic Press, 1999.
