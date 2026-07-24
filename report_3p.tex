@@ -123,21 +123,6 @@ combination of a narrow slow block and the smoothness of a real network, which
 cannot implement those adversarial reshufflings --- an empirical effect, not a
 guarantee.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=.9\linewidth]{fig_mech.pdf}
-\vspace{-4mm}
-\caption{\small \textbf{Mechanism (synthetic, group/time-split, 3 seeds).}
-\textbf{A:} $z^{\mathrm{slow}}$ probe scores --- blue is slow kept (higher
-better), yellow/green are fast leak (lower better). Only gate+dcor separates;
-swapping the JEPA loss for a contrastive latent one (CPC, F2) does slightly
-better; the raw-target (AR) baseline fails. \textbf{B:}
-block$\times$factor score matrices. \textbf{C:} fast leak vs.\ width --- a
-fixed 16-dim block holds at $d_z{=}256$ while a proportionally scaled block
-leaks.}
-\vspace{-3mm}
-\end{figure}
-
 \section{Experiments}
 \textbf{Datasets (Tab.~1).} Each dataset supplies a labeled \emph{slow}
 factor and a measurable \emph{fast} factor, used to evaluate separation
@@ -256,6 +241,22 @@ the \emph{absolute} slow-block size. A fixed 16-dim block keeps its exclusion
 when the backbone widens to $d_z{=}256$, whereas a proportionally scaled block
 lets leak flood back. So the mechanism transfers to wide backbones, provided
 the slow block stays narrow.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=.9\linewidth]{fig_mech.pdf}
+\vspace{-4mm}
+\caption{\small \textbf{Mechanism (synthetic, group/time-split, 3 seeds).}
+\textbf{A:} $z^{\mathrm{slow}}$ probe scores --- blue is slow kept (higher
+better), yellow/green are fast leak (lower better). Only gate+dcor separates;
+swapping the JEPA loss for a contrastive latent one (CPC, F2) does slightly
+better; the raw-target (AR) baseline fails. \textbf{B:}
+block$\times$factor score matrices. \textbf{C:} fast leak vs.\ width --- a
+fixed 16-dim block holds at $d_z{=}256$ while a proportionally scaled block
+leaks.}
+\vspace{-3mm}
+\end{figure}
+
 \textbf{F5 --- real data (Fig.~3, Tab.~3).} On HAPT the gate cuts fast leak
 sharply while keeping activity F1, and this holds on \emph{unseen subjects}
 --- the selective robustness the method is meant to give. On PTB-XL the effect
