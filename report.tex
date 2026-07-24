@@ -74,6 +74,20 @@ light decorrelation penalty. \emph{H3
 prediction but fail on raw-signal prediction, because raw targets force the
 encoder to smear unpredictable detail across all dimensions.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_method.pdf}
+\vspace{-5mm}
+\caption{\small \textbf{Method.} \textbf{A:} a causal encoder splits each
+embedding into a narrow slow block and a wide fast block; the predictor
+regresses (or contrasts, InfoNCE) the EMA target at horizon $\Delta$. The
+slow path is always open; the fast path is multiplied by the gate $g(\Delta)$;
+a decorrelation penalty acts between blocks. \textbf{B:} the soft gate closes
+the fast block for horizons beyond $\tau=c\,T_{\mathrm{ac}}$, set label-free
+from the signal's autocorrelation time (trained horizons marked).}
+\vspace{-3mm}
+\end{figure}
+
 \section{Method}
 \textbf{Backbone (established).} We use a horizon-conditioned JEPA: a causal
 encoder produces one embedding per patch; a predictor $P(z_t,\Delta)$ maps an
@@ -195,15 +209,18 @@ identical gate.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{fig_main.pdf}
-\vspace{-6mm}
-\caption{\small Absolute $z_{\mathrm{slow}}$ probe scores, leak-free (3 seeds,
-$\pm$ sd). \textbf{A:} ours (gate+dcor) keeps the slow factor (regime acc
-$0.80$) while cutting fast leak to $R^2\,0.19/0.27$; no gate leaks $0.79/0.73$;
-the identical gate on raw-signal (AR) prediction separates nothing (fast leak
-$\ge0.78$). \textbf{B:} block$\times$factor matrices (ours vs.\ no gate).
-\textbf{C:} reproduced on real inertial data (HAPT, subject-split): gate cuts
-fast leak $0.56\!\to\!0.17$ while keeping activity F1 $0.71$.}
+\includegraphics[width=\linewidth]{fig_mech.pdf}
+\vspace{-5mm}
+\caption{\small \textbf{Mechanism (synthetic, leak-free, 3 seeds $\pm$sd).}
+\textbf{A:} absolute $z_{\mathrm{slow}}$ probe scores. Only gate+dcor
+separates --- and the latent-\emph{contrastive} cell (CPC) separates best
+(leak $0.05/0.00$); gate-alone, dcor-alone, no-gate, and the raw-target (AR)
+gate all fail. \textbf{B:} block$\times$factor matrices, ours vs.\ no gate:
+the slow factor concentrates in $z_{\mathrm{slow}}$ only under the gate.
+\textbf{C:} exclusion tracks the \emph{absolute} slow-block size --- a fixed
+16-dim block holds at $d_z{=}256$ while a proportionally scaled block leaks
+--- and is linear-level: an MLP probe still recovers $u$ at $R^2\,0.45$
+(dotted), consistent with Proposition~2.}
 \vspace{-3mm}
 \end{figure}
 
@@ -294,7 +311,22 @@ $I(z_{\mathrm{slow}};u)\!\approx\!0.95$ nats with the gate vs.\ $1.21$
 without (and $1.21$--$1.23$ in $z_{\mathrm{fast}}$). Our claims should
 therefore be read as \emph{linear-subspace} separation plus a partial
 information-level reduction --- not information-theoretic removal.
-\textbf{F5 --- real data, group-split (Fig.~C, Tab.~2).} With held-out
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_real.pdf}
+\vspace{-5mm}
+\caption{\small \textbf{Real data, group-split, absolute scores (3 seeds).}
+\textbf{A:} HAPT (held-out subjects) --- the gate cuts fast leak
+$0.56\!\to\!0.17$ while keeping activity F1. \textbf{B:} PTB-XL (held-out
+patients) --- a smaller but consistent reduction ($0.61\!\to\!0.41$).
+\textbf{C:} XJTU (held-out bearings), the predicted negative: with no
+within-window timescale gap, health/RUL is weak for every method --- Hilbert
+and low-pass features fail to transfer --- and $z_{\mathrm{slow}}$ carries
+what little exists.}
+\vspace{-3mm}
+\end{figure}
+
+\textbf{F5 --- real data, group-split (Fig.~3, Tab.~2).} With held-out
 subjects/patients (leak-free, and a domain-shift test), the gate reproduces
 the synthetic separation ($n{=}3$ seeds). HAPT (slow = activity persisting
 $\sim$12\,s, fast = gait, $T_{\mathrm{ac}}\!\sim\!0.1$\,s): gate cuts fast
