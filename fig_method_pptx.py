@@ -103,10 +103,13 @@ arrow(s, 7.9, 3.5, 5.8, 3.7, color=INK)           # gated fast path
 label(s, 5.9, 2.75, 2.0, "slow path:\nalways open", size=9, color=BLUE,
       align=PP_ALIGN.LEFT)
 
-# target + loss
-box(s, 0.4, 3.3, 1.9, 1.0, "EMA target\nz̄_{t+Δ}", TGTF)
-arrow(s, 3.4, 3.8, 2.3, 3.8, color=INK)
-label(s, 2.25, 3.28, 1.2, "L₂ /\nInfoNCE", size=9, color=MUTED)
+# target encoder (same fill as online encoder: it IS the encoder, EMA copy)
+box(s, 0.3, 3.3, 1.5, 1.0, "target\nencoder", ENCF)
+label(s, 0.3, 4.32, 1.5, "(EMA copy)", size=8, color=MUTED)
+box(s, 1.95, 3.42, 0.85, 0.75, "z̄_{t+Δ}", TGTF, shape=MSO_SHAPE.RECTANGLE, size=11)
+arrow(s, 1.8, 3.8, 1.95, 3.8, color=INK)
+arrow(s, 3.4, 3.8, 2.8, 3.8, color=INK, double=True)
+label(s, 2.7, 3.22, 0.9, "L₂ /\nInfoNCE", size=8, color=MUTED)
 
 # takeaway caption
 label(s, 0.4, 4.55, 9.2,

@@ -86,10 +86,16 @@ box(a0, 3.4, 3.3, 2.6, 1.5, "predictor\n$P(\\cdot,\\Delta)$", "#dbe9f9")
 arrow(a0, 6.1, 7.1, 4.6, 4.85)            # slow path (always open)
 arrow(a0, 7.9, 4.6, 6.2, 4.35)            # gated fast path
 a0.text(5.75, 5.55, "slow path:\nalways open", fontsize=5.4, color=BLUE, ha="left")
-# target + loss
-box(a0, 0.1, 3.3, 2.2, 1.5, "EMA target\n$\\bar z_{t+\\Delta}$", SURF)
-arrow(a0, 3.4, 4.05, 2.4, 4.05)
-a0.text(2.9, 4.75, "$L_2$ /\nInfoNCE", fontsize=5.6, color=MUTED, ha="center")
+# target encoder (same color as online encoder: it IS the encoder, EMA copy)
+box(a0, 0.1, 3.3, 1.7, 1.5, "target\nencoder", "#dbe9f9")
+a0.text(0.95, 2.95, "(EMA copy)", fontsize=5.2, color=MUTED, ha="center")
+a0.add_patch(mp.Rectangle((2.05, 3.55), 0.85, 1.0, fc=SURF, ec=MUTED, lw=0.8))
+a0.text(2.47, 4.05, "$\\bar z_{t+\\Delta}$", ha="center", va="center",
+        fontsize=6.2, color=INK)
+arrow(a0, 1.8, 4.05, 2.05, 4.05)
+a0.annotate("", (2.9, 4.05), (3.4, 4.05),
+            arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
+a0.text(3.15, 4.55, "$L_2$ /\nInfoNCE", fontsize=5.4, color=MUTED, ha="center")
 # dcor between blocks
 a0.annotate("", (7.05, 7.0), (6.6, 7.0),
             arrowprops=dict(arrowstyle="<->", color=VIOLET, lw=0.9))
