@@ -195,8 +195,9 @@ fig.savefig("fig_mech.png", bbox_inches="tight")
 fig, (a0, a1, a2) = plt.subplots(3, 1, figsize=(W, 5.6),
                                  gridspec_kw=dict(hspace=0.72))
 H = {"Gate": "runs_hapt/hapt_nepa_g1_d0_s*.json",
+     "Gate\n+dcor": "runs_hapt/hapt_nepa_g1_d1_s*.json",
      "No gate": "runs_hapt/hapt_nepa_g0_d0_s*.json",
-     "AR+gate": "runs_hapt/hapt_ar_g1_d0_s*.json"}
+     "AR\n+gate": "runs_hapt/hapt_ar_g1_d0_s*.json"}
 Hs = {k: stats(p) for k, p in H.items()}
 bars(a0, list(H), [
     ("slow kept: activity F1", BLUE,
@@ -204,14 +205,16 @@ bars(a0, list(H), [
      [Hs[v]["z_slow->activity_f1"][1] for v in H]),
     ("fast leak: acc-mag $R^2$", YELLOW,
      [max(Hs[v]["z_slow->accmag_r2"][0], 0) for v in H],
-     [Hs[v]["z_slow->accmag_r2"][1] for v in H])], gap=0.34, w=0.3)
+     [Hs[v]["z_slow->accmag_r2"][1] for v in H])], gap=0.22, w=0.2, fs=5.4)
 a0.legend(fontsize=5.8, frameon=False, ncols=2, loc="lower center",
           bbox_to_anchor=(0.5, 0.99), handlelength=1.1)
-a0.set_title("A  HAPT (held-out subjects)", fontsize=8, loc="left", pad=16)
+a0.set_title("A  HAPT (held-out subjects): dcor hurts", fontsize=8,
+             loc="left", pad=16)
 
-P = {"Gate+dcor": "runs_ptbxl/ptbxl_nepa_g1_d1_s*.json",
+P = {"Gate": "runs_ptbxl/ptbxl_nepa_g1_d0_s*.json",
+     "Gate\n+dcor": "runs_ptbxl/ptbxl_nepa_g1_d1_s*.json",
      "No gate": "runs_ptbxl/ptbxl_nepa_g0_d0_s*.json",
-     "AR+gate": "runs_ptbxl/ptbxl_ar_g1_d0_s*.json"}
+     "AR\n+gate": "runs_ptbxl/ptbxl_ar_g1_d0_s*.json"}
 Ps = {k: stats(p) for k, p in P.items()}
 bars(a1, list(P), [
     ("slow kept: norm F1", BLUE,
@@ -219,10 +222,11 @@ bars(a1, list(P), [
      [Ps[v]["z_slow->norm_f1"][1] for v in P]),
     ("fast leak: ECG $R^2$", YELLOW,
      [max(Ps[v]["z_slow->ecg_r2"][0], 0) for v in P],
-     [Ps[v]["z_slow->ecg_r2"][1] for v in P])], gap=0.34, w=0.3)
+     [Ps[v]["z_slow->ecg_r2"][1] for v in P])], gap=0.22, w=0.2, fs=5.4)
 a1.legend(fontsize=5.8, frameon=False, ncols=2, loc="lower center",
           bbox_to_anchor=(0.5, 0.99), handlelength=1.1)
-a1.set_title("B  PTB-XL (held-out patients)", fontsize=8, loc="left", pad=16)
+a1.set_title("B  PTB-XL (held-out patients): dcor helps", fontsize=8,
+             loc="left", pad=16)
 
 # C: XJTU negative — life (RUL) probe, held-out bearings, learned vs classical
 Xs = stats("runs_am/am_nepa_g1_d1_s*.json")

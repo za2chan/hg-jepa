@@ -316,9 +316,12 @@ information-level reduction --- not information-theoretic removal.
 \includegraphics[width=\linewidth]{fig_real.pdf}
 \vspace{-5mm}
 \caption{\small \textbf{Real data, group-split, absolute scores (3 seeds).}
-\textbf{A:} HAPT (held-out subjects) --- the gate cuts fast leak
-$0.56\!\to\!0.17$ while keeping activity F1. \textbf{B:} PTB-XL (held-out
-patients) --- a smaller but consistent reduction ($0.61\!\to\!0.41$).
+Both panels show gate and gate+dcor, exposing the decorrelation penalty's
+opposite polarity. \textbf{A:} HAPT (held-out subjects) --- the gate cuts fast
+leak $0.56\!\to\!0.17$ at activity F1 $0.71$, and adding dcor \emph{hurts}
+(leak $0.28$, F1 $0.67$). \textbf{B:} PTB-XL (held-out patients) --- here dcor
+\emph{helps} (leak $0.61\!\to\!0.41$). Whether to enable dcor is currently a
+per-dataset choice we cannot yet make label-free.
 \textbf{C:} XJTU (held-out bearings), the predicted negative: with no
 within-window timescale gap, health/RUL is weak for every method --- Hilbert
 and low-pass features fail to transfer --- and $z_{\mathrm{slow}}$ carries
@@ -384,10 +387,12 @@ score in brackets.}
 \toprule
 Dataset & Variant & slow-kept $\uparrow$ & fast-leak $\downarrow$ \\
 \midrule
-HAPT (act F1)   & gate    & \textbf{0.71} [0.80] & \textbf{0.17} \\
-                & no gate & 0.62 & 0.56 \\
+HAPT (act F1)   & gate      & \textbf{0.71} [0.80] & \textbf{0.17} \\
+                & gate+dcor & 0.67 & 0.28 \\
+                & no gate   & 0.62 & 0.56 \\
 PTB-XL (norm F1) & gate+dcor & 0.70 [0.74] & \textbf{0.41} \\
-                 & no gate & 0.71 & 0.61 \\
+                 & gate      & 0.72 & 0.52 \\
+                 & no gate   & 0.71 & 0.61 \\
 \bottomrule
 \end{tabular}
 \end{table}
