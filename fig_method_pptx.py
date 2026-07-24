@@ -97,7 +97,7 @@ box(s, 7.8, 3.0, 1.5, 0.95, "× g(Δ)\ngate", GATEF)
 arrow(s, 8.4, 1.9, 8.5, 3.0, color=INK)
 
 # predictor
-box(s, 3.4, 3.3, 2.4, 1.0, "predictor\nP(·, Δ)", ENCF)
+box(s, 3.4, 3.3, 2.4, 1.0, "predictor\nP(·, Δ)", "e6e1f5")
 arrow(s, 6.1, 1.9, 4.9, 3.3, color=BLUE)          # slow path always open
 arrow(s, 7.9, 3.5, 5.8, 3.7, color=INK)           # gated fast path
 label(s, 5.9, 2.75, 2.0, "slow path:\nalways open", size=9, color=BLUE,
@@ -109,7 +109,7 @@ label(s, 0.3, 4.32, 1.5, "(EMA copy)", size=8, color=MUTED)
 box(s, 1.95, 3.42, 0.85, 0.75, "z̄_{t+Δ}", TGTF, shape=MSO_SHAPE.RECTANGLE, size=11)
 arrow(s, 1.8, 3.8, 1.95, 3.8, color=INK)
 arrow(s, 3.4, 3.8, 2.8, 3.8, color=INK, double=True)
-label(s, 2.7, 3.22, 0.9, "L₂ /\nInfoNCE", size=8, color=MUTED)
+label(s, 2.7, 3.35, 0.9, "L₂", size=10, color=MUTED)
 
 # takeaway caption
 label(s, 0.4, 4.55, 9.2,

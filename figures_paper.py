@@ -82,7 +82,7 @@ arrow(a0, 5.1, 7.35, 5.9, 7.6)
 box(a0, 7.55, 4.6, 1.6, 1.2, "$\\times\\, g(\\Delta)$\ngate", "#fdf1d8")
 arrow(a0, 8.2, 7.1, 8.33, 5.85)
 # predictor
-box(a0, 3.4, 3.3, 2.6, 1.5, "predictor\n$P(\\cdot,\\Delta)$", "#dbe9f9")
+box(a0, 3.4, 3.3, 2.6, 1.5, "predictor\n$P(\\cdot,\\Delta)$", "#e6e1f5")
 arrow(a0, 6.1, 7.1, 4.6, 4.85)            # slow path (always open)
 arrow(a0, 7.9, 4.6, 6.2, 4.35)            # gated fast path
 a0.text(5.75, 5.55, "slow path:\nalways open", fontsize=5.4, color=BLUE, ha="left")
@@ -95,7 +95,7 @@ a0.text(2.47, 4.05, "$\\bar z_{t+\\Delta}$", ha="center", va="center",
 arrow(a0, 1.8, 4.05, 2.05, 4.05)
 a0.annotate("", (2.9, 4.05), (3.4, 4.05),
             arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
-a0.text(3.15, 4.55, "$L_2$ /\nInfoNCE", fontsize=5.4, color=MUTED, ha="center")
+a0.text(3.15, 3.45, "$L_2$", fontsize=6.0, color=MUTED, ha="center", va="top")
 # dcor between blocks
 a0.annotate("", (7.05, 7.0), (6.6, 7.0),
             arrowprops=dict(arrowstyle="<->", color=VIOLET, lw=0.9))

@@ -84,7 +84,8 @@ encoder to smear unpredictable detail across all dimensions.
 \vspace{-5mm}
 \caption{\small \textbf{Method.} \textbf{A:} a causal encoder splits each
 embedding into a narrow slow block and a wide fast block; the predictor
-regresses (or contrasts, InfoNCE) the EMA target at horizon $\Delta$. The
+regresses the EMA target at horizon $\Delta$ ($L_2$; a latent-contrastive
+variant is evaluated in F2). The
 slow path is always open; the fast path is multiplied by the gate $g(\Delta)$;
 a decorrelation penalty acts between blocks. \textbf{B:} the soft gate closes
 the fast block for horizons beyond $\tau=c\,T_{\mathrm{ac}}$, set label-free
@@ -112,8 +113,9 @@ P\big(z^{\mathrm{slow}}_t,\;g(\Delta)\,z^{\mathrm{fast}}_t,\;\Delta\big)
 - \bar z_{t+\Delta}\big\|^2
 +\lambda\,\mathcal L_{\mathrm{dcor}},
 \]
-with a soft gate $g(\Delta)=\sigma\!\big((\tau-\Delta)/w\big)$: for
-$\Delta\!\gg\!\tau$ the predictor sees only the slow block. The gate is
+with a soft gate $g(\Delta)=\sigma\!\big((\tau-\Delta)/w\big)$, where
+$\sigma$ is the logistic sigmoid and $w$ (4 patches) sets the transition
+width: for $\Delta\!\gg\!\tau$ the predictor sees only the slow block. The gate is
 asymmetric by design --- short-horizon prediction keeps access to both blocks
 because fast dynamics are \emph{conditioned on} slow state; blocking the slow
 block at short horizons would force slow information to be duplicated into

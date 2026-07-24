@@ -70,7 +70,10 @@ contribution is the gate, not the backbone):
 P\big(z^{\mathrm{slow}}_t, g(\Delta)z^{\mathrm{fast}}_t, \Delta\big)
 -\bar z_{t+\Delta}\big\|^2+\lambda\mathcal L_{\mathrm{dcor}},
 \]
-with soft gate $g(\Delta)=\sigma((\tau-\Delta)/w)$. The gate is asymmetric:
+with soft gate $g(\Delta)=\sigma((\tau-\Delta)/w)$, where $\sigma$ is the
+logistic sigmoid and $w$ (4 patches) sets the transition width, so the fast
+block fades smoothly from open ($g{\approx}1$) to closed ($g{\approx}0$)
+around $\tau$. The gate is asymmetric:
 short horizons see both blocks (fast dynamics are conditioned on slow state).
 $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
 (VICReg-lineage \cite{bardes2022vicreg}). $\tau=c\,T_{\mathrm{ac}}$
