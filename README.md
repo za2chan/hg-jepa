@@ -1,83 +1,84 @@
 # Horizon-Gated JEPA (HG-JEPA)
 
 Label-free separation of **slow** and **fast** generative factors in time
-series. A horizon-conditioned JEPA (causal encoder + multi-horizon predictor +
-EMA target, in the CPC / I-JEPA / HEPA lineage) with one addition: a **gate**
-that removes the fast latent block from the predictor at long horizons. Because
-only slow information is useful for predicting the far future, slow factors
-concentrate in the ungated block and fast factors are pushed to the gated
-block — with no labels used in training.
-
-This repo is a progress-report pilot: a controlled synthetic proof plus two
-real-data reproductions (HAPT, PTB-XL) and one informative negative (XJTU-SY).
-
-## Idea in one line
-
-`L = Σ_Δ || P(z_slow, g(Δ)·z_fast, Δ) − z̄_{t+Δ} ||²  + λ·dcor`,
-with a soft gate `g(Δ)=σ((τ−Δ)/w)` → for Δ≫τ the predictor sees only `z_slow`.
-`τ = c·T_ac` is set from the signal's own autocorrelation time (no sampling
-rate needed).
-
-## Results (3 seeds)
-
-| Data | slow-info in z_slow ↑ | fast-leak in z_slow ↓ | note |
-|---|---|---|---|
-| Synthetic (gate+dcor) | 0.98 | 0.22 / 0.15 | vs 0.88/0.77 ungated |
-| HAPT (gate) | 0.91 | 0.31 | vs 0.76 ungated |
-| PTB-XL (gate+dcor) | 0.97 | 0.40 | vs 0.66 ungated |
-| XJTU-SY | — | — | no timescale gap → no separation (as predicted) |
-
-`slow-info` / `fast-leak` = a block's probe score as a fraction of the full
-embedding's. The gate on a raw-signal (next-token) head does nothing —
-separation is specific to latent prediction.
-
-## Layout
+series. A horizon-conditioned latent-predictive learner (causal encoder +
+multi-horizon predictor + EMA target, in the CPC / I-JEPA / HEPA lineage) with
+one addition: a **gate** that removes the fast latent block from the predictor
+at long horizons. Only slow information helps predict the far future, so the
+gate *assigns* slow factors to the ungated block (provably — Prop. 1 in the
+report); a narrow bottleneck + decorrelation penalty handle *exclusion* of
+fast factors, which the objective alone cannot enforce (Prop. 2).
 
 ```
-datagen.py         two-timescale synthetic generator (ground-truth factors)
-train.py           synthetic HG-JEPA + ablations (gate/dcor/AR)
-figures.py         main figure from runs_*/
-screen.py          pre-training suitability screen (statistical checks)
-screen_model.py    model-based screen (brief pretrain + long-horizon predictability)
-
-xjtu_prep.py       XJTU-SY snapshot-sequence prep     -> data/xjtu.npz
-xjtu_raw_prep.py   XJTU-SY raw amplitude-modulation prep -> data/xjtu_raw.npz
-real_train.py      XJTU snapshot-level run
-raw_am_train.py    XJTU raw-AM run (+ low-pass baseline)
-
-hapt_prep.py / hapt_train.py     HAPT inertial (activity vs gait)
-ptbxl_prep.py / ptbxl_train.py   PTB-XL ECG (diagnosis vs beat)
-
-runs_*/            per-seed result JSONs (kept in repo)
-report.tex         two-page progress report
+L = Σ_Δ || P(z_slow, g(Δ)·z_fast, Δ) − z̄_{t+Δ} ||²  + λ·dcor,
+g(Δ) = σ((τ−Δ)/w),   τ = c·T_ac  (from the signal's own autocorrelation time)
 ```
+
+## Key results (3 seeds, absolute scores, leak-free group-split probes)
+
+| Claim | Evidence | Numbers |
+|---|---|---|
+| Gate+dcor separates (synthetic) | z_slow keeps regime, drops fast | regime 0.80 (full 0.69); u/phase leak 0.19/0.27 vs 0.79/0.73 ungated |
+| Works across latent objectives | CPC-InfoNCE cell separates best | regime 0.81, leak 0.05/0.00; raw-AR target: no separation |
+| Post-hoc unmixing insufficient | SFA/ICA/PCA on ungated embedding | each trades regime for leak; only training-time gating gets both |
+| Exclusion rides on block size | width sweep, fixed 16-dim block | leak 0.06–0.08 at d_z=128/256; proportional block: leak ~0.6 |
+| Exclusion is linear-subspace | MLP probe + MINE | MLP leak 0.45 (vs 0.19 linear); MINE 0.95 vs 1.21 nats ungated |
+| Real data | HAPT (subject-split), PTB-XL (patient-split) | HAPT leak 0.56→0.17 at F1 0.71; PTB-XL 0.61→0.41 |
+| Predicted negative | XJTU-SY: no timescale gap | gate correctly does nothing; z_slow still best life probe (+0.18) |
+| Anomaly attribution | typed injection pilot | point AUROC 0.93–0.97; contextual at chance — honest negative |
+| Label-free tuning | retrospective grid validation | Spearman 0.68; catastrophe filter yes, fine tuner no |
+
+## Experiment ↔ script ↔ output map
+
+| Experiment | Script(s) | Results |
+|---|---|---|
+| Synthetic data + self-check | `datagen.py` | — |
+| Synthetic HG-JEPA / ablations / AR / CPC | `train.py` (`mode=nepa|ar|cpc`, `gate=`, `dcor=`, `tau=`, `dslow=`, `lam=`) | `runs/<tag>.json`, `runs/emb_<tag>.npz`, `runs/model_<tag>.pt` |
+| Unmixing control (SFA/ICA/PCA) | `unmixing.py` | `runs/unmixing_s*.json` |
+| Width/masking mechanism sweep | `mech.py`, `mech_sweep.sh` | `runs/mech_*.json` |
+| SlowVAE competitor | `slowvae.py` | `runs/slowvae_s*.json`, `runs/emb_slowvae_*.npz` |
+| DCI / MIG metrics | `metrics.py <emb.npz...>` | stdout |
+| MLP probe + MINE (nonlinear leak) | `nonlinear.py tag=<tag>` | `runs/nl_<tag>.json` |
+| Anomaly injection + attribution | `anomaly.py tag=<tag> ctx=<mult>` | `runs/anom_*.json` |
+| Label-free selection validation | `select.py` (needs grid runs) | stdout |
+| Pre-training suitability screens | `screen.py`, `screen_model.py` | stdout |
+| HAPT (subject-split) | `hapt_prep.py`, `hapt_train.py` | `runs_hapt/*.json` |
+| PTB-XL (patient-split) | `ptbxl_prep.py`, `ptbxl_train.py` | `runs_ptbxl/*.json` |
+| XJTU snapshot (bearing held-out) | `xjtu_prep.py`, `real_train.py` | `runs_real/*.json` |
+| XJTU raw AM + life probe | `xjtu_raw_prep.py`, `raw_am_train.py` | `runs_am/*.json` |
+| XJTU Hilbert/low-pass baselines | `hilbert_baseline.py` | `runs_am/hilbert_baseline.json` |
+| Main figure | `figures.py` | `fig_main.pdf` |
+| Full sweeps | `run_all.sh`, `run_experiments.sh` | `runs*/` |
+
+Documents: `report.tex` (progress report, compile on Overleaf with
+`fig_main.pdf`), `plan.tex` (advisor briefing: evidence status + ICLR plan),
+`HANDOFF.md` (session resume notes).
 
 ## Reproduce
 
 ```bash
 pip install -r requirements.txt
-
-# synthetic (self-contained; no download)
-python datagen.py                       # self-check
-python train.py mode=nepa gate=1 dcor=1 seed=0
+python datagen.py                              # data self-check
+python train.py mode=nepa gate=1 dcor=1 seed=0 # ours
+python train.py mode=cpc  gate=1 dcor=1 seed=0 # contrastive cell
 python figures.py
-
-# suitability screen on prepared datasets
-python screen_model.py
 ```
 
-### Datasets (download separately, place under `data/`)
+Real datasets (gitignored, place under `data/`): **XJTU-SY** (parquet; path in
+`xjtu_prep.py`), **HAPT** (UCI), **PTB-XL** (PhysioNet, via `wfdb`). Prep
+scripts write `.npz` caches consumed by the trainers.
 
-- **XJTU-SY** bearing run-to-failure (parquet). Set the path in `xjtu_prep.py`.
-- **HAPT** (UCI Smartphone HAR + Postural Transitions): raw inertial signals.
-- **PTB-XL** (PhysioNet): 100 Hz ECG records read via `wfdb`.
+## Protocol (non-negotiable)
 
-`data/` is gitignored. Prep scripts write `.npz` caches consumed by the trainers.
+Probes fit on training groups, evaluated on held-out groups (HAPT=subject,
+PTB-XL=patient, XJTU=bearing; synthetic=contiguous time split) over disjoint
+windows. Absolute scores only (ratios once hid a collapse) + RankMe collapse
+monitor. All variants share one backbone (~0.5M params) and budget; n=3 seeds.
 
-## Status / caveats
+## Caveats
 
-Progress-report pilot. Evaluations are in-distribution (matching the synthetic
-protocol); subject-split and external baselines (TS2Vec, C-DSVAE) are planned.
-Training is fully label-free; labels are used only to *measure* separation —
-standard for disentanglement. The method needs a genuine slow/fast timescale
-gap in the window, which is diagnosable before training.
+Exclusion is soft and linear-subspace-level (see Prop. 2 / MLP results); dcor
+helps synthetic+PTB-XL, hurts HAPT (data-dependent); the method needs a genuine
+within-window timescale gap (diagnosable pre-training — XJTU correctly refuses);
+fine hyperparameter selection still needs labels (unsup criterion = catastrophe
+filter only). Training itself is fully label-free.
