@@ -1,0 +1,11 @@
+{
+  "test_bearings": [
+    "Bearing1_1",
+    "Bearing1_4",
+    "Bearing2_2",
+    "Bearing2_5",
+    "Bearing3_3"
+  ],
+  "hilbert->life_r2": -1.0790088176727295,
+  "lowpass->life_r2": -0.11085899806514754
+}

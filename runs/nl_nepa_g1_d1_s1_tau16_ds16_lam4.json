@@ -1,0 +1,10 @@
+{
+  "tag": "nepa_g1_d1_s1_tau16_ds16_lam4",
+  "n_probe": 976,
+  "mlp_z_slow->u_r2": 0.4518091082572937,
+  "mlp_z_slow->phase_r2": 0.7325654625892639,
+  "mlp_z_fast->u_r2": 0.831307590007782,
+  "mlp_z_fast->phase_r2": 0.966056227684021,
+  "mine_I(z_slow;u)_nats": 1.008132815361023,
+  "mine_I(z_fast;u)_nats": 1.2006964683532715
+}

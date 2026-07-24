@@ -19,7 +19,9 @@ U_TAU = 50          # OU correlation time (steps) = fast-factor lifetime
 FREQ_MOD = 0.05     # frequency modulation depth (keeps phase predictable ~1 lifetime)
 
 
-def generate(n_steps, seed=0):
+def generate(n_steps, seed=0, freq_mult=None):
+    """freq_mult: optional per-step multiplier on instantaneous frequency
+    (used by anomaly.py to inject contextual anomalies)."""
     rng = np.random.default_rng(seed)
     # slow factor: Markov regime
     s = np.empty(n_steps, dtype=np.int64)
@@ -37,7 +39,8 @@ def generate(n_steps, seed=0):
     for t in range(1, n_steps):
         u[t] = a * u[t - 1] + noise[t]
     # observation
-    phi = np.cumsum(2 * np.pi * REGIME_FREQ[s] * (1 + FREQ_MOD * u))
+    fm = 1.0 if freq_mult is None else freq_mult
+    phi = np.cumsum(2 * np.pi * REGIME_FREQ[s] * (1 + FREQ_MOD * u) * fm)
     x = REGIME_AMP[s] * np.sin(phi) + 0.2 * u + 0.1 * rng.standard_normal(n_steps)
     return x.astype(np.float32), s, u.astype(np.float32), phi.astype(np.float32)
 

@@ -86,15 +86,27 @@ A rigorous review flagged 10 issues (see below). Highest-value ones:
    (block codes); DCI ranks SlowVAE (0.66) > ours (0.39) despite SlowVAE not
    decoding regime — reported honestly as axis-metric failure (Locatello).
    Remaining: MLP probe + MINE for "displaced".
-5. **Anomaly attribution (#5 payoff / motivation gap):** inject point + contextual
-   anomalies with type labels into datagen; test short- vs long-horizon residual
-   attribution. Heed #9: target-contamination-robust aggregation, concede
-   one-directional separation, avoid SMAP/PSM.
-6. **XJTU redesign (#6):** Hilbert envelope-analysis baseline (not naive low-pass);
-   probe real RUL/health; state within-window-slowness limitation.
-7. **Literature + honesty (#2,#6,#7):** integrate predictive-information / IB /
-   slowness / identifiability lines; state two-block/single-τ = exactly-2-scales
-   assumption; note τ=c·T_ac assumes fast dominates ACF; add patch/sampling-rate.
+5. ~~Anomaly attribution~~ DONE, **NEGATIVE** (anomaly.py, model_*.pt saved by
+   train.py): point detection AUROC 0.93-0.97 (short residual), contextual at
+   CHANCE (~0.50) in both designs (ctx freq shift 1.08 on-manifold and 1.15
+   off-manifold; long residual full-dim AND slow-dim only). Diagnosis: encoder
+   projects unseen dynamics onto normal slow codes — no novelty response.
+   Reported honestly in report ("Anomaly attribution: a negative pilot").
+   Next fix would be novelty-sensitive machinery (density model on z_slow or
+   training-time drift exposure), not more gating.
+   MLP/MINE (#4 remainder) also DONE (nonlinear.py): linear probes overstate
+   exclusion — MLP leak from z_slow u 0.45/phase 0.78 (vs 0.19/0.27 linear;
+   ungated 0.84/0.96); MINE I(z_slow;u) 0.95 vs 1.21 nats ungated. Report
+   reframed: "linear-subspace separation + partial information reduction".
+6. ~~XJTU redesign~~ DONE: hilbert_baseline.py + life probe in raw_am_train.py.
+   FOUND CIRCULARITY: env label IS |hilbert| (xjtu_raw_prep) → envelope-proxy
+   comparison retracted in report. Non-circular target = life (RUL), held-out
+   bearings: Hilbert feats R2 -1.08, lowpass -0.11, learned z_slow +0.18
+   (z_full 0.18, z_fast 0.09). Weak for everyone; z_slow carries what exists.
+7. ~~Literature + honesty~~ DONE in report: Positioning paragraph (SFA /
+   predictive-info + past-future IB / TCL + SlowVAE + Locatello; "no theorem
+   yet" stated as the main gap), expanded Limitations (2-scale assumption,
+   τ=c·T_ac ACF caveat, patch/sampling-rate bound).
 
 ## Repo map
 

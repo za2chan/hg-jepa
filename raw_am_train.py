@@ -67,10 +67,13 @@ def main(args):
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     data = load()
-    keys = list(data)
+    keys = sorted(data)
     Wall = np.concatenate([data[b]["W"] for b in keys])          # (N, L, PATCH)
     env = np.concatenate([data[b]["env"] for b in keys])
     car = np.concatenate([data[b]["car"] for b in keys])
+    life = np.concatenate([data[b]["life"] for b in keys])
+    test_bearings = set(keys[::3])                # group split for the life probe
+    is_te = np.concatenate([np.full(len(data[b]["W"]), b in test_bearings) for b in keys])
     Wt = torch.from_numpy(Wall).to(DEV)
 
     enc = Encoder().to(DEV)
@@ -129,6 +132,9 @@ def main(args):
                      ("z_full", slice(0, D_Z))]:
         res[f"{name}->envelope_r2"] = r2(Z[:, sl], y_env)
         res[f"{name}->carrier_r2"] = r2(Z[:, sl], y_car)
+        # health/RUL proxy, held-out bearings (non-circular target, cf. #6)
+        res[f"{name}->life_r2"] = float(Ridge().fit(
+            Z[~is_te][:, sl], life[~is_te]).score(Z[is_te][:, sl], life[is_te]))
 
     # low-pass baseline: mean of low-frequency band of the window cannot recover
     # the envelope, which lives in high-frequency sidebands (AM)

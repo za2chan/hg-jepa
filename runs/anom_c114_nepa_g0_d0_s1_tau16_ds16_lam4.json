@@ -1,0 +1,10 @@
+{
+  "tag": "nepa_g0_d0_s1_tau16_ds16_lam4",
+  "ctx_mult": 1.15,
+  "n": 18720,
+  "n_point": 126,
+  "n_ctx": 1171,
+  "point_det_auroc_short": 0.9658233187476143,
+  "ctx_det_auroc_long": 0.4600047945497213,
+  "attrib_auroc_ratio": 0.8178601927534463
+}

@@ -8,7 +8,7 @@
 \title{\vspace{-6mm}\large\bf Horizon-Gated JEPA: Label-Free Separation of\\
 Slow and Fast Factors in Time Series}
 \author{Jaechan Lee}
-\date{July 24, 2026 --- two-page progress report}
+\date{July 24, 2026 --- progress report}
 
 \begin{document}
 \maketitle
@@ -35,6 +35,23 @@ separate a \emph{time-invariant} content code via reconstruction ELBOs ---
 fragile under sensor noise and unable to represent factors that vary slowly
 rather than never. Horizon-conditioned JEPAs (HEPA) internalize multi-scale
 dynamics implicitly but do not factor them.
+
+\textbf{Positioning.} Our criterion descends from two classical lines.
+Slow feature analysis (Wiskott \& Sejnowski, 2002) extracts \emph{slowly
+varying} features, but slowness of the feature trajectory is not the same as
+long-range predictive value (our SFA control, Tab.~1, trades the regime away).
+The predictive-information / past--future information-bottleneck line (Bialek
+et al., 2001; Creutzig et al., 2009) identifies the far-predictive subspace as
+the behaviorally relevant one --- our gate is an architectural implementation
+of that criterion inside a modern latent-predictive learner, with the horizon
+knob as the only supervision. On the identifiability side, nonlinear ICA with
+temporal structure (TCL, Hyv\"arinen \& Morioka, 2016; SlowVAE, Klindt et al.,
+2021) offers provable recovery under specific generative assumptions, and
+Locatello et al.\ (2019) prove unsupervised disentanglement impossible without
+some inductive bias; ours is the timescale gap itself. We are explicit that
+\emph{we currently prove no identifiability theorem} --- our claims are
+mechanistic and empirical (F1--F6); connecting the gate to the
+identifiability results above is the main theoretical gap, not an oversight.
 
 We use a purely functional criterion: \textbf{information useful for
 predicting the far future is exactly the slow information}, and the prediction
@@ -197,6 +214,15 @@ seed noise), which we note honestly. An earlier iteration \emph{failed}
 informatively: when the fast factor's lifetime was shorter than the shortest
 horizon, the gate had nothing to separate --- the effect requires genuine
 multi-scale structure.
+\emph{Nonlinear readout (reviewer-requested honesty check):} linear probes
+overstate exclusion. An MLP probe recovers $u$ from $z_{\mathrm{slow}}$ at
+$R^2\,0.45$ (phase $0.78$), vs.\ $0.19/0.27$ linear --- though still well
+below the ungated control's $0.84/0.96$, and $z_{\mathrm{fast}}$ retains the
+fast factors ($0.83/0.97$: displaced, not destroyed). A MINE estimate agrees:
+$I(z_{\mathrm{slow}};u)\!\approx\!0.95$ nats with the gate vs.\ $1.21$
+without (and $1.21$--$1.23$ in $z_{\mathrm{fast}}$). Our claims should
+therefore be read as \emph{linear-subspace} separation plus a partial
+information-level reduction --- not information-theoretic removal.
 \textbf{F5 --- real data, group-split (Fig.~C, Tab.~2).} With held-out
 subjects/patients (leak-free, and a domain-shift test), the gate reproduces
 the synthetic separation ($n{=}3$ seeds). HAPT (slow = activity persisting
@@ -210,14 +236,27 @@ The decorrelation penalty \emph{hurts} on HAPT yet \emph{helps} on PTB-XL ---
 its value is data-dependent, and the weaker PTB-XL effect is expected since
 diagnostic cues partly live at the beat timescale (a static-content setting,
 which we flag as a limitation). On XJTU-SY bearing vibration we
-obtained two complementary results instead of a separation showcase:
-(i) a low-pass baseline cannot recover the fault-carrying envelope
-($R^2{=}{-}0.19$ vs.\ $0.65$ for the learned embedding) --- real-data
-confirmation of the frequency$\neq$factor motivation; and (ii) measured
-autocorrelation shows the accessible carrier and envelope proxies share
-nearly the same timescale ($T_{\mathrm{ac}}\!\approx\!1$--$2$ patches), and
-accordingly the gate does \emph{not} manufacture separation --- consistent
-with F4: the method separates only where a genuine timescale gap exists.
+obtained three results instead of a separation showcase.
+(i) A naive low-pass baseline cannot recover the fault-carrying envelope
+($R^2{=}{-}0.19$ vs.\ $0.65$ for the learned embedding). We initially read
+this as motivation evidence, but flag a correction after adding the
+\emph{proper} classical tool: our stored envelope proxy is itself computed by
+the Hilbert transform, so probing Hilbert-envelope features against it is
+circular ($R^2\!\approx\!1$ by construction) --- the envelope-proxy comparison
+is retracted as evidence.
+(ii) The non-circular test is the health trajectory (lifetime fraction) on
+\emph{held-out bearings}: there Hilbert-envelope features fail to transfer
+($R^2{=}{-}1.08$; low-pass $-0.11$), while the learned embedding is weakly
+positive, and specifically its slow block ($z_{\mathrm{slow}}$ $0.18$ $\ge$
+full $0.18$ $>$ $z_{\mathrm{fast}}$ $0.09$, 3 seeds) --- health information,
+to the modest extent it is captured at all, sits where the gate puts slow
+factors. We state plainly that cross-bearing RUL on XJTU is weak for
+\emph{every} method tested.
+(iii) Measured autocorrelation shows the accessible carrier and envelope
+proxies share nearly the same timescale ($T_{\mathrm{ac}}\!\approx\!1$--$2$
+patches), and accordingly the gate does \emph{not} manufacture separation ---
+consistent with F4: the method separates only where a genuine within-window
+timescale gap exists.
 \textbf{F6 --- a theory-bearing competitor; standard metrics.} An
 architecture-matched SlowVAE (Klindt et al., 2021: reconstruction + Laplace
 transition prior, \emph{with} identifiability theory), same backbone, data and
@@ -250,25 +289,44 @@ PTB-XL (norm F1) & gate+dcor & 0.70 [0.74] & \textbf{0.41} \\
 \end{tabular}
 \end{table}
 
+\section{Anomaly attribution: a negative pilot}
+The motivating payoff was \textbf{anomaly attribution}: a spike in the
+\emph{short}-horizon residual signals a point anomaly; a spike in the
+\emph{long}-horizon residual (slow-block dims, median over anchors for
+target-contamination robustness) signals contextual drift. We tested this
+with typed injected anomalies (3-step spikes; 400-step frequency shifts with
+no regime switch, both on- and off-manifold). Result: point detection works
+(short-residual AUROC $0.93$--$0.97$), but \textbf{contextual detection is at
+chance} ($\approx\!0.50$) for gated and ungated models alike, in both
+injection designs. Diagnosis: the encoder, never having seen the shifted
+dynamics, \emph{projects them onto normal slow codes} --- there is no novelty
+response in $z_{\mathrm{slow}}$ for the residual to catch. Attribution
+therefore currently works only in the direction the reviewer conceded was
+easy (point), and the contextual direction needs novelty-sensitive machinery
+(e.g.\ training-time exposure to drift, or density models on
+$z_{\mathrm{slow}}$), not just the gate. We report this as a genuine negative
+of the present design rather than defer it.
+
 \section{Planned work and limitations}
-The clearest payoff of separation is \textbf{anomaly attribution}: reusing the
-predictor at inference, a spike in the \emph{short}-horizon residual (fast
-block) signals a point anomaly, while a spike in the \emph{long}-horizon
-residual --- which the gate forces to depend only on $z_{\mathrm{slow}}$ ---
-signals a contextual anomaly (drift from state). An entangled residual cannot
-be attributed this way; we will evaluate this with controlled injected
-anomalies (typed point/contextual) and C-MAPSS, avoiding the label-quality
-issues of SMAP/PSM. Also: (i) further external baselines under matched
+Next: contextual-anomaly machinery as diagnosed above, then C-MAPSS
+(avoiding the label-quality issues of SMAP/PSM). Also: (i) further external baselines under matched
 budgets (TS2Vec, masked reconstruction); an amplitude-modulation
 scenario where filter decomposition fails by construction; (ii) an
 envelope-analysis (Hilbert) baseline on XJTU in place of naive low-pass;
 (iii) replacing EMA with SIGReg
 (HEPA/LeNEPA) and showing the gate effect is stabilizer-independent.
-\textbf{Limitations:} exclusion is soft (H2) and impossible to make complete
-when fast dynamics are conditioned on slow state; the dcor penalty helps on
-some data, hurts on others; suitability requires a genuine timescale gap in the
-window, which is itself diagnosable pre-training (XJTU was correctly
-non-separable). Validation still needs factor labels --- standard for
-disentanglement; training is fully label-free.
+\textbf{Limitations and assumptions.} Exclusion is soft (H2) and impossible to
+make complete when fast dynamics are conditioned on slow state; the dcor
+penalty helps on some data, hurts on others. The two-block, single-$\tau$
+design assumes \emph{exactly two} timescales --- $k$ scales would need $k$
+blocks and a gate schedule, untested. Setting $\tau=c\,T_{\mathrm{ac}}$
+assumes the fast dynamics dominate the signal's autocorrelation; if the slow
+factor also drives large-amplitude structure, $T_{\mathrm{ac}}$ overestimates
+the fast lifetime. Both timescales are measured in \emph{patches}, so patch
+length and sampling rate implicitly bound the separable range. Suitability
+requires a genuine timescale gap in the window, which is diagnosable
+pre-training (XJTU was correctly non-separable); factors that complete their
+dynamics within one patch are invisible to the gate. Validation still needs
+factor labels --- standard for disentanglement; training is fully label-free.
 
 \end{document}

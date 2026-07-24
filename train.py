@@ -161,6 +161,9 @@ def main(args):
     print(json.dumps(res, indent=2), flush=True)
     json.dump(res, open(f"runs/{tag}.json", "w"), indent=2)
     np.savez(f"runs/emb_{tag}.npz", Z=Z, regime=ys, u=yu, phase=yphi)  # for DCI/MIG
+    if mode != "ar":
+        torch.save({"enc": enc.state_dict(), "tgt": tgt.state_dict(),
+                    "pred": pred.state_dict()}, f"runs/model_{tag}.pt")
 
 
 if __name__ == "__main__":
