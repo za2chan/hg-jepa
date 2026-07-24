@@ -1,0 +1,361 @@
+\documentclass[10pt]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,microtype,xcolor,enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[small,compact]{titlesec}
+\setlength{\parskip}{2pt}
+\newcommand{\done}{\textcolor[rgb]{0,0.45,0}{\textbf{[DONE]}}}
+\newcommand{\weak}{\textcolor[rgb]{0.8,0.5,0}{\textbf{[WEAK]}}}
+\newcommand{\todo}{\textcolor[rgb]{0.75,0,0}{\textbf{[MISSING]}}}
+\newcommand{\zslow}{z_{\mathrm{slow}}}
+\newcommand{\zfast}{z_{\mathrm{fast}}}
+
+\title{\vspace{-8mm}\large\bf HG-JEPA: State of the Evidence and a Plan Toward an
+ICLR Submission\\ \normalsize (advisor briefing --- what is done, what is missing,
+and whether it can clear the bar)}
+\author{Jaechan Lee}
+\date{July 25, 2026}
+
+\begin{document}
+\maketitle
+\vspace{-6mm}
+
+\section{The single message}
+The project has drifted through several framings (separation guarantee
+$\to$ assignment mechanism $\to$ negative anomaly pilot). For the paper we
+commit to \textbf{one} thesis and make every result either support it or
+scope it:
+
+\begin{quote}
+\textbf{The prediction horizon is a free supervision axis.} In any
+latent-target predictive learner, gating a designated latent block out of the
+predictor at long horizons provably \emph{assigns} the slow generative
+factors to the remaining block --- with no labels --- while a narrow
+bottleneck and a decorrelation penalty handle \emph{exclusion} of fast
+factors, which we prove no objective of this family can enforce by itself. We
+characterize exactly when this works (a genuine timescale gap) and when it
+does not (XJTU bearings, non-novelty drift), and validate the mechanism
+across two objectives (JEPA regression, CPC-InfoNCE) and three real datasets.
+\end{quote}
+
+This is a \emph{method paper whose claims are scoped by a mechanism}, the
+standard shape of a defensible ICLR submission. It is not a retreat from the
+method framing: the deliverable is still ``a label-free separator you can add
+to any latent predictive model,'' but every claim is stated at the strength
+the evidence supports --- assignment is structural (Proposition 1), exclusion
+is linear-subspace-level (Proposition 2 + MLP/MINE measurements), and
+applicability is diagnosable before training ($T_{\mathrm{ac}}$ screening).
+What we explicitly stop claiming: information-theoretic removal of fast
+factors, anomaly attribution as a working payoff, and any performance
+guarantee without a timescale gap.
+
+\paragraph{How the claim evolved (one paragraph, for the paper's own honesty
+and for this meeting).} We began with ``the gate separates slow from fast''
+(H1, strong form). Experiments forced three revisions: (i) the gate alone
+separates nothing --- assignment vs.\ exclusion had to be split (now
+Propositions~1/2); (ii) linear probes overstated exclusion --- an MLP
+recovers the fast factor from $\zslow$ at $R^2\,0.45$ (vs.\ $0.19$ linear),
+MINE agrees ($0.95$ vs.\ $1.21$ nats ungated), so the separation claim is
+linear-subspace; (iii) the flagship payoff (anomaly attribution) failed in
+its contextual half (detection AUROC $\approx 0.50$) because the encoder
+projects unseen dynamics onto normal slow codes. Each revision shrank the
+claim and strengthened its defensibility; the paper should present this as
+mechanism characterization, not as a wandering narrative.
+
+\section{Critical assessment: can this clear ICLR?}
+Frank verdict first: \textbf{as it stands today this is a solid TMLR paper
+and a borderline-reject at ICLR.} TMLR's bar is ``claims supported by
+evidence,'' which we now meet after the honesty passes. ICLR additionally
+demands either breadth of empirical impact or depth of theory; we currently
+have two positive real datasets, no external SOTA baselines, and two
+propositions that are useful but not an identifiability theorem.
+
+\textbf{What we have that reviewers will like.} A clean, falsifiable
+mechanism with matching theory (assignment provable; exclusion provably
+unidentifiable --- and the measured nonlinear leak lands exactly on that
+boundary); a leak-free evaluation protocol (group splits, absolute scores,
+RankMe) that is stricter than most of the disentanglement literature; honest
+negative results (XJTU, contextual anomalies) that double as evidence the
+$T_{\mathrm{ac}}$ screening predicts applicability; cross-objective
+generality (the CPC-InfoNCE cell separates \emph{best}: regime $0.81$, leak
+$0.05/0.00$); and an unusual-for-the-field control showing post-hoc unmixing
+(SFA/ICA/PCA) cannot substitute for training-time gating.
+
+\textbf{The five gaps that decide acceptance} (each maps to a work item in
+\S\ref{sec:plan}):
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
+\item \emph{Dataset breadth.} Two positive real datasets (HAPT, PTB-XL) is
+below the bar. Add Sleep-EDF (EEG sleep stages; large timescale gap, subject
+split) and C-MAPSS (turbofan degradation; unit split) with the
+$T_{\mathrm{ac}}$ gap screening \emph{pre-registered}: predict
+separable/not-separable before training, then verify. This turns the XJTU
+negative into predictive power.
+\item \emph{The downstream cost must be owned and answered.} On HAPT,
+gate$+$dcor training costs the full embedding $0.80\!\to\!0.76$ activity F1,
+and deploying $\zslow$ alone costs $0.80\!\to\!0.71$ vs.\ an ungated model
+--- currently under-reported. The paper must present the compensation
+explicitly: selective robustness (the HAPT result already holds on unseen
+subjects; extend to corruption/domain-shift stress tests where the full
+embedding degrades and $\zslow$ does not), and the synthetic case where
+$\zslow$ \emph{beats} the full embedding ($0.80$ vs.\ $0.74$) because fast
+dimensions are noise for the slow task.
+\item \emph{Label-free model selection} (the Locatello objection, our
+reviewer \#3). $\tau$ is already set label-free from $T_{\mathrm{ac}}$;
+$d_{\mathrm{slow}}$ and $\lambda$ are not. A retrospective validation on a
+9-config $\tau\times d_{\mathrm{slow}}\times\lambda$ grid (2 seeds) is now
+in: ranking by unsupervised health metrics (per-block RankMe, cross-block
+correlation, temporal-roughness gap) correlates significantly with the
+labeled separation score (Spearman $0.68$, $p{=}0.04$) and correctly
+\emph{rejects} every broken configuration (no-gate, gate-only,
+$\lambda{=}16$ degeneracy) --- but among healthy configurations it picks
+$\lambda{=}1$ where labels prefer $d_{\mathrm{slow}}{=}8,\lambda{=}4$
+(top-1 regret $0.27$ on a $0.66$ scale). Honest position for the paper:
+the criterion is a validated \emph{catastrophe filter}, not a tuner; we
+therefore fix one global default ($d_{\mathrm{slow}}{=}16,\lambda{=}4$)
+across all datasets, use the filter as the only per-dataset decision, and
+state that fine selection still requires labels (the residual Locatello
+concession). Real-data replication of the filter \todo.
+\item \emph{External baselines.} SlowVAE is refuted
+(loses the regime entirely, $0.63$/full $0.54$), but we have no
+self-supervised SOTA representation baseline. Add TS2Vec and a masked
+reconstruction baseline under matched budgets on all real datasets ---
+reviewers will not accept internal ablations alone.
+\item \emph{Close or scope the nonlinear leak.} One attempt at a nonlinear
+dependence penalty (HSIC between blocks, drop-in for dcor) to see whether the
+$0.45$ MLP leak closes. If it does not, the paper claims linear-subspace
+separation explicitly, with Proposition~2 as the reason this is a boundary
+rather than a bug.
+\end{enumerate}
+
+\textbf{Three risks that can kill the submission.} (a) Sleep-EDF/C-MAPSS
+fail to separate despite passing the gap screen $\to$ the method looks
+synthetic$+$HAPT-specific; fallback is the TMLR analysis framing. (b) The
+unsupervised selection criterion fails $\to$ the Locatello objection stands
+unanswered; we would then fix $d_{\mathrm{slow}}{=}16$, $\lambda{=}4$
+\emph{globally across all datasets} and show results are acceptable without
+any tuning, a weaker but honest defense. (c) Reviewers reject
+``linear-subspace separation'' as too weak a deliverable; mitigation is risk
+(a)'s breadth plus the robustness payoff --- the claim must earn its keep in
+a use case, not in metric aesthetics. \textbf{Go/no-go:} run Sleep-EDF first
+(fastest, highest information). If it reproduces the HAPT pattern, commit to
+ICLR; if not, submit the mechanism/conditions paper to TMLR.
+
+\section{The paper, section by section}
+\label{sec:paper}
+For each section: what goes in it, what exists, what is missing.
+
+\subsection{Introduction}
+\textbf{Content.} (1) Practitioners need the slow state (health, diagnosis,
+activity) separated from fast dynamics, not merely encoded --- motivating
+uses: selective domain robustness and interpretable health trajectories
+(anomaly attribution is demoted to a discussed-and-tested limitation).
+(2) The one-sentence idea: the prediction horizon, a free knob in every
+predictive SSL objective, is itself a supervision signal for
+timescale factoring. (3) Claims list with exact strength (assignment
+provable / exclusion linear / applicability diagnosable).
+\textbf{Status:} motivation prose exists in the 2-page report \done;
+horizon-as-supervision framing is currently buried in the method section
+\weak; the claims list needs rewriting at the new strength \todo.
+
+\subsection{Related work}
+\textbf{Content and the references that were missing from the 2-page
+report.} Four lines, one paragraph each, each ending with the delta:
+(1) \emph{Slowness and predictive information}: SFA
+\cite{wiskott2002slow}; predictive information \cite{bialek2001predictability};
+past--future information bottleneck \cite{creutzig2009past}. Delta: slowness
+of a feature $\neq$ long-horizon predictive value; our Tab.~1 control makes
+this empirical.
+(2) \emph{Identifiability}: TCL \cite{hyvarinen2016unsupervised}, PCL
+\cite{hyvarinen2017nonlinear}, SlowVAE \cite{klindt2021towards}, the
+impossibility result \cite{locatello2019challenging}. Delta: they get
+theorems under generative assumptions; we get a weaker but
+architecture-level guarantee (assignment) that composes with any
+latent-predictive objective.
+(3) \emph{Sequential VAEs / content--dynamics}: DSAE \cite{hsu2017unsupervised},
+C-DSVAE \cite{bai2021contrastively}. Delta: static content vs.\ our
+slowly-varying factor; reconstruction is local (our SlowVAE result: the
+regime never enters the code, $0.54$ full-embedding accuracy).
+(4) \emph{Latent-predictive SSL}: CPC \cite{oord2018representation}, I-JEPA
+\cite{assran2023self}, data2vec \cite{baevski2022data2vec}, HEPA
+\cite{hepa2026}, VICReg \cite{bardes2022vicreg} (for the decorrelation
+penalty's lineage), RankMe \cite{garrido2023rankme}, MINE
+\cite{belghazi2018mine}, DCI \cite{eastwood2018framework}, MIG
+\cite{chen2018isolating}, TS2Vec \cite{yue2022ts2vec}.
+Delta: these learn multi-scale content but do not factor it; we add the
+factoring axis.
+\textbf{Status:} positioning paragraph exists \done; full related-work
+section with per-item deltas and complete citations \todo\ (this document's
+bibliography is the seed).
+
+\subsection{Method}
+\textbf{Content --- must be fully self-contained (this was a gap in the
+2-page report).}
+\emph{Backbone.} Causal transformer encoder (4 layers, $d_{\mathrm{model}}
+{=}96$, $\sim$0.5M params) over patches of $P{=}8$ steps, window $L{=}256$
+patches; embedding $z_t\in\mathbb R^{64}$ split as
+$[\zslow(16);\zfast(48)]$; EMA target encoder (0.996); predictor
+$P(z,\Delta)$ conditioned on horizon $\Delta\in\{1,4,16,64,128\}$ patches;
+objectives: latent $L_2$ regression (JEPA family) and, in the new cell,
+InfoNCE against EMA embeddings with in-batch negatives (CPC family).
+\emph{The gate.} $g(\Delta)=\sigma((\tau-\Delta)/w)$ multiplies $\zfast$ at
+the predictor input; asymmetric by design (short horizons see both blocks,
+because fast dynamics are conditioned on slow state).
+\emph{Decorrelation.} Squared cross-covariance between blocks, weight
+$\lambda$; VICReg-lineage.
+\emph{Label-free $\tau$.} $\tau=c\,T_{\mathrm{ac}}$, $c\!\approx\!2.5$, from
+the signal's autocorrelation decay --- also the pre-training applicability
+screen.
+\textbf{Status:} all implemented and stable across 3 seeds \done; the
+description above must be written out with a figure (architecture + gate
+schedule) \todo; HSIC variant \todo.
+
+\subsection{Theory}
+\textbf{Content.} Proposition 1 (inclusion): under a timescale gap
+($Y_\Delta\perp X_{\le t}\mid s_t$ for $\Delta\ge\Delta_0$) and a closed
+gate, any population minimizer makes $\zslow$ mean-sufficient for the far
+future; with affinely independent regime-conditional target means, the
+slow-state posterior is a function of $\zslow$. Proposition 2 (no
+exclusion): a Borel-injection construction shows fast-information membership
+in $\zslow$ is not identified by the objective at any gate schedule; dcor
+removes linearly readable duplication only. Corollary: the measured
+nonlinear leak is the identified/unidentified boundary, not an
+implementation failure.
+\textbf{Status:} both propositions written with proofs in the current report
+\done; a full identifiability theorem (uniqueness up to symmetry, TCL-style)
+is explicitly out of scope for September --- state as open \done\ (as a
+statement); anonymous-ready notation cleanup \todo.
+
+\subsection{Experiments}
+\textbf{Datasets (each with the one-line reason it is in the paper).}
+\emph{Synthetic two-timescale oscillator}: 3-state Markov regime (dwell 3000
+steps) sets carrier frequency $\pm5\%$; fast OU factor (lifetime 50 steps)
+jitters frequency comparably; amplitudes equalized so no short-window
+statistic reveals the regime --- ground truth for mechanism claims.
+\emph{HAPT} \cite{reyes2016transition}: smartphone IMU, slow $=$ activity
+($\sim$12\,s dwell), fast $=$ gait cycle; subject-level split --- the
+domain-robustness testbed. \emph{PTB-XL} \cite{wagner2020ptb}: 12-lead ECG,
+slow $=$ diagnosis (static-content limitation flagged), fast $=$ beat
+morphology; patient split. \emph{XJTU-SY} \cite{wang2020xjtu}: bearing
+vibration, the \emph{pre-registered negative} --- carrier and envelope share
+one timescale, gate correctly does nothing. Planned: \emph{Sleep-EDF}
+\cite{kemp2000analysis} and \emph{C-MAPSS} \cite{saxena2008damage}.
+\textbf{Protocol (non-negotiable, in the paper verbatim).} Probes are fit on
+training groups and evaluated on held-out groups (subject/patient/bearing;
+contiguous time split on synthetic) over disjoint windows; absolute scores
+only (a ratio once hid a collapse that absolute scores + RankMe exposed);
+$n{=}3$ seeds; all variants share one backbone and budget.
+\textbf{Result inventory and status:}
+\begin{itemize}[leftmargin=1.3em,itemsep=0pt,topsep=1pt]
+\item F1 assignment + unmixing control (SFA/ICA/PCA cannot substitute) \done
+\item F2 objective generality: raw-AR fails; JEPA $0.19/0.27$; CPC-InfoNCE
+$0.05/0.00$ leak at regime $0.81$ \done
+\item F3 gate-alone/dcor-alone factorization (matches Prop.~2) \done
+\item F4 width sweep: absolute block size governs exclusion; scales to
+$d_z{=}256$ \done
+\item Nonlinear honesty: MLP $0.45$, MINE $0.95$ nats \done\ (HSIC response
+\todo)
+\item F5 real data: HAPT/PTB-XL positive, XJTU negative-as-predicted \done;
+Sleep-EDF, C-MAPSS \todo
+\item F6 competitors: SlowVAE refuted \done; TS2Vec, masked-recon baselines
+\todo
+\item DCI/MIG reported with the axis-metric caveat \done
+\item Downstream cost/payoff table ($\zslow$ vs.\ ungated-full, all datasets,
+plus robustness stress test) \weak\ (numbers exist for cost; robustness
+stress test beyond unseen-subject \todo)
+\item Label-free selection: retrospective grid validation \weak\ (running;
+real-data replication \todo)
+\item Anomaly attribution: point works ($0.93$--$0.97$), contextual at
+chance --- reported as a scoped negative with diagnosis \done
+\end{itemize}
+
+\subsection{Conclusion / limitations}
+\textbf{Content.} Restate the claim at its proven strength; limitations
+carried verbatim from the current report (soft exclusion, two-timescale
+assumption, $\tau$'s ACF assumption, patch-rate bound, dcor data-dependence,
+validation-needs-labels); the anomaly negative and what would fix it
+(novelty-sensitive machinery). \textbf{Status:} all content exists \done;
+consolidation \todo.
+
+\section{Workplan to the September deadline}
+\label{sec:plan}
+Ordered by information-per-day; each item names its kill criterion.
+\begin{itemize}[leftmargin=1.3em,itemsep=1pt,topsep=2pt]
+\item \textbf{W1 (Jul 28--Aug 1): Sleep-EDF end-to-end} (prep, screen,
+train, probe). Go/no-go for the ICLR framing.
+\item \textbf{W2: C-MAPSS} + downstream robustness stress tests
+(corruption/shift) on HAPT$+$Sleep-EDF.
+\item \textbf{W3: label-free selection} finish synthetic grid, replicate on
+HAPT; HSIC penalty experiment.
+\item \textbf{W4: external baselines} (TS2Vec, masked recon) on all real
+datasets, matched budgets.
+\item \textbf{Sep W1--2: writing} to this document's outline; internal
+red-team pass against the 10-point reviewer critique we already answered
+once.
+\item \textbf{Slack:} the anomaly follow-up (density model on $\zslow$) is
+explicitly \emph{out} of the September scope.
+\end{itemize}
+
+\begin{thebibliography}{99}\small\itemsep0pt
+\bibitem{wiskott2002slow} L. Wiskott, T. Sejnowski. Slow feature analysis:
+unsupervised learning of invariances. \emph{Neural Computation}, 2002.
+\bibitem{bialek2001predictability} W. Bialek, I. Nemenman, N. Tishby.
+Predictability, complexity, and learning. \emph{Neural Computation}, 2001.
+\bibitem{creutzig2009past} F. Creutzig, A. Globerson, N. Tishby.
+Past-future information bottleneck in dynamical systems. \emph{Phys.\ Rev.\
+E}, 2009.
+\bibitem{hyvarinen2016unsupervised} A. Hyv\"arinen, H. Morioka. Unsupervised
+feature extraction by time-contrastive learning and nonlinear ICA.
+\emph{NeurIPS}, 2016.
+\bibitem{hyvarinen2017nonlinear} A. Hyv\"arinen, H. Morioka. Nonlinear ICA
+of temporally dependent stationary sources. \emph{AISTATS}, 2017.
+\bibitem{klindt2021towards} D. Klindt et al. Towards nonlinear
+disentanglement in natural data with temporal sparse coding. \emph{ICLR},
+2021.
+\bibitem{locatello2019challenging} F. Locatello et al. Challenging common
+assumptions in the unsupervised learning of disentangled representations.
+\emph{ICML}, 2019.
+\bibitem{hsu2017unsupervised} W.-N. Hsu, Y. Zhang, J. Glass. Unsupervised
+learning of disentangled and interpretable representations from sequential
+data. \emph{NeurIPS}, 2017.
+\bibitem{bai2021contrastively} J. Bai, W. Wang, C. Gomes. Contrastively
+disentangled sequential variational autoencoder. \emph{NeurIPS}, 2021.
+\bibitem{oord2018representation} A. van den Oord, Y. Li, O. Vinyals.
+Representation learning with contrastive predictive coding. arXiv:1807.03748,
+2018.
+\bibitem{assran2023self} M. Assran et al. Self-supervised learning from
+images with a joint-embedding predictive architecture. \emph{CVPR}, 2023.
+\bibitem{baevski2022data2vec} A. Baevski et al. data2vec: a general framework
+for self-supervised learning in speech, vision and language. \emph{ICML},
+2022.
+\bibitem{hepa2026} HEPA: horizon-conditioned joint-embedding prediction for
+time series. 2026. (backbone reference)
+\bibitem{bardes2022vicreg} A. Bardes, J. Ponce, Y. LeCun. VICReg:
+variance-invariance-covariance regularization for self-supervised learning.
+\emph{ICLR}, 2022.
+\bibitem{garrido2023rankme} Q. Garrido et al. RankMe: assessing the
+downstream performance of pretrained self-supervised representations by
+their rank. \emph{ICML}, 2023.
+\bibitem{belghazi2018mine} M. Belghazi et al. Mutual information neural
+estimation. \emph{ICML}, 2018.
+\bibitem{eastwood2018framework} C. Eastwood, C. Williams. A framework for
+the quantitative evaluation of disentangled representations. \emph{ICLR},
+2018.
+\bibitem{chen2018isolating} R.T.Q. Chen et al. Isolating sources of
+disentanglement in variational autoencoders. \emph{NeurIPS}, 2018.
+\bibitem{yue2022ts2vec} Z. Yue et al. TS2Vec: towards universal
+representation of time series. \emph{AAAI}, 2022.
+\bibitem{reyes2016transition} J.-L. Reyes-Ortiz et al. Transition-aware
+human activity recognition using smartphones. \emph{Neurocomputing}, 2016.
+\bibitem{wagner2020ptb} P. Wagner et al. PTB-XL, a large publicly available
+electrocardiography dataset. \emph{Scientific Data}, 2020.
+\bibitem{wang2020xjtu} B. Wang et al. A hybrid prognostics approach for
+estimating remaining useful life of rolling element bearings (XJTU-SY
+datasets). \emph{IEEE Trans.\ Reliability}, 2020.
+\bibitem{kemp2000analysis} B. Kemp et al. Analysis of a sleep-dependent
+neuronal feedback loop: the slow-wave microcontinuity of the EEG. \emph{IEEE
+Trans.\ Biomed.\ Eng.}, 2000. (Sleep-EDF)
+\bibitem{saxena2008damage} A. Saxena et al. Damage propagation modeling for
+aircraft engine run-to-failure simulation. \emph{PHM}, 2008. (C-MAPSS)
+\end{thebibliography}
+
+\end{document}
