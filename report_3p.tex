@@ -106,9 +106,13 @@ decomposition.)}
 injects any fast statistic into $z^{\mathrm{slow}}$ at identical loss ---
 exclusion is \emph{not identified} by the objective under any gate schedule;
 dcor removes only linearly-readable duplication. So measured nonlinear leak
-is the objective's boundary, not a bug; in practice exclusion comes from the
-narrow block (continuous encoders cannot realize the pathological
-injections). A TCL-style uniqueness theorem remains open.
+is the objective's boundary, not a bug; in practice exclusion comes from an
+unmodeled smoothness bias of the trained encoder (a bounded-Lipschitz network
+does not realize the wild Borel injection that makes exclusion fail, though it
+can approximate it --- so exclusion is empirical, not guaranteed; cf.\ F4). A
+TCL-style uniqueness theorem, and the exact conditions on target-encoder means
+that Prop.~1 needs (regimes separated in the \emph{mean}, not only in
+variance), remain open.
 
 \begin{figure}[t]
 \centering
@@ -146,9 +150,12 @@ $\sim$12\,s) is buried under $\sim$1\,Hz gait oscillation:
 \textbf{slow} $=$ activity class, \textbf{fast} $=$ instantaneous
 acceleration magnitude.
 \emph{PTB-XL} \cite{wagner2020ptb} --- 12-lead clinical ECG.
-\textbf{Slow} $=$ diagnosis (constant over the record --- a harder,
-partially \emph{static}-content case we flag as such), \textbf{fast} $=$
-beat-level waveform value.
+\textbf{Slow} $=$ diagnosis (the normal-vs-abnormal ``NORM'' label; binary
+macro-F1), \textbf{fast} $=$ beat-level waveform value. We include it as an
+acknowledged \emph{limiting} case: the diagnosis is essentially constant over
+a 10\,s record, i.e.\ the \emph{static}-content regime we criticize DSAE for,
+so we expect a weaker effect here and treat it as a stress test rather than a
+showcase.
 \emph{XJTU-SY} \cite{wang2020xjtu} --- bearing run-to-failure vibration,
 included deliberately as the \emph{applicability boundary}: intended slow
 $=$ degradation/health, fast $=$ rotation carrier, but measured
@@ -160,9 +167,14 @@ evaluated on held-out groups --- HAPT by \emph{subject}, PTB-XL by
 \emph{patient}, XJTU by \emph{bearing}, synthetic by a contiguous
 \emph{future segment} --- over disjoint windows, so no near-duplicate window
 crosses the split and HAPT/PTB-XL double as domain-shift tests.
-\emph{Absolute} probe scores only; RankMe \cite{garrido2023rankme} monitors
-collapse; $n{=}3$ seeds, one backbone and budget for all variants. Results
-are organized as findings F1--F5.
+We report \emph{absolute} probe scores throughout (regime accuracy / factor
+$R^2$ / macro-F1); earlier iterations used leak \emph{ratios} to the full
+embedding, which once hid a collapse, so all numbers here are lower than and
+not comparable to any ratio-based figures. RankMe \cite{garrido2023rankme}
+monitors collapse; $n{=}3$ seeds, one backbone and budget for all variants.
+One patch is 8 steps, and horizons $\{1,4,16,64,128\}$ patches span
+$8$--$1024$ steps; the physical duration depends on each dataset's sampling
+rate. Results are organized as findings F1--F5.
 
 \begin{table}[t]
 \centering\small
@@ -183,14 +195,15 @@ XJTU-SY & health & carrier & bearings & neg.\ control \\
 
 \textbf{F1 --- separation, and alternatives do not suffice (Tab.~2).}
 Gate+dcor keeps the regime in $z^{\mathrm{slow}}$ (acc $0.80$ vs.\ full
-$0.69$ --- selective-use payoff) while cutting fast leak to $0.19/0.27$
-($0.79/0.73$ ungated). Label-free rotations of the \emph{ungated} embedding
+$0.70$ --- selective-use payoff) while cutting fast leak to $0.17/0.28$
+($0.78/0.73$ ungated). Label-free rotations of the \emph{ungated} embedding
 (SFA/ICA/PCA) each trade one side away: separation is created by the
 objective, not recoverable post hoc. A theory-bearing competitor also fails:
-an architecture-matched SlowVAE \cite{klindt2021towards} never captures the
-regime at all (slow block $0.63$, \emph{full} embedding $0.54$) ---
-reconstruction is local, and a factor requiring integration over hundreds of
-steps never enters its code.
+an architecture-matched SlowVAE \cite{klindt2021towards} recovers the regime
+only weakly (slow-block $0.63$; its \emph{full} embedding $0.54$, below its
+own slow subspace because selecting the 16 slowest latents drops noise) ---
+reconstruction is local, so a factor requiring integration over hundreds of
+steps barely enters its code.
 
 \begin{table}[h]
 \centering\small
@@ -204,7 +217,7 @@ Method & regime $\uparrow$ & $u$-leak $\downarrow$ & phase-leak $\downarrow$\\
 SFA (16 slowest) & 0.57 & 0.00 & 0.00 \\
 ICA (16 slowest) & 0.52 & 0.12 & 0.17 \\
 PCA (top 16)     & 0.76 & 0.80 & 0.91 \\
-\textbf{gate+dcor (ours)} & \textbf{0.80} & \textbf{0.19} & \textbf{0.27}\\
+\textbf{gate+dcor (ours)} & \textbf{0.80} & \textbf{0.17} & \textbf{0.28}\\
 \bottomrule
 \end{tabular}
 \vspace{-2mm}
@@ -217,7 +230,7 @@ raw-patch (AR) prediction separates nothing (leak $\ge0.78$). On a latent
 retaining the fast factors ($0.85/0.95$; no collapse). The mechanism is
 latent-target-family, not JEPA-specific.
 \textbf{F3 --- gate assigns, penalty purifies (Prop.~2).} Gate-alone barely
-reduces leak ($0.74/0.79$); dcor-alone degenerates (regime $0.55$); only the
+reduces leak ($0.71/0.72$); dcor-alone degenerates (regime $0.55$); only the
 combination works. Adding target-side removal pressure does not rescue
 gate-alone.
 \textbf{F4 --- exclusion rides on capacity, and scales.} Leak tracks the
@@ -232,14 +245,20 @@ data-dependent and not yet decidable label-free. XJTU is the predicted
 negative: carrier and envelope share one timescale
 ($T_{\mathrm{ac}}\!\approx\!1$--$2$ patches), the gate correctly does
 nothing; on the non-circular health target (lifetime fraction, held-out
-bearings) every method is weak, classical envelope/low-pass features fail to
-transfer ($-1.08/-0.11$), and $z^{\mathrm{slow}}$ carries what little exists
-($+0.18$).
+bearings) every method is weak, including the learned embedding
+($z^{\mathrm{slow}}$ only $+0.18$). Envelope and low-pass features fail to
+transfer ($-1.08/-0.11$), but we note this is a repurposing failure, not a
+verdict on classical practice: envelope analysis is designed for
+characteristic-fault-frequency \emph{detection}, not as a cross-bearing
+regression feature. We therefore read XJTU only as a correctly-predicted
+non-separable case, not as a win.
 
 \begin{table}[h]
 \centering\small
 \caption{\small Real data, group split, absolute scores (3 seeds). Brackets:
-full-embedding score.}
+the \emph{ungated} full-embedding score (best achievable with all dimensions,
+no gating); note gated training itself lowers the full-embedding score
+(HAPT $0.80\!\to\!0.76$, see limitations), so this is an upper reference.}
 \vspace{-1mm}
 \begin{tabular}{@{}llcc@{}}
 \toprule
@@ -271,11 +290,16 @@ envelope features fail to transfer across bearings.}
 \textbf{Limitations.} Exclusion is soft and \emph{linear-level}: nonlinear
 probes recover more of the fast factor than linear ones (MLP $R^2$ $0.45$
 vs.\ $0.19$), which is exactly the boundary Prop.~2 identifies --- our claim
-is linear-subspace separation, not information-theoretic removal. Gated
-training has a downstream cost on some data (HAPT: full embedding
-$0.80\!\to\!0.76$ F1; $z^{\mathrm{slow}}$ alone $0.71$), compensated by
-robustness and selective use (on synthetic, $z^{\mathrm{slow}}$ \emph{beats}
-the full embedding). The dcor polarity is data-dependent and not yet
+is linear-subspace separation, not information-theoretic removal. Most importantly, on real data the demonstrated benefit is so far the
+\emph{internal} separation metric (lower leak); the payoffs the introduction
+motivates --- selective robustness under a shift in the fast dynamics,
+interpretable trajectories, attribution --- are not yet measured on real
+data, and gated training in fact has a downstream cost on some (HAPT: full
+embedding $0.80\!\to\!0.76$ F1; $z^{\mathrm{slow}}$ alone $0.71$). The
+synthetic case where $z^{\mathrm{slow}}$ \emph{beats} the full embedding
+($0.80$ vs.\ $0.74$) is in-distribution selective use, not yet a
+robustness-under-shift result. Closing this gap --- an explicit
+shift-robustness experiment --- is the first priority. The dcor polarity is data-dependent and not yet
 decidable label-free; $\tau$ is label-free but
 $d_{\mathrm{slow}},\lambda$ are not. The design assumes exactly two
 timescales, and $\tau=c\,T_{\mathrm{ac}}$ assumes fast dynamics dominate the
