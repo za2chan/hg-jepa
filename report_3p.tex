@@ -39,8 +39,8 @@ helps predict the far future
 block out of the predictor at long horizons concentrates slow factors in the
 ungated block, with no labels.} Two refinements set the claim's exact
 strength. \emph{H2 (assignment asymmetry):} the gate \emph{assigns} slow
-information (provable); \emph{exclusion} of fast information rests on a
-narrow bottleneck plus a decorrelation penalty. \emph{H3:} the gate requires
+information to the ungated block; \emph{exclusion} of fast information rests on
+a narrow bottleneck plus a decorrelation penalty. \emph{H3:} the gate requires
 \emph{latent} targets; raw-signal prediction smears detail everywhere. Unlike
 slow feature analysis \cite{wiskott2002slow} we select by predictive value,
 not trajectory slowness; unlike temporal nonlinear-ICA
@@ -80,19 +80,23 @@ around $\tau$. \textbf{Why asymmetric.} The design mirrors an asymmetry in the
 generative process. (i) Fast dynamics are \emph{conditioned on} the slow
 state --- the next gait sample needs the current activity, the next
 oscillation sample needs the regime's carrier --- so short-horizon targets
-need both blocks. (ii) The fast factor forgets itself within
-$T_{\mathrm{ac}}$, so the far future needs only the slow block. A gate should
+need both blocks. (ii) The fast factor forgets itself within its autocorrelation
+time $T_{\mathrm{ac}}$, so the far future needs only the slow block. A gate should
 therefore remove only the information that has become useless: closing the
 fast path at long horizons is harmless. The symmetric variant, closing the
 slow path at short horizons, would instead cut information the short-horizon
 loss still needs, forcing the encoder to copy slow information into
 $z^{\mathrm{fast}}$ --- the very duplication separation must prevent.
 $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
-(VICReg-lineage \cite{bardes2022vicreg}). $\tau=c\,T_{\mathrm{ac}}$
-($c{\approx}2.5$) comes from the signal's autocorrelation decay --- label-free,
-and doubling as a pre-training applicability screen.
+(VICReg-lineage \cite{bardes2022vicreg}). The threshold is $\tau=c\,T_{\mathrm{ac}}$, where $T_{\mathrm{ac}}$ is the
+\emph{autocorrelation time} --- the lag at which the signal's autocorrelation
+decays to $1/e$, i.e.\ how long the fast dynamics stay correlated before
+forgetting themselves. We set $c\!\approx\!2.5$ so that $\tau$ sits a few
+autocorrelation times out, past which the fast factor has essentially decayed
+and only slow information remains predictive. $T_{\mathrm{ac}}$ is read
+directly from the data, so $\tau$ requires no labels.
 
-\section{Theory (proofs in extended report)}
+\section{Theory}
 \textbf{Prop.~1 (inclusion).} If the far future is conditionally independent
 of the past given the slow state ($\Delta\ge\Delta_0$: the timescale gap) and
 the gate is closed at some trained $\Delta^*\!\ge\!\Delta_0$, every population
