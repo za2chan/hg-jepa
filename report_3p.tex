@@ -4,8 +4,11 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage[small,compact]{titlesec}
 \setlength{\parskip}{1pt}
-\setlength{\textfloatsep}{7pt}
-\setlength{\floatsep}{6pt}
+\setlength{\textfloatsep}{9pt}
+\setlength{\floatsep}{9pt}
+\setlength{\intextsep}{9pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{2pt}
 
 \title{\vspace{-7mm}\large\bf Horizon-Gated JEPA: Label-Free Separation of\\
 Slow and Fast Factors in Time Series}
@@ -168,7 +171,6 @@ $8$--$1024$ steps. Results are findings F1--F5.
 \begin{table}[t]
 \centering\small
 \caption{\small Datasets: factor assignment, split, and role.}
-\vspace{-1mm}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Dataset & slow & fast & held out & role \\
@@ -179,7 +181,6 @@ PTB-XL & diagnosis & beat value & patients & static (limit) \\
 XJTU-SY & health & carrier & bearings & neg.\ control \\
 \bottomrule
 \end{tabular}
-\vspace{-2mm}
 \end{table}
 
 \textbf{F1 --- separation, and alternatives do not suffice (Fig.~2A, Tab.~2).}
@@ -197,7 +198,6 @@ integration over hundreds of steps barely enters its code.
 \centering\small
 \caption{\small Unmixing control (synthetic, 3 seeds): 16-dim ``slow''
 subspace of the ungated embedding vs.\ our gate.}
-\vspace{-1mm}
 \begin{tabular}{@{}lccc@{}}
 \toprule
 Method & regime $\uparrow$ & $u$-leak $\downarrow$ & phase-leak $\downarrow$\\
@@ -208,7 +208,6 @@ PCA (top 16)     & 0.76 & 0.80 & 0.91 \\
 \textbf{gate+dcor (ours)} & \textbf{0.80} & \textbf{0.17} & \textbf{0.28}\\
 \bottomrule
 \end{tabular}
-\vspace{-2mm}
 \end{table}
 
 \textbf{F2 --- latent targets, either objective (Fig.~2A).} The identical gate
@@ -246,7 +245,6 @@ only as a correctly-predicted non-separable case.
 \caption{\small Real data, group split, absolute scores (3 seeds). Slow-kept
 $=$ $z^{\mathrm{slow}}$ label score; bracket $=$ the ungated full-embedding
 score (an upper reference).}
-\vspace{-1mm}
 \begin{tabular}{@{}llcc@{}}
 \toprule
 Dataset & Variant & slow-kept $\uparrow$ & fast-leak $\downarrow$\\
@@ -259,7 +257,6 @@ PTB-XL (norm F1) & gate+dcor & 0.70 [0.74] & \textbf{0.41}\\
                  & no gate & 0.71 & 0.61\\
 \bottomrule
 \end{tabular}
-\vspace{-2mm}
 \end{table}
 
 \begin{figure}[t]
