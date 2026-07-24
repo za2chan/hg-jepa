@@ -96,26 +96,32 @@ autocorrelation times out, past which the fast factor has essentially decayed
 and only slow information remains predictive. $T_{\mathrm{ac}}$ is read
 directly from the data, so $\tau$ requires no labels.
 
-\section{Theory}
-\textbf{Prop.~1 (inclusion).} If the far future is conditionally independent
-of the past given the slow state ($\Delta\ge\Delta_0$: the timescale gap) and
-the gate is closed at some trained $\Delta^*\!\ge\!\Delta_0$, every population
-minimizer makes $z^{\mathrm{slow}}$ mean-sufficient for the far future; with
-affinely independent regime-conditional target means, the slow-state
-posterior is a function of $z^{\mathrm{slow}}$. \emph{(Square-loss tower
-decomposition.)}
-\textbf{Prop.~2 (no exclusion).} In plain terms: the objective itself cannot
-force fast information out of $z^{\mathrm{slow}}$, so exclusion has to come
-from the architecture. Formally, for any minimizer a measure-preserving
-re-encoding can hide any fast statistic inside $z^{\mathrm{slow}}$ at
-identical loss, so exclusion is \emph{not identified} by the objective under
-any gate schedule, and dcor removes only \emph{linearly}-readable
-duplication. The nonlinear leak we measure is therefore this boundary, not a
-bug. What excludes in practice is the encoder's smoothness bias: a
-bounded-Lipschitz network does not realize the pathological re-encoding, only
-approximates it, so exclusion is empirical (cf.\ F4). A uniqueness theorem,
-and Prop.~1's condition that regimes differ in the \emph{mean} not only in
-variance, remain open.
+\section{Two claims about what the gate can and cannot do}
+We state the mechanism as two claims; the argument is intuitive and we keep it
+informal here.
+
+\textbf{Claim 1 (inclusion --- slow information lands in $z^{\mathrm{slow}}$).}
+Suppose the far future depends on the past only through the current slow state
+(the timescale gap), and the gate is closed at some long horizon, so there the
+predictor sees only $z^{\mathrm{slow}}$. To predict that far future the encoder
+then has no choice but to pack everything relevant into $z^{\mathrm{slow}}$ ---
+in particular, enough to tell which slow state the series is in. So the gate
+\emph{forces} the slow factor into the ungated block; inclusion is automatic.
+(One mild condition: different states must leave a distinguishable imprint on
+the predicted embedding; states that differ only in higher-order statistics,
+not in the average, are a corner case we flag as open.)
+
+\textbf{Claim 2 (no exclusion --- the loss cannot push fast information out).}
+The training loss cares only about prediction quality, never about which block
+holds what. So one can always reshuffle $z^{\mathrm{slow}}$ reversibly, leaving
+the loss unchanged, in a way that smuggles fast information back in --- nothing
+in the objective forbids it, at any gate setting, and the decorrelation penalty
+only erases \emph{linear} traces. This is why a little fast information still
+leaks (the nonlinear-probe residual in F4): it is a property of the objective,
+not a bug. What actually keeps fast information out in practice is the
+combination of a narrow slow block and the smoothness of a real network, which
+cannot implement those adversarial reshufflings --- an empirical effect, not a
+guarantee.
 
 \begin{figure}[t]
 \centering
@@ -220,11 +226,11 @@ into every dimension. On a latent \emph{contrastive} objective (CPC-InfoNCE)
 it separates as well or better, with $z^{\mathrm{fast}}$ still holding the
 fast factors (no collapse). So the mechanism needs a latent target, but is
 not specific to JEPA regression.
-\textbf{F3 --- gate assigns, penalty purifies (Fig.~2A; Prop.~2).} Gate-alone
+\textbf{F3 --- gate assigns, penalty purifies (Fig.~2A; Claim~2).} Gate-alone
 barely reduces leak. dcor-alone degenerates, satisfying decorrelation by
 emptying the slow block. Only the combination separates: the gate gives each
 block a job, the penalty removes duplicates. Adding target-side removal
-pressure does not rescue gate-alone, matching Prop.~2.
+pressure does not rescue gate-alone, matching Claim~2.
 \textbf{F4 --- exclusion rides on capacity, and scales (Fig.~2C).} Leak tracks
 the \emph{absolute} slow-block size. A fixed 16-dim block keeps its exclusion
 when the backbone widens to $d_z{=}256$, whereas a proportionally scaled block
@@ -278,7 +284,7 @@ method is weak and the classical features fail to transfer across bearings.}
 \section{Limitations and future work}
 \textbf{Limitations.} Exclusion is soft and \emph{linear-level}: nonlinear
 probes recover more of the fast factor than linear ones (MLP $R^2$ $0.45$
-vs.\ $0.19$), which is exactly the boundary Prop.~2 identifies --- our claim
+vs.\ $0.19$), which is exactly the boundary Claim~2 identifies --- our claim
 is linear-subspace separation, not information-theoretic removal. Most importantly, on real data the demonstrated benefit is so far the
 \emph{internal} separation metric (lower leak); the payoffs the introduction
 motivates (robustness under a fast-dynamics shift, interpretable
