@@ -4,6 +4,7 @@ prediction (AR / next-token family), on two-timescale synthetic data.
 Usage: python3 train.py mode=nepa gate=1 dcor=0 seed=0 [tau=16] [dslow=16] [lam=4]
   mode=nepa : predict future EMA-encoder embeddings (JEPA family)
   mode=ar   : predict future raw patches (next-token / reconstruction family)
+  mode=cpc  : latent-contrastive (InfoNCE vs EMA embeddings, in-batch negatives)
   gate=1    : predictor's access to z_fast decays for horizons beyond tau
   dcor=1    : cross-covariance penalty between z_slow / z_fast blocks
 Probe eval uses disjoint windows + a contiguous time split (leak-free).
@@ -83,9 +84,9 @@ def main(args):
     evald = make_dataset(200_000, seed=99)
 
     enc = Encoder().to(DEV)
-    pred = Predictor(D_Z if mode == "nepa" else P).to(DEV)
+    pred = Predictor(P if mode == "ar" else D_Z).to(DEV)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=LR)
-    if mode == "nepa":
+    if mode != "ar":
         tgt = Encoder().to(DEV)
         tgt.load_state_dict(enc.state_dict())
         for p in tgt.parameters():
@@ -106,19 +107,23 @@ def main(args):
         g = gvals[didx.flatten()].unsqueeze(-1) if gated else 1.0
         za_in = torch.cat([za[:, :d_slow], za[:, d_slow:] * g], -1)
         zhat = pred(za_in, didx.flatten())
-        if mode == "nepa":
+        if mode == "ar":                        # predict raw future patch
+            ztgt = xb[bi.flatten(), (anchors + dvals).flatten()]
+        else:
             with torch.no_grad():
                 ztgt = tgt(xb)[bi.flatten(), (anchors + dvals).flatten()]
-        else:                                   # ar: predict raw future patch
-            ztgt = xb[bi.flatten(), (anchors + dvals).flatten()]
-        loss = ((zhat - ztgt) ** 2).mean()
+        if mode == "cpc":                       # InfoNCE, in-batch negatives
+            logits = F.normalize(zhat, dim=-1) @ F.normalize(ztgt, dim=-1).T / 0.1
+            loss = F.cross_entropy(logits, torch.arange(len(zhat), device=DEV))
+        else:
+            loss = ((zhat - ztgt) ** 2).mean()
         loss = loss + F.relu(1.0 - z.reshape(-1, D_Z).std(0)).mean()  # anti-collapse
         if dcor:
             zc = za - za.mean(0)
             C = (zc[:, :d_slow].T @ zc[:, d_slow:]) / (len(za) - 1)
             loss = loss + lam * (C ** 2).mean()
         opt.zero_grad(); loss.backward(); opt.step()
-        if mode == "nepa":
+        if mode != "ar":
             with torch.no_grad():
                 for pe, pt in zip(enc.parameters(), tgt.parameters()):
                     pt.mul_(EMA).add_(pe, alpha=1 - EMA)
@@ -155,6 +160,7 @@ def main(args):
         res[f"{name}->phase_r2"] = Ridge().fit(B[:ntr], yphi[:ntr]).score(B[ntr:], yphi[ntr:])
     print(json.dumps(res, indent=2), flush=True)
     json.dump(res, open(f"runs/{tag}.json", "w"), indent=2)
+    np.savez(f"runs/emb_{tag}.npz", Z=Z, regime=ys, u=yu, phase=yphi)  # for DCI/MIG
 
 
 if __name__ == "__main__":

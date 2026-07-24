@@ -45,10 +45,11 @@ hypothesis:
 latent block is gated off for long horizons, slow factors concentrate in the
 ungated block and fast factors are displaced to the gated block --- no labels.}
 
-Two secondary hypotheses sharpen this. \emph{H2 (guarantee asymmetry):} the
-gate structurally guarantees only \emph{inclusion} of slow information in the
-ungated block; \emph{exclusion} of fast information relies on capacity
-pressure and, if needed, a light decorrelation penalty. \emph{H3
+Two secondary hypotheses sharpen this. \emph{H2 (assignment asymmetry):} the
+gate structurally \emph{assigns} slow information to the ungated block
+(inclusion); \emph{exclusion} of fast information is not enforced by the gate
+itself --- it relies on the block being a narrow bottleneck and, if needed, a
+light decorrelation penalty. \emph{H3
 (architecture specificity):} the gate should work on \emph{latent}-space
 prediction but fail on raw-signal prediction, because raw targets force the
 encoder to smear unpredictable detail across all dimensions.
@@ -119,6 +120,24 @@ fast leak $0.56\!\to\!0.17$ while keeping activity F1 $0.71$.}
 \vspace{-3mm}
 \end{figure}
 
+\begin{table}[t]
+\centering\small
+\caption{\small Unmixing control (synthetic, 3 seeds): label-free extraction of
+a 16-dim ``slow'' subspace from the \emph{ungated} embedding vs.\ our gate.
+regime $\uparrow$; $u$/phase leak $\downarrow$ ($R^2$, negative clipped to 0).}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Method & regime $\uparrow$ & $u$-leak $\downarrow$ & phase-leak $\downarrow$ \\
+\midrule
+SFA (16 slowest)  & 0.57 & 0.00 & 0.00 \\
+ICA (16 slowest)  & 0.52 & 0.12 & 0.17 \\
+PCA (top 16)      & 0.76 & 0.80 & 0.91 \\
+ungated block     & 0.73 & 0.79 & 0.72 \\
+\textbf{gate+dcor (ours)} & \textbf{0.80} & \textbf{0.19} & \textbf{0.27} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Preliminary results}
 \textbf{F1 --- the gate separates (H1).} With gate$+$dcor, $z_{\mathrm{slow}}$
 (16 of 64 dims) keeps the slow factor (regime acc $0.80$, matching the full
@@ -128,32 +147,57 @@ reduction. RankMe stays $\sim$32--36 of 64, so the drop is genuine exclusion,
 not collapse. That $z_{\mathrm{slow}}$ reads the regime \emph{better} than the
 full embedding is itself the selective-use payoff: dropping fast dimensions
 removes noise for the slow task.
+\emph{Control --- unmixing does not suffice (Tab.~1):} one might object that
+the ungated embedding already contains the factors and only needs a label-free
+rotation. Applying SFA, ICA (slowest components), and PCA to the ungated
+embedding and probing the extracted 16-dim subspace refutes this: each method
+trades one side for the other --- SFA and ICA do cut fast leakage but lose the
+regime (acc $0.57$/$0.52$), while PCA keeps the regime ($0.76$) and all the
+leak ($0.80$). Only training-time gating keeps the slow factor ($0.80$)
+\emph{and} excludes the fast one ($0.19$); the separation is created by the
+objective, not recoverable post hoc.
 \textbf{F2 --- latent targets are necessary (H3).} On raw-patch prediction
 the identical gate leaves fast leakage at the ungated level ($u\,0.78$ vs.\
 $0.81$; phase $0.96$ vs.\ $0.97$) --- essentially nothing, against
-$0.79\!\to\!0.19$ for latent prediction: horizon gating is synergistic with
-latent-target (JEPA-family) prediction, not raw-target prediction. (Whether
-this is specific to regression vs.\ a latent \emph{contrastive} target, e.g.\
-gated CPC-InfoNCE, is a controlled cell we leave to future work.)
+$0.79\!\to\!0.19$ for latent prediction. Completing the
+latent/raw$\times$regression/contrastive grid, the same gate on a latent
+\emph{contrastive} objective (CPC-InfoNCE against EMA embeddings, in-batch
+negatives) separates as well or better: with dcor, regime $0.81$ with fast
+leakage $0.05$ ($u$) / $0.00$ (phase), while $z_{\mathrm{fast}}$ retains both
+fast factors ($0.85/0.95$ --- no collapse). So the mechanism is not
+JEPA-regression-specific: horizon gating works whenever the target lives in
+\emph{latent} space and fails when raw targets force fast detail into every
+dimension. Consistent with F3, contrastive gate-alone also under-separates
+($u$ $0.46$, phase $0.81$) --- dcor is again the purifier.
 \textbf{F3 --- structure assigns, penalty purifies (H2).} Gate alone barely
 lowers leakage ($u\,0.74$, phase $0.79$, near the ungated $0.79/0.73$); dcor
 alone \emph{degenerates} --- the model satisfies decorrelation by emptying the
 slow block (regime probe $0.55$). Only the combination separates ($0.19/0.27$):
 the gate gives each block a job, the penalty removes duplicates. This is
 consistent with H2 --- the objective has no term that removes fast information
-from $z_{\mathrm{slow}}$; exclusion is done by capacity pressure and dcor, not
-by the gate alone.
-\textbf{F4 --- the capacity mechanism is direct.} Shrinking the slow block
-$16\!\to\!8$ dims cuts leakage to $0.08$ ($u$) / $0.23$ (phase) at unchanged
-regime accuracy ($0.82$), while widening to $32$ dims restores leakage
-($0.78/0.87$) --- direct evidence that exclusion rides on the block bottleneck
-(and a caveat for wide foundation-model backbones). The $\tau$ sweep is weaker
+from $z_{\mathrm{slow}}$; exclusion is done by the bottleneck and dcor, not
+by the gate alone. We also tested a variant with removal pressure added
+(masking the slow dimensions of the \emph{target} at short horizons): it does
+not rescue gate-alone, confirming the mechanism is bottleneck-based rather
+than fixable by extra gating.
+\textbf{F4 --- the mechanism is ``gate assigns, bottleneck excludes'', and it
+scales.} Shrinking the slow block $16\!\to\!8$ dims cuts leakage to $0.08$
+($u$) / $0.23$ (phase) at unchanged regime accuracy ($0.82$), while widening
+to $32$ dims restores leakage ($0.78/0.87$). A width sweep makes the mechanism
+precise: what matters is the \emph{absolute} slow-block size, not its fraction
+of the embedding. Keeping a fixed 16-dim block while widening the backbone to
+$d_z{=}128$ and $256$ preserves separation (fast leak $0.06$/$0.08$, regime
+$\sim\!0.72$), whereas scaling the block proportionally ($32$/$64$ dims) lets
+leakage flood back ($u\;R^2\!\approx\!0.6$). So the gate \emph{assigns} the
+slow factor to the ungated block, and the narrow bottleneck (plus dcor)
+\emph{excludes} the fast one --- and this transfers to wide backbones provided
+the slow block stays narrow. The $\tau$ sweep is weaker
 under the leak-free protocol (best near $2.5\,T_{\mathrm{ac}}$ but within
 seed noise), which we note honestly. An earlier iteration \emph{failed}
 informatively: when the fast factor's lifetime was shorter than the shortest
 horizon, the gate had nothing to separate --- the effect requires genuine
 multi-scale structure.
-\textbf{F5 --- real data, group-split (Fig.~C, Tab.~1).} With held-out
+\textbf{F5 --- real data, group-split (Fig.~C, Tab.~2).} With held-out
 subjects/patients (leak-free, and a domain-shift test), the gate reproduces
 the synthetic separation ($n{=}3$ seeds). HAPT (slow = activity persisting
 $\sim$12\,s, fast = gait, $T_{\mathrm{ac}}\!\sim\!0.1$\,s): gate cuts fast
@@ -174,6 +218,19 @@ autocorrelation shows the accessible carrier and envelope proxies share
 nearly the same timescale ($T_{\mathrm{ac}}\!\approx\!1$--$2$ patches), and
 accordingly the gate does \emph{not} manufacture separation --- consistent
 with F4: the method separates only where a genuine timescale gap exists.
+\textbf{F6 --- a theory-bearing competitor; standard metrics.} An
+architecture-matched SlowVAE (Klindt et al., 2021: reconstruction + Laplace
+transition prior, \emph{with} identifiability theory), same backbone, data and
+protocol: its 16 slowest latents show moderate leakage ($0.27/0.29$) but lose
+the slow factor (regime $0.63$; even its \emph{full} embedding decodes only
+$0.54$) --- reconstruction is local, so a factor requiring integration over
+hundreds of steps never enters the code. On reviewer-requested metrics, MIG is
+near zero for every method (it rewards one-dimensional codes; ours is a block
+code), and DCI-disentanglement ranks SlowVAE ($0.66$) \emph{above} ours
+($0.39$) even though SlowVAE cannot decode the regime --- the known failure of
+axis-aligned metrics that ignore informativeness (Locatello et al., 2019). We
+therefore keep the block probe matrix, with absolute scores, as the operative
+measure and report DCI/MIG for comparability.
 
 \begin{table}[t]
 \centering\small
@@ -199,11 +256,13 @@ predictor at inference, a spike in the \emph{short}-horizon residual (fast
 block) signals a point anomaly, while a spike in the \emph{long}-horizon
 residual --- which the gate forces to depend only on $z_{\mathrm{slow}}$ ---
 signals a contextual anomaly (drift from state). An entangled residual cannot
-be attributed this way; we will evaluate this on HEPA's event/anomaly
-benchmarks (C-MAPSS, SMAP/PSM). Also: (i) external baselines under matched
-budgets (TS2Vec, masked reconstruction, C-DSVAE); an amplitude-modulation
-scenario where filter decomposition fails by construction; (ii) DCI/MIG beside
-our block matrix; subject-split evaluation; (iii) replacing EMA with SIGReg
+be attributed this way; we will evaluate this with controlled injected
+anomalies (typed point/contextual) and C-MAPSS, avoiding the label-quality
+issues of SMAP/PSM. Also: (i) further external baselines under matched
+budgets (TS2Vec, masked reconstruction); an amplitude-modulation
+scenario where filter decomposition fails by construction; (ii) an
+envelope-analysis (Hilbert) baseline on XJTU in place of naive low-pass;
+(iii) replacing EMA with SIGReg
 (HEPA/LeNEPA) and showing the gate effect is stabilizer-independent.
 \textbf{Limitations:} exclusion is soft (H2) and impossible to make complete
 when fast dynamics are conditioned on slow state; the dcor penalty helps on

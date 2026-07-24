@@ -70,16 +70,22 @@ A rigorous review flagged 10 issues (see below). Highest-value ones:
 
 ## Next steps (ordered; see report for detail)
 
-1. **Report writing** (no experiments): put unmixing table as the F1 control;
-   reframe H2/F3/F4 to "gate assigns, bottleneck+dcor exclude"; add width-sweep
-   + scaling paragraph; soften "guarantee"→"assigns". LOW RISK, do first.
-2. **Latent-contrastive cell (#8):** gate on CPC-InfoNCE to fill the 2x2
-   (latent/raw × regression/contrastive). Isolates "JEPA-specific" vs "latent
-   target". Half day on GPU.
-3. **Real competitors (#2, hardest/most important):** C-DSVAE (code exists,
-   1D-timeseries port is the landmine → fallback SlowVAE/TCL) + DCI/MIG on
-   synthetic. This is where acceptance is decided (they have theorems, we don't).
-4. **Metrics (#4):** MLP probe + MINE for "displaced"; DCI/MIG beside block matrix.
+1. ~~Report writing~~ DONE (2026-07-24): unmixing table = Tab 1; H2 renamed
+   "assignment asymmetry"; F4 = width sweep ("gate assigns, bottleneck
+   excludes, scales if block stays narrow"); SMAP/PSM dropped. NOT compiled —
+   check 2-page overflow on Overleaf, trim Planned work if needed.
+2. ~~Latent-contrastive cell (#8)~~ DONE: train.py mode=cpc (InfoNCE vs EMA,
+   in-batch negs). **CPC gate+dcor separates BEST: regime 0.81, leak 0.05/0.00**
+   (z_fast keeps 0.85/0.95, no collapse). Gate-alone leaks (0.46/0.81) = F3
+   consistent. F2 reframed: latent-target family, not JEPA-regression-specific.
+3. ~~Competitor (#2 partial)~~ DONE: slowvae.py (arch-matched SlowVAE, Laplace
+   transition prior). Loses the slow factor (regime 0.63 slow / 0.54 FULL) at
+   leak 0.27/0.29 — recon is local, regime needs long integration. Still no
+   theorems of our own (#2 writing/lit part remains).
+4. **Metrics (#4):** DCI/MIG DONE (metrics.py, emb_*.npz): MIG ~0 for all
+   (block codes); DCI ranks SlowVAE (0.66) > ours (0.39) despite SlowVAE not
+   decoding regime — reported honestly as axis-metric failure (Locatello).
+   Remaining: MLP probe + MINE for "displaced".
 5. **Anomaly attribution (#5 payoff / motivation gap):** inject point + contextual
    anomalies with type labels into datagen; test short- vs long-horizon residual
    attribution. Heed #9: target-contamination-robust aggregation, concede
