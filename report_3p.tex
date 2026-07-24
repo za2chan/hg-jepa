@@ -73,8 +73,22 @@ P\big(z^{\mathrm{slow}}_t, g(\Delta)z^{\mathrm{fast}}_t, \Delta\big)
 with soft gate $g(\Delta)=\sigma((\tau-\Delta)/w)$, where $\sigma$ is the
 logistic sigmoid and $w$ (4 patches) sets the transition width, so the fast
 block fades smoothly from open ($g{\approx}1$) to closed ($g{\approx}0$)
-around $\tau$. The gate is asymmetric:
-short horizons see both blocks (fast dynamics are conditioned on slow state).
+around $\tau$. \textbf{Why the gate is asymmetric.} The design mirrors an
+asymmetry in the generative process itself. Fast dynamics are
+\emph{conditioned on} the slow state --- predicting the next gait sample
+requires knowing the current activity; predicting the next oscillation
+sample requires the regime's carrier frequency --- so short-horizon targets
+need \emph{both} blocks: $I(\text{near future};s_t\mid f_t)>0$. The far
+future is the opposite: the fast factor forgets itself within
+$T_{\mathrm{ac}}$, so $I(\text{far future};f_t\mid s_t)\approx 0$. A gate
+should only ever remove information that has become \emph{conditionally
+useless}: closing the fast path at long horizons removes nothing the task
+needs, while the symmetric variant --- closing the slow path at short
+horizons --- would cut information the short-horizon loss still requires,
+and the encoder's only way to recover that loss is to \emph{copy} slow
+information into $z^{\mathrm{fast}}$. That duplication is precisely the
+failure separation is meant to prevent, which is why the symmetric design
+would undo itself.
 $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
 (VICReg-lineage \cite{bardes2022vicreg}). $\tau=c\,T_{\mathrm{ac}}$
 ($c{\approx}2.5$) comes from the signal's autocorrelation decay --- label-free,

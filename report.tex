@@ -116,10 +116,18 @@ P\big(z^{\mathrm{slow}}_t,\;g(\Delta)\,z^{\mathrm{fast}}_t,\;\Delta\big)
 with a soft gate $g(\Delta)=\sigma\!\big((\tau-\Delta)/w\big)$, where
 $\sigma$ is the logistic sigmoid and $w$ (4 patches) sets the transition
 width: for $\Delta\!\gg\!\tau$ the predictor sees only the slow block. The gate is
-asymmetric by design --- short-horizon prediction keeps access to both blocks
-because fast dynamics are \emph{conditioned on} slow state; blocking the slow
-block at short horizons would force slow information to be duplicated into
-the fast block. $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
+asymmetric by design, mirroring an asymmetry in the generative process: fast
+dynamics are \emph{conditioned on} slow state (the next gait sample depends
+on the current activity; the next oscillation sample depends on the regime's
+carrier frequency), so short-horizon targets need both blocks ---
+$I(\text{near future};s_t\mid f_t)>0$ --- whereas the fast factor forgets
+itself within $T_{\mathrm{ac}}$, so $I(\text{far future};f_t\mid s_t)\approx
+0$. A gate should remove only conditionally useless information: closing the
+fast path at long horizons is harmless, but the symmetric variant (closing
+the slow path at short horizons) would cut information the short-horizon
+loss still needs, and the encoder would recover it by \emph{duplicating}
+slow information into the fast block --- exactly the failure separation is
+meant to prevent. $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
 between blocks (removes duplicates; cf.\ H2; VICReg-lineage
 \cite{bardes2022vicreg}). The threshold is set from the
 data itself as $\tau = c\,T_{\mathrm{ac}}$, where $T_{\mathrm{ac}}$ is the
