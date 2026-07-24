@@ -164,9 +164,13 @@ oscillation (\textbf{slow} $=$ activity, \textbf{fast} $=$ acceleration
 magnitude).
 \emph{PTB-XL} \cite{wagner2020ptb} --- 12-lead ECG (\textbf{slow} $=$
 normal-vs-abnormal ``NORM'' diagnosis, binary macro-F1; \textbf{fast} $=$
-beat waveform). An acknowledged \emph{limiting} case: diagnosis is constant
-over a 10\,s record --- the \emph{static}-content regime we fault DSAE for ---
-so we treat it as a stress test, not a showcase.
+beat waveform). An acknowledged \emph{limiting} case: our method assumes the
+slow factor \emph{varies slowly}, so the gate has a live-vs-forgotten
+timescale contrast to exploit. Here the diagnosis does not vary at all over a
+10\,s record --- it is \emph{static}, the very content-vs-dynamics regime that
+sequential VAEs target and that we argue is too narrow. With no slow variation
+to isolate we expect the gate to help little, so we treat PTB-XL as a stress
+test at the edge of our assumptions, not a showcase.
 \emph{XJTU-SY} \cite{wang2020xjtu} --- bearing vibration, included as the
 \emph{applicability boundary}: intended slow $=$ health, fast $=$ carrier,
 but both live at one timescale within a window, so the method predicts
