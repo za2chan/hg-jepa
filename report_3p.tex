@@ -18,13 +18,13 @@ Slow and Fast Factors in Time Series}
 
 \section{Motivation and claim}
 Practitioners want the \emph{slowly-varying state} of a time series (machine
-health, diagnosis, activity) \emph{separated} from fast variation (vibration,
-beat morphology, gait), not merely co-encoded: separation is what enables
-selective domain robustness and interpretable state trajectories. Frequency
-decomposition \cite{mallat1999wavelet,huang1998empirical} fails in principle
---- a slow factor need not live in a low band (bearing health rides the
-envelope of high-frequency resonance \cite{randall2011rolling}); sequential
-VAEs (DSAE \cite{hsu2017unsupervised}, C-DSVAE \cite{bai2021contrastively})
+health, diagnosis, activity) \emph{separated} from fast variation, not merely
+co-encoded: separation is what enables selective domain robustness and
+interpretable state trajectories. Frequency decomposition
+\cite{mallat1999wavelet,huang1998empirical} fails in principle --- a slow
+factor need not live in a low band (bearing health rides the envelope of
+high-frequency resonance \cite{randall2011rolling}); sequential VAEs
+(DSAE \cite{hsu2017unsupervised}, C-DSVAE \cite{bai2021contrastively})
 separate only \emph{static} content via fragile reconstruction; and
 horizon-conditioned JEPAs (HEPA \cite{hepa2026}) encode multi-scale dynamics
 without factoring them.
@@ -73,22 +73,17 @@ P\big(z^{\mathrm{slow}}_t, g(\Delta)z^{\mathrm{fast}}_t, \Delta\big)
 with soft gate $g(\Delta)=\sigma((\tau-\Delta)/w)$, where $\sigma$ is the
 logistic sigmoid and $w$ (4 patches) sets the transition width, so the fast
 block fades smoothly from open ($g{\approx}1$) to closed ($g{\approx}0$)
-around $\tau$. \textbf{Why the gate is asymmetric.} The design mirrors an
-asymmetry in the generative process itself. Fast dynamics are
-\emph{conditioned on} the slow state --- predicting the next gait sample
-requires knowing the current activity; predicting the next oscillation
-sample requires the regime's carrier frequency --- so short-horizon targets
-need \emph{both} blocks: $I(\text{near future};s_t\mid f_t)>0$. The far
-future is the opposite: the fast factor forgets itself within
-$T_{\mathrm{ac}}$, so $I(\text{far future};f_t\mid s_t)\approx 0$. A gate
-should only ever remove information that has become \emph{conditionally
-useless}: closing the fast path at long horizons removes nothing the task
-needs, while the symmetric variant --- closing the slow path at short
-horizons --- would cut information the short-horizon loss still requires,
-and the encoder's only way to recover that loss is to \emph{copy} slow
-information into $z^{\mathrm{fast}}$. That duplication is precisely the
-failure separation is meant to prevent, which is why the symmetric design
-would undo itself.
+around $\tau$. \textbf{Why asymmetric.} The design mirrors an asymmetry in the
+generative process: fast dynamics are \emph{conditioned on} the slow state
+(the next gait sample needs the current activity; the next oscillation sample
+needs the regime's carrier), so short-horizon targets need both blocks
+($I(\text{near};s_t\mid f_t)>0$), whereas the fast factor forgets itself
+within $T_{\mathrm{ac}}$ ($I(\text{far};f_t\mid s_t)\approx 0$). A gate
+should remove only \emph{conditionally useless} information: closing the fast
+path at long horizons is harmless, but the symmetric variant (closing the
+slow path at short horizons) would cut information the short-horizon loss
+still needs, forcing the encoder to \emph{copy} slow information into
+$z^{\mathrm{fast}}$ --- the very duplication separation must prevent.
 $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
 (VICReg-lineage \cite{bardes2022vicreg}). $\tau=c\,T_{\mathrm{ac}}$
 ($c{\approx}2.5$) comes from the signal's autocorrelation decay --- label-free,
@@ -106,13 +101,11 @@ decomposition.)}
 injects any fast statistic into $z^{\mathrm{slow}}$ at identical loss ---
 exclusion is \emph{not identified} by the objective under any gate schedule;
 dcor removes only linearly-readable duplication. So measured nonlinear leak
-is the objective's boundary, not a bug; in practice exclusion comes from an
-unmodeled smoothness bias of the trained encoder (a bounded-Lipschitz network
-does not realize the wild Borel injection that makes exclusion fail, though it
-can approximate it --- so exclusion is empirical, not guaranteed; cf.\ F4). A
-TCL-style uniqueness theorem, and the exact conditions on target-encoder means
-that Prop.~1 needs (regimes separated in the \emph{mean}, not only in
-variance), remain open.
+is the objective's boundary, not a bug; in practice exclusion comes from the
+encoder's smoothness bias (a bounded-Lipschitz network does not realize the
+wild injection, only approximates it --- so exclusion is empirical, cf.\ F4).
+A uniqueness theorem, and Prop.~1's condition that regimes differ in the
+\emph{mean} (not only in variance), remain open.
 
 \begin{figure}[t]
 \centering
@@ -144,37 +137,29 @@ regimes and the regime's frequency shift is within the jitter range, so
 requires integrating hundreds of steps, exactly the long-horizon information
 the gate is meant to isolate.
 
-\emph{HAPT} \cite{reyes2016transition} --- smartphone IMU during daily
-activities. Relevant because the quantity of interest (activity, persisting
-$\sim$12\,s) is buried under $\sim$1\,Hz gait oscillation:
-\textbf{slow} $=$ activity class, \textbf{fast} $=$ instantaneous
-acceleration magnitude.
-\emph{PTB-XL} \cite{wagner2020ptb} --- 12-lead clinical ECG.
-\textbf{Slow} $=$ diagnosis (the normal-vs-abnormal ``NORM'' label; binary
-macro-F1), \textbf{fast} $=$ beat-level waveform value. We include it as an
-acknowledged \emph{limiting} case: the diagnosis is essentially constant over
-a 10\,s record, i.e.\ the \emph{static}-content regime we criticize DSAE for,
-so we expect a weaker effect here and treat it as a stress test rather than a
-showcase.
-\emph{XJTU-SY} \cite{wang2020xjtu} --- bearing run-to-failure vibration,
-included deliberately as the \emph{applicability boundary}: intended slow
-$=$ degradation/health, fast $=$ rotation carrier, but measured
-autocorrelation shows both live at the same timescale within a window, so
-the method itself predicts non-separation (F5).
+\emph{HAPT} \cite{reyes2016transition} --- smartphone IMU: the quantity of
+interest (activity, persisting $\sim$12\,s) is buried under $\sim$1\,Hz gait
+oscillation (\textbf{slow} $=$ activity, \textbf{fast} $=$ acceleration
+magnitude).
+\emph{PTB-XL} \cite{wagner2020ptb} --- 12-lead ECG (\textbf{slow} $=$
+normal-vs-abnormal ``NORM'' diagnosis, binary macro-F1; \textbf{fast} $=$
+beat waveform). An acknowledged \emph{limiting} case: diagnosis is constant
+over a 10\,s record --- the \emph{static}-content regime we fault DSAE for ---
+so we treat it as a stress test, not a showcase.
+\emph{XJTU-SY} \cite{wang2020xjtu} --- bearing vibration, included as the
+\emph{applicability boundary}: intended slow $=$ health, fast $=$ carrier,
+but both live at one timescale within a window, so the method predicts
+non-separation (F5).
 
-\textbf{Split principle.} Probes are fit on training \emph{groups} and
-evaluated on held-out groups --- HAPT by \emph{subject}, PTB-XL by
-\emph{patient}, XJTU by \emph{bearing}, synthetic by a contiguous
-\emph{future segment} --- over disjoint windows, so no near-duplicate window
-crosses the split and HAPT/PTB-XL double as domain-shift tests.
-We report \emph{absolute} probe scores throughout (regime accuracy / factor
-$R^2$ / macro-F1); earlier iterations used leak \emph{ratios} to the full
-embedding, which once hid a collapse, so all numbers here are lower than and
-not comparable to any ratio-based figures. RankMe \cite{garrido2023rankme}
-monitors collapse; $n{=}3$ seeds, one backbone and budget for all variants.
-One patch is 8 steps, and horizons $\{1,4,16,64,128\}$ patches span
-$8$--$1024$ steps; the physical duration depends on each dataset's sampling
-rate. Results are organized as findings F1--F5.
+\textbf{Protocol.} Probes are fit on training groups and evaluated on held-out
+groups (Tab.~1, ``held out'') over disjoint windows, so no near-duplicate
+window crosses the split and HAPT/PTB-XL double as domain-shift tests. We
+report \emph{absolute} scores (accuracy / $R^2$ / macro-F1), not the leak
+\emph{ratios} of earlier iterations (which once hid a collapse), so all
+numbers here are lower and non-comparable. RankMe \cite{garrido2023rankme}
+monitors collapse; $n{=}3$ seeds, one backbone and budget for all variants;
+one patch is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span
+$8$--$1024$ steps. Results are findings F1--F5.
 
 \begin{table}[t]
 \centering\small
@@ -200,10 +185,8 @@ $0.70$ --- selective-use payoff) while cutting fast leak to $0.17/0.28$
 (SFA/ICA/PCA) each trade one side away: separation is created by the
 objective, not recoverable post hoc. A theory-bearing competitor also fails:
 an architecture-matched SlowVAE \cite{klindt2021towards} recovers the regime
-only weakly (slow-block $0.63$; its \emph{full} embedding $0.54$, below its
-own slow subspace because selecting the 16 slowest latents drops noise) ---
-reconstruction is local, so a factor requiring integration over hundreds of
-steps barely enters its code.
+only weakly (slow-block $0.63$, full $0.54$) --- reconstruction is local, so a
+factor needing integration over hundreds of steps barely enters its code.
 
 \begin{table}[h]
 \centering\small
@@ -292,28 +275,26 @@ probes recover more of the fast factor than linear ones (MLP $R^2$ $0.45$
 vs.\ $0.19$), which is exactly the boundary Prop.~2 identifies --- our claim
 is linear-subspace separation, not information-theoretic removal. Most importantly, on real data the demonstrated benefit is so far the
 \emph{internal} separation metric (lower leak); the payoffs the introduction
-motivates --- selective robustness under a shift in the fast dynamics,
-interpretable trajectories, attribution --- are not yet measured on real
-data, and gated training in fact has a downstream cost on some (HAPT: full
-embedding $0.80\!\to\!0.76$ F1; $z^{\mathrm{slow}}$ alone $0.71$). The
-synthetic case where $z^{\mathrm{slow}}$ \emph{beats} the full embedding
-($0.80$ vs.\ $0.74$) is in-distribution selective use, not yet a
-robustness-under-shift result. Closing this gap --- an explicit
-shift-robustness experiment --- is the first priority. The dcor polarity is data-dependent and not yet
+motivates (robustness under a fast-dynamics shift, interpretable
+trajectories, attribution) are not yet measured there, and gated training in
+fact has a downstream cost (HAPT: full embedding $0.80\!\to\!0.76$;
+$z^{\mathrm{slow}}$ alone $0.71$). The synthetic win of $z^{\mathrm{slow}}$
+over the full embedding ($0.80$ vs.\ $0.74$) is in-distribution selective
+use, not robustness-under-shift; an explicit shift experiment is the first
+priority. The dcor polarity is data-dependent and not yet
 decidable label-free; $\tau$ is label-free but
 $d_{\mathrm{slow}},\lambda$ are not. The design assumes exactly two
 timescales, and $\tau=c\,T_{\mathrm{ac}}$ assumes fast dynamics dominate the
 ACF. Training is fully label-free; validation, as standard in
 disentanglement, is not.
-\textbf{Future work (in progress or planned).} Unsupervised model selection
-(a health-metric criterion currently rejects broken configurations but
-cannot fine-tune); anomaly attribution via horizon-split residuals (point
-detection works in a pilot; contextual detection needs novelty-sensitive
-machinery); additional datasets with pre-registered gap screening (Sleep-EDF
-\cite{kemp2000analysis}, C-MAPSS \cite{saxena2008damage}); external
-self-supervised baselines (TS2Vec \cite{yue2022ts2vec}, masked
-reconstruction); a nonlinear (HSIC) dependence penalty targeting the
-linear-level limitation.
+\textbf{Future work (in progress or planned).} A shift-robustness experiment
+(above); unsupervised model selection (a health-metric criterion currently
+rejects broken configs but cannot fine-tune); anomaly attribution via
+horizon-split residuals (point detection works in a pilot, contextual does
+not); more datasets with pre-registered gap screening (Sleep-EDF
+\cite{kemp2000analysis}, C-MAPSS \cite{saxena2008damage}); external baselines
+(TS2Vec \cite{yue2022ts2vec}, masked reconstruction); and a nonlinear (HSIC)
+penalty for the linear-level limitation.
 
 \clearpage
 {\footnotesize
