@@ -182,11 +182,6 @@ for z, f, p in zip(dz, fixed, prop):
             fontsize=5.8, color=BLUE)
     a2.text(z, p["z_slow->u"][0] + 0.05, f"{p['z_slow->u'][0]:.2f}", ha="center",
             fontsize=5.8, color=RED)
-nl = stats("runs/nl_nepa_g1_d1_s*_tau16_ds16_lam4.json")
-a2.axhline(nl["mlp_z_slow->u_r2"][0], color=MUTED, lw=0.9, ls=":")
-a2.text(250, nl["mlp_z_slow->u_r2"][0] + 0.03,
-        f"MLP probe on ours: {nl['mlp_z_slow->u_r2'][0]:.2f} (nonlinear leak)",
-        fontsize=5.8, color=MUTED, ha="right")
 a2.set_xscale("log", base=2); a2.set_xticks(dz, [str(z) for z in dz], fontsize=6.6)
 a2.set_xlabel("embedding width $d_z$", fontsize=6.8)
 a2.set_ylabel("fast leak: $u$ $R^2$ in $z_{slow}$", fontsize=6.8)
@@ -194,7 +189,7 @@ a2.set_ylim(0, 0.95)
 a2.legend(fontsize=6.0, frameon=False, loc="upper left",
           bbox_to_anchor=(0.01, 1.0), handlelength=1.6)
 style(a2)
-a2.set_title("C  Exclusion rides on absolute block size (and is linear)",
+a2.set_title("C  Exclusion rides on absolute block size",
              fontsize=8, loc="left")
 fig.savefig("fig_mech.pdf", bbox_inches="tight")
 fig.savefig("fig_mech.png", bbox_inches="tight")
