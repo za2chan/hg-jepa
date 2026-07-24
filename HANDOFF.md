@@ -1,7 +1,16 @@
 # HG-JEPA — Session Handoff
 
 Progress-report research project. This file lets a fresh session resume without
-re-deriving context. Read this + `report.tex` + skim the code, then continue.
+re-deriving context. Read this + `report.tex` + `plan.tex` (advisor briefing:
+ICLR gaps/risks/workplan — the CURRENT roadmap) + skim the code, then continue.
+
+Round-3 additions (2026-07-25): plan.tex (single-message thesis, frank
+ICLR-vs-TMLR verdict, per-section paper plan, Sep workplan); select.py
+retrospective label-free selection (Spearman 0.68, catastrophe filter not a
+tuner); downstream-cost finding (HAPT gated full 0.80->0.76, z_slow 0.71 vs
+ungated full 0.80 — must be owned in paper); README overhauled with
+experiment<->script<->output map. Next per plan.tex W1: Sleep-EDF end-to-end
+(go/no-go for ICLR framing).
 
 ## What this is
 
