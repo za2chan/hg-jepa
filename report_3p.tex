@@ -74,15 +74,15 @@ with soft gate $g(\Delta)=\sigma((\tau-\Delta)/w)$, where $\sigma$ is the
 logistic sigmoid and $w$ (4 patches) sets the transition width, so the fast
 block fades smoothly from open ($g{\approx}1$) to closed ($g{\approx}0$)
 around $\tau$. \textbf{Why asymmetric.} The design mirrors an asymmetry in the
-generative process: fast dynamics are \emph{conditioned on} the slow state
-(the next gait sample needs the current activity; the next oscillation sample
-needs the regime's carrier), so short-horizon targets need both blocks
-($I(\text{near};s_t\mid f_t)>0$), whereas the fast factor forgets itself
-within $T_{\mathrm{ac}}$ ($I(\text{far};f_t\mid s_t)\approx 0$). A gate
-should remove only \emph{conditionally useless} information: closing the fast
-path at long horizons is harmless, but the symmetric variant (closing the
-slow path at short horizons) would cut information the short-horizon loss
-still needs, forcing the encoder to \emph{copy} slow information into
+generative process. (i) Fast dynamics are \emph{conditioned on} the slow
+state --- the next gait sample needs the current activity, the next
+oscillation sample needs the regime's carrier --- so short-horizon targets
+need both blocks. (ii) The fast factor forgets itself within
+$T_{\mathrm{ac}}$, so the far future needs only the slow block. A gate should
+therefore remove only the information that has become useless: closing the
+fast path at long horizons is harmless. The symmetric variant, closing the
+slow path at short horizons, would instead cut information the short-horizon
+loss still needs, forcing the encoder to copy slow information into
 $z^{\mathrm{fast}}$ --- the very duplication separation must prevent.
 $\mathcal L_{\mathrm{dcor}}$ penalizes squared cross-covariance
 (VICReg-lineage \cite{bardes2022vicreg}). $\tau=c\,T_{\mathrm{ac}}$
@@ -97,25 +97,30 @@ minimizer makes $z^{\mathrm{slow}}$ mean-sufficient for the far future; with
 affinely independent regime-conditional target means, the slow-state
 posterior is a function of $z^{\mathrm{slow}}$. \emph{(Square-loss tower
 decomposition.)}
-\textbf{Prop.~2 (no exclusion).} For any minimizer, a Borel re-encoding
-injects any fast statistic into $z^{\mathrm{slow}}$ at identical loss ---
-exclusion is \emph{not identified} by the objective under any gate schedule;
-dcor removes only linearly-readable duplication. So measured nonlinear leak
-is the objective's boundary, not a bug; in practice exclusion comes from the
-encoder's smoothness bias (a bounded-Lipschitz network does not realize the
-wild injection, only approximates it --- so exclusion is empirical, cf.\ F4).
-A uniqueness theorem, and Prop.~1's condition that regimes differ in the
-\emph{mean} (not only in variance), remain open.
+\textbf{Prop.~2 (no exclusion).} In plain terms: the objective itself cannot
+force fast information out of $z^{\mathrm{slow}}$, so exclusion has to come
+from the architecture. Formally, for any minimizer a measure-preserving
+re-encoding can hide any fast statistic inside $z^{\mathrm{slow}}$ at
+identical loss, so exclusion is \emph{not identified} by the objective under
+any gate schedule, and dcor removes only \emph{linearly}-readable
+duplication. The nonlinear leak we measure is therefore this boundary, not a
+bug. What excludes in practice is the encoder's smoothness bias: a
+bounded-Lipschitz network does not realize the pathological re-encoding, only
+approximates it, so exclusion is empirical (cf.\ F4). A uniqueness theorem,
+and Prop.~1's condition that regimes differ in the \emph{mean} not only in
+variance, remain open.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=.9\linewidth]{fig_mech.pdf}
 \vspace{-4mm}
-\caption{\small \textbf{Mechanism (synthetic, leak-free, 3 seeds).}
-\textbf{A:} only gate+dcor separates; the latent-contrastive cell (CPC) is
-best; raw-target (AR) fails. \textbf{B:} block$\times$factor matrices.
-\textbf{C:} exclusion tracks \emph{absolute} block size --- a fixed 16-dim
-block holds at $d_z{=}256$ while a proportionally scaled block leaks.}
+\caption{\small \textbf{Mechanism (synthetic, group/time-split, 3 seeds).}
+\textbf{A:} $z^{\mathrm{slow}}$ probe scores --- blue is slow kept (higher
+better), yellow/green are fast leak (lower better). Only gate+dcor separates;
+the contrastive cell (CPC) is best; raw-target (AR) fails. \textbf{B:}
+block$\times$factor score matrices. \textbf{C:} fast leak vs.\ width --- a
+fixed 16-dim block holds at $d_z{=}256$ while a proportionally scaled block
+leaks.}
 \vspace{-3mm}
 \end{figure}
 
@@ -154,12 +159,13 @@ non-separation (F5).
 \textbf{Protocol.} Probes are fit on training groups and evaluated on held-out
 groups (Tab.~1, ``held out'') over disjoint windows, so no near-duplicate
 window crosses the split and HAPT/PTB-XL double as domain-shift tests. We
-report \emph{absolute} scores (accuracy / $R^2$ / macro-F1), not the leak
-\emph{ratios} of earlier iterations (which once hid a collapse), so all
-numbers here are lower and non-comparable. RankMe \cite{garrido2023rankme}
-monitors collapse; $n{=}3$ seeds, one backbone and budget for all variants;
-one patch is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span
-$8$--$1024$ steps. Results are findings F1--F5.
+report \emph{absolute} scores (accuracy / $R^2$ / macro-F1).\footnote{Not the
+leak \emph{ratios} to the full embedding used in early iterations, which could
+be inflated by a collapsing block; absolute scores plus RankMe rule that out.
+The two are not comparable.} RankMe \cite{garrido2023rankme} monitors
+collapse; $n{=}3$ seeds, one backbone and budget for all variants; one patch
+is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span $8$--$1024$ steps.
+Results are findings F1--F5.
 
 \begin{table}[t]
 \centering\small
@@ -171,22 +177,23 @@ Dataset & slow & fast & held out & role \\
 \midrule
 Synthetic & regime $s$ & OU $u$, phase & future seg. & mechanism \\
 HAPT & activity & acc.\ magn. & subjects & robustness \\
-PTB-XL & diagnosis & beat value & patients & static-ish \\
+PTB-XL & diagnosis & beat value & patients & static (limit) \\
 XJTU-SY & health & carrier & bearings & neg.\ control \\
 \bottomrule
 \end{tabular}
 \vspace{-2mm}
 \end{table}
 
-\textbf{F1 --- separation, and alternatives do not suffice (Tab.~2).}
-Gate+dcor keeps the regime in $z^{\mathrm{slow}}$ (acc $0.80$ vs.\ full
-$0.70$ --- selective-use payoff) while cutting fast leak to $0.17/0.28$
-($0.78/0.73$ ungated). Label-free rotations of the \emph{ungated} embedding
-(SFA/ICA/PCA) each trade one side away: separation is created by the
-objective, not recoverable post hoc. A theory-bearing competitor also fails:
-an architecture-matched SlowVAE \cite{klindt2021towards} recovers the regime
-only weakly (slow-block $0.63$, full $0.54$) --- reconstruction is local, so a
-factor needing integration over hundreds of steps barely enters its code.
+\textbf{F1 --- separation, and alternatives do not suffice (Fig.~2A, Tab.~2).}
+Gate+dcor keeps the regime in $z^{\mathrm{slow}}$ while cutting fast leak
+roughly fourfold. It even reads the regime slightly better than the full
+embedding: dropping fast dimensions removes noise for the slow task. Neither
+shortcut substitutes. Label-free rotations of the ungated embedding
+(SFA/ICA/PCA) each trade one side for the other (Tab.~2), so separation is
+created by the objective, not recoverable post hoc. A theory-bearing
+competitor, an architecture-matched SlowVAE \cite{klindt2021towards}, recovers
+the regime only weakly --- its reconstruction is local, so a factor needing
+integration over hundreds of steps barely enters its code.
 
 \begin{table}[h]
 \centering\small
@@ -206,42 +213,41 @@ PCA (top 16)     & 0.76 & 0.80 & 0.91 \\
 \vspace{-2mm}
 \end{table}
 
-\textbf{F2 --- latent targets, either objective.} The identical gate on
-raw-patch (AR) prediction separates nothing (leak $\ge0.78$). On a latent
-\emph{contrastive} objective (CPC-InfoNCE vs.\ EMA embeddings) it separates
-\emph{best}: regime $0.81$, leak $0.05/0.00$, with $z^{\mathrm{fast}}$
-retaining the fast factors ($0.85/0.95$; no collapse). The mechanism is
-latent-target-family, not JEPA-specific.
-\textbf{F3 --- gate assigns, penalty purifies (Prop.~2).} Gate-alone barely
-reduces leak ($0.71/0.72$); dcor-alone degenerates (regime $0.55$); only the
-combination works. Adding target-side removal pressure does not rescue
-gate-alone.
-\textbf{F4 --- exclusion rides on capacity, and scales.} Leak tracks the
-\emph{absolute} slow-block size: a fixed 16-dim block holds when the backbone
-widens to $d_z{=}128/256$ (leak $0.06/0.08$) while proportionally scaled
-blocks let it flood back ($\approx0.6$) --- the mechanism transfers to wide
-backbones provided the slow block stays narrow.
-\textbf{F5 --- real data (Fig.~3, Tab.~3).} HAPT: leak $0.56\!\to\!0.17$ at
-activity F1 $0.71$, holding on \emph{unseen subjects}; dcor \emph{hurts}
-here. PTB-XL: dcor \emph{helps} (leak $0.61\!\to\!0.41$) --- its polarity is
-data-dependent and not yet decidable label-free. XJTU is the predicted
-negative: carrier and envelope share one timescale
-($T_{\mathrm{ac}}\!\approx\!1$--$2$ patches), the gate correctly does
-nothing; on the non-circular health target (lifetime fraction, held-out
-bearings) every method is weak, including the learned embedding
-($z^{\mathrm{slow}}$ only $+0.18$). Envelope and low-pass features fail to
-transfer ($-1.08/-0.11$), but we note this is a repurposing failure, not a
-verdict on classical practice: envelope analysis is designed for
-characteristic-fault-frequency \emph{detection}, not as a cross-bearing
-regression feature. We therefore read XJTU only as a correctly-predicted
-non-separable case, not as a win.
+\textbf{F2 --- latent targets, either objective (Fig.~2A).} The identical gate
+on raw-patch (AR) targets separates nothing: raw targets force fast detail
+into every dimension. On a latent \emph{contrastive} objective (CPC-InfoNCE)
+it separates as well or better, with $z^{\mathrm{fast}}$ still holding the
+fast factors (no collapse). So the mechanism needs a latent target, but is
+not specific to JEPA regression.
+\textbf{F3 --- gate assigns, penalty purifies (Fig.~2A; Prop.~2).} Gate-alone
+barely reduces leak. dcor-alone degenerates, satisfying decorrelation by
+emptying the slow block. Only the combination separates: the gate gives each
+block a job, the penalty removes duplicates. Adding target-side removal
+pressure does not rescue gate-alone, matching Prop.~2.
+\textbf{F4 --- exclusion rides on capacity, and scales (Fig.~2C).} Leak tracks
+the \emph{absolute} slow-block size. A fixed 16-dim block keeps its exclusion
+when the backbone widens to $d_z{=}256$, whereas a proportionally scaled block
+lets leak flood back. So the mechanism transfers to wide backbones, provided
+the slow block stays narrow.
+\textbf{F5 --- real data (Fig.~3, Tab.~3).} On HAPT the gate cuts fast leak
+sharply while keeping activity F1, and this holds on \emph{unseen subjects}
+--- the selective robustness the method is meant to give. On PTB-XL the effect
+is smaller and needs dcor; whether dcor helps or hurts is data-dependent
+(its \emph{polarity} flips between datasets) and not yet decidable without
+labels. XJTU is the predicted negative: carrier and health share one timescale
+within a window, so the gate correctly does nothing. There the non-circular
+health target (lifetime fraction, held-out bearings) is hard for every method,
+and the learned $z^{\mathrm{slow}}$ carries what little exists. The classical
+envelope and low-pass features do worse, but that is a repurposing failure,
+not a verdict on classical practice: envelope analysis is built for
+fault-frequency \emph{detection}, not cross-bearing regression. We read XJTU
+only as a correctly-predicted non-separable case.
 
 \begin{table}[h]
 \centering\small
-\caption{\small Real data, group split, absolute scores (3 seeds). Brackets:
-the \emph{ungated} full-embedding score (best achievable with all dimensions,
-no gating); note gated training itself lowers the full-embedding score
-(HAPT $0.80\!\to\!0.76$, see limitations), so this is an upper reference.}
+\caption{\small Real data, group split, absolute scores (3 seeds). Slow-kept
+$=$ $z^{\mathrm{slow}}$ label score; bracket $=$ the ungated full-embedding
+score (an upper reference).}
 \vspace{-1mm}
 \begin{tabular}{@{}llcc@{}}
 \toprule
@@ -262,10 +268,11 @@ PTB-XL (norm F1) & gate+dcor & 0.70 [0.74] & \textbf{0.41}\\
 \centering
 \includegraphics[width=.92\linewidth]{fig_real.pdf}
 \vspace{-4mm}
-\caption{\small \textbf{Real data (3 seeds).} Gate and gate+dcor shown on
-both datasets: dcor hurts HAPT (\textbf{A}), helps PTB-XL (\textbf{B}).
-\textbf{C:} XJTU, the predicted negative --- no timescale gap; classical
-envelope features fail to transfer across bearings.}
+\caption{\small \textbf{Real data (3 seeds).} Gate and gate+dcor on both
+datasets: dcor hurts HAPT (\textbf{A}), helps PTB-XL (\textbf{B}).
+\textbf{C:} XJTU, the predicted negative. Bars are $R^2$ on the health
+target, which is negative when a predictor does worse than the mean; every
+method is weak and the classical features fail to transfer across bearings.}
 \vspace{-3mm}
 \end{figure}
 
@@ -319,8 +326,9 @@ disentangled sequential VAE. \emph{NeurIPS}, 2021.
 Contrastive predictive coding. arXiv:1807.03748, 2018.
 \bibitem{assran2023self} M. Assran et al. I-JEPA. \emph{CVPR}, 2023.
 \bibitem{baevski2022data2vec} A. Baevski et al. data2vec. \emph{ICML}, 2022.
-\bibitem{hepa2026} HEPA: horizon-conditioned joint-embedding prediction for
-time series. 2026.
+\bibitem{hepa2026} HEPA: horizon-conditioned joint-embedding predictive
+architecture for time series. Prior work (backbone); full reference to be
+added. 2026.
 \bibitem{bardes2022vicreg} A. Bardes, J. Ponce, Y. LeCun. VICReg. \emph{ICLR},
 2022.
 \bibitem{garrido2023rankme} Q. Garrido et al. RankMe. \emph{ICML}, 2023.
