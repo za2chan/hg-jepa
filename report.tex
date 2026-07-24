@@ -48,10 +48,13 @@ knob as the only supervision. On the identifiability side, nonlinear ICA with
 temporal structure (TCL, Hyv\"arinen \& Morioka, 2016; SlowVAE, Klindt et al.,
 2021) offers provable recovery under specific generative assumptions, and
 Locatello et al.\ (2019) prove unsupervised disentanglement impossible without
-some inductive bias; ours is the timescale gap itself. We are explicit that
-\emph{we currently prove no identifiability theorem} --- our claims are
-mechanistic and empirical (F1--F6); connecting the gate to the
-identifiability results above is the main theoretical gap, not an oversight.
+some inductive bias; ours is the timescale gap itself. Section~\ref{sec:theory}
+gives the two population-level results we can prove --- inclusion of the slow
+belief in the ungated block, and the impossibility of exclusion from the
+objective alone --- and we are explicit that a full identifiability theorem
+(uniqueness of the representation up to symmetry, in the TCL/SlowVAE sense)
+remains open; the propositions delimit exactly which half of H1 is structural
+and which half is empirical.
 
 We use a purely functional criterion: \textbf{information useful for
 predicting the far future is exactly the slow information}, and the prediction
@@ -100,6 +103,73 @@ between blocks (removes duplicates; cf.\ H2). The threshold is set from the
 data itself as $\tau = c\,T_{\mathrm{ac}}$, where $T_{\mathrm{ac}}$ is the
 signal's autocorrelation decay time (the lifetime of fast dynamics), $c\!\approx\!2.5$;
 no sampling-rate knowledge is needed.
+
+\section{Theory: what the gate does and does not guarantee}
+\label{sec:theory}
+We formalize H2 at the population level. Let $X_{\le t}$ denote the observed
+past, and let the generative process have a slow factor $s_t$ (finite state,
+as in our pilot; the argument extends to compact state spaces) and fast
+factors $f_t$, with:
+
+\emph{(A1) Timescale gap.} There is $\Delta_0$ such that for all
+$\Delta\ge\Delta_0$ the far future is conditionally independent of the past
+given the current slow state: $Y_\Delta \perp X_{\le t} \mid s_t$, where
+$Y_\Delta$ is the (fixed, measurable) prediction target at $t+\Delta$ (raw
+future or target-encoder embedding). Equivalently, all far-predictive
+information flows through $s_t$; this is what ``fast dynamics mix within
+$\Delta_0$'' means, and what $\tau=c\,T_{\mathrm{ac}}$ estimates.
+
+\emph{(A2) Closed gate.} At some trained horizon $\Delta^*\ge\Delta_0$ the
+gate is closed, so the predictor input is $z^{\mathrm{slow}}_t=
+\phi(X_{\le t})\in\mathbb R^{k}$ alone, and the predictor class is rich
+(all measurable functions; our MLP head approximates this).
+
+\textbf{Proposition 1 (inclusion: the gate assigns the slow belief to the
+ungated block).} Under A1--A2, with square loss, any population minimizer of
+the $\Delta^*$ term satisfies
+$\mathbb E[Y_{\Delta^*}\mid z^{\mathrm{slow}}_t]
+ =\mathbb E[Y_{\Delta^*}\mid X_{\le t}]$ a.s.
+If moreover the regime-conditional target means
+$m_i=\mathbb E[Y_{\Delta^*}\mid s_t=i]$ are affinely independent, then the
+posterior belief $\pi_t=P(s_t=\cdot\mid X_{\le t})$ is a measurable function
+of $z^{\mathrm{slow}}_t$: the ungated block contains \emph{everything the
+past says about the slow factor}.
+\emph{Proof.} With square loss the optimal predictor is
+$P^*(z)=\mathbb E[Y\mid z^{\mathrm{slow}}=z]$, and since
+$z^{\mathrm{slow}}_t$ is $X_{\le t}$-measurable, the excess loss decomposes
+as $\mathbb E\|\mathbb E[Y\mid z^{\mathrm{slow}}_t]-\mathbb E[Y\mid
+X_{\le t}]\|^2\ge0$, with equality iff the two conditional means agree a.s.;
+a $k\ge|\mathcal S|-1$ encoder attains it by computing $\pi_t$. By A1,
+$\mathbb E[Y\mid X_{\le t}]=\sum_i\pi_t(i)\,m_i$, which is injective in
+$\pi_t$ when $\{m_i\}$ are affinely independent. $\square$
+
+\textbf{Proposition 2 (no exclusion: the objective cannot remove fast
+information).} Fix any minimizer $(\phi^*,P^*)$. For any measurable fast
+statistic $h(X_{\le t})$ there is another minimizer whose slow block also
+encodes $h$: take a Borel isomorphism
+$\iota:\mathbb R^{k}\times\mathbb R\to\mathbb R^{k}$ and set
+$\phi'=\iota(\phi^*,h)$, $P'=P^*\circ\mathrm{pr}_1\circ\iota^{-1}$ --- identical loss
+at every horizon. Hence membership of fast information in
+$z^{\mathrm{slow}}$ is \emph{not identified} by the gated objective; no gate
+schedule fixes this. The dcor penalty selects, among these optima, ones with
+zero cross-covariance between blocks --- it removes \emph{linearly readable}
+duplication only, and injections $h$ decorrelated with $z^{\mathrm{fast}}$
+survive it. $\square$
+
+Proposition 1 is the mechanism behind F1/F4 (``the gate \emph{assigns}'');
+Proposition 2 predicts exactly what we measure: near-complete linear
+exclusion under dcor, yet substantial nonlinear recovery (MLP $0.45$, MINE
+$0.95$ nats, F4) --- the residual leak is not an implementation failure but
+the objective's identified/unidentified boundary. Exclusion beyond the
+linear level must come from capacity pressure (narrow $k$; F4's width sweep)
+or an explicit nonlinear-dependence penalty, which Proposition~2 motivates
+as future work. Corollary: without the gate no horizon ever constrains a
+specific block, so the slow belief lands anywhere in $z$ --- the arbitrary
+splits seen in the ungated control. Both statements are population-level and
+ignore network continuity: a continuous encoder of narrow width cannot
+implement the pathological Borel injections of Proposition~2, which is
+precisely why the small-$k$ bottleneck excludes in practice (F4) beyond what
+the objective identifies.
 
 \section{Pilot setup}
 \textbf{Data.} Synthetic series with recorded ground-truth factors: a slow
@@ -191,9 +261,10 @@ lowers leakage ($u\,0.74$, phase $0.79$, near the ungated $0.79/0.73$); dcor
 alone \emph{degenerates} --- the model satisfies decorrelation by emptying the
 slow block (regime probe $0.55$). Only the combination separates ($0.19/0.27$):
 the gate gives each block a job, the penalty removes duplicates. This is
-consistent with H2 --- the objective has no term that removes fast information
-from $z_{\mathrm{slow}}$; exclusion is done by the bottleneck and dcor, not
-by the gate alone. We also tested a variant with removal pressure added
+consistent with H2, now formalized as Proposition~2
+(Sec.~\ref{sec:theory}) --- the objective has no term that removes fast
+information from $z_{\mathrm{slow}}$; exclusion is done by the bottleneck and
+dcor, not by the gate alone. We also tested a variant with removal pressure added
 (masking the slow dimensions of the \emph{target} at short horizons): it does
 not rescue gate-alone, confirming the mechanism is bottleneck-based rather
 than fixable by extra gating.

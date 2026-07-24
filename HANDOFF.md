@@ -56,7 +56,12 @@ XJTU=bearing) + disjoint windows; absolute scores + RankMe collapse monitor.
 A rigorous review flagged 10 issues (see below). Highest-value ones:
 - #1 rotation symmetry / unmixing baseline — DONE (refuted).
 - #5 no removal pressure + capacity + scaling — DONE (reframed honestly).
-- #2 missing slowness/identifiability literature, zero theorems — TODO (writing).
+- #2 missing slowness/identifiability literature, zero theorems — DONE:
+  lit in Positioning; theory section with Prop 1 (inclusion: slow belief
+  provably in ungated block, square loss + timescale gap + closed gate) and
+  Prop 2 (exclusion NOT identified by objective — Borel-injection optima;
+  dcor kills linear duplication only). Matches MLP/MINE leak. Full
+  identifiability (uniqueness) stated as open.
 - #3 model selection uses labels (Locatello 2019) — TODO (unsup criterion).
 - #4 linear probe ≠ info; ratio hides collapse — PARTLY DONE (abs+RankMe);
   still need MLP probe + MINE + DCI/MIG.
