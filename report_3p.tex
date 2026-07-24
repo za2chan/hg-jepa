@@ -159,13 +159,11 @@ non-separation (F5).
 \textbf{Protocol.} Probes are fit on training groups and evaluated on held-out
 groups (Tab.~1, ``held out'') over disjoint windows, so no near-duplicate
 window crosses the split and HAPT/PTB-XL double as domain-shift tests. We
-report \emph{absolute} scores (accuracy / $R^2$ / macro-F1).\footnote{Not the
-leak \emph{ratios} to the full embedding used in early iterations, which could
-be inflated by a collapsing block; absolute scores plus RankMe rule that out.
-The two are not comparable.} RankMe \cite{garrido2023rankme} monitors
-collapse; $n{=}3$ seeds, one backbone and budget for all variants; one patch
-is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span $8$--$1024$ steps.
-Results are findings F1--F5.
+report \emph{absolute} scores (accuracy / $R^2$ / macro-F1), with RankMe
+\cite{garrido2023rankme} monitoring collapse so a low leak cannot be an
+artifact of an empty block. $n{=}3$ seeds, one backbone and budget for all
+variants; one patch is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span
+$8$--$1024$ steps. Results are findings F1--F5.
 
 \begin{table}[t]
 \centering\small
