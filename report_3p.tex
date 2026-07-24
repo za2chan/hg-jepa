@@ -158,23 +158,21 @@ regimes and the regime's frequency shift is within the jitter range, so
 requires integrating hundreds of steps, exactly the long-horizon information
 the gate is meant to isolate.
 
-\emph{HAPT} \cite{reyes2016transition} --- smartphone IMU: the quantity of
-interest (activity, persisting $\sim$12\,s) is buried under $\sim$1\,Hz gait
-oscillation (\textbf{slow} $=$ activity, \textbf{fast} $=$ acceleration
-magnitude).
-\emph{PTB-XL} \cite{wagner2020ptb} --- 12-lead ECG (\textbf{slow} $=$
-normal-vs-abnormal ``NORM'' diagnosis, binary macro-F1; \textbf{fast} $=$
-beat waveform). An acknowledged \emph{limiting} case: our method assumes the
-slow factor \emph{varies slowly}, so the gate has a live-vs-forgotten
-timescale contrast to exploit. Here the diagnosis does not vary at all over a
-10\,s record --- it is \emph{static}, the very content-vs-dynamics regime that
-sequential VAEs target and that we argue is too narrow. With no slow variation
-to isolate we expect the gate to help little, so we treat PTB-XL as a stress
+\emph{HAPT} \cite{reyes2016transition} --- smartphone IMU: the activity of
+interest (persisting $\sim$12\,s) is buried under $\sim$1\,Hz gait
+oscillation, exactly the slow-under-fast structure we target.
+\emph{PTB-XL} \cite{wagner2020ptb} --- 12-lead ECG; the diagnosis is the
+normal-vs-abnormal ``NORM'' label (binary macro-F1). An acknowledged
+\emph{limiting} case: our method assumes the slow factor \emph{varies slowly},
+so the gate has a live-vs-forgotten timescale contrast to exploit. Here the
+diagnosis is constant over a 10\,s record --- \emph{static}, the
+content-vs-dynamics regime sequential VAEs target and we argue is too narrow.
+With no slow variation to isolate we expect little gain, so PTB-XL is a stress
 test at the edge of our assumptions, not a showcase.
-\emph{XJTU-SY} \cite{wang2020xjtu} --- bearing vibration, included as the
-\emph{applicability boundary}: intended slow $=$ health, fast $=$ carrier,
-but both live at one timescale within a window, so the method predicts
-non-separation (F5).
+\emph{XJTU-SY} \cite{wang2020xjtu} --- bearing vibration, the
+\emph{applicability boundary}: here the health signal and the rotation carrier
+live at the same timescale within a window, so the method predicts
+non-separation (confirmed in F5).
 
 \textbf{Protocol.} To check what a block encodes we fit a simple probe on top
 of it and read its score. The probe is trained on one set of groups and
@@ -190,20 +188,21 @@ collapse so a low leak cannot be an artifact of an empty block. $n{=}3$ seeds, o
 variants; one patch is 8 steps, so horizons $\{1{,}4{,}16{,}64{,}128\}$ span
 $8$--$1024$ steps. Results are findings F1--F5.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering\small
-\caption{\small Datasets: factor assignment, split, and role.}
+\caption{\small Datasets: slow (target) and fast (leak) factor, the held-out
+grouping unit, and each dataset's role in the paper.}
 \begin{tabular}{@{}lllll@{}}
 \toprule
-Dataset & slow & fast & held out & role \\
+Dataset & slow factor (target) & fast factor (leak) & held-out unit & role \\
 \midrule
-Synthetic & regime $s$ & OU $u$, phase & future seg. & mechanism \\
-HAPT & activity & acc.\ magn. & subjects & robustness \\
-PTB-XL & diagnosis & beat value & patients & static (limit) \\
-XJTU-SY & health & carrier & bearings & neg.\ control \\
+Synthetic & regime $s$ & OU $u$ + phase & future segment & mechanism testbed \\
+HAPT & activity & acceleration magnitude & subject & domain robustness \\
+PTB-XL & diagnosis & beat waveform & patient & static-factor limit \\
+XJTU-SY & health/RUL & rotation carrier & bearing & predicted negative \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \textbf{F1 --- separation, and alternatives do not suffice (Fig.~2A, Tab.~2).}
 Gate+dcor keeps the regime in $z^{\mathrm{slow}}$ while cutting fast leak
