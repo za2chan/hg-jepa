@@ -124,12 +124,12 @@ fig.savefig("fig_method.pdf", bbox_inches="tight")
 fig.savefig("fig_method.png", bbox_inches="tight")
 
 # ================= Fig 2: mechanism =================
-V = {"Ours\n(JEPA)": "runs/nepa_g1_d1_s*_tau16_ds16_lam4.json",
+V = {"Ours\n(JEPA)": "runs/reg-ema_g1_x1_s*_tau16_ds16_lam4_vf0.json",
      "Ours\n(CPC)": "runs/cpc_g1_d1_s*_tau16_ds16_lam4.json",
-     "Gate\nonly": "runs/nepa_g1_d0_s*_tau16_ds16_lam4.json",
-     "dcor\nonly": "runs/nepa_g0_d1_s*_tau16_ds16_lam4.json",
-     "No\ngate": "runs/nepa_g0_d0_s*_tau16_ds16_lam4.json",
-     "AR\n+gate": "runs/ar_g1_d0_s*_tau16_ds16_lam4.json"}
+     "Gate\nonly": "runs/reg-ema_g1_x0_s*_tau16_ds16_lam4_vf0.json",
+     "dcor\nonly": "runs/reg-ema_g0_x1_s*_tau16_ds16_lam4_vf0.json",
+     "No\ngate": "runs/reg-ema_g0_x0_s*_tau16_ds16_lam4_vf0.json",
+     "AR\n+gate": "runs/ar_g1_x0_s*_tau16_ds16_lam4_vf0.json"}
 S = {k: stats(p) for k, p in V.items()}
 
 fig, (a0, a1, a2) = plt.subplots(3, 1, figsize=(W, 6.4),
@@ -197,10 +197,10 @@ fig.savefig("fig_mech.png", bbox_inches="tight")
 # ================= Fig 3: real data =================
 fig, (a0, a1, a2) = plt.subplots(3, 1, figsize=(W, 5.6),
                                  gridspec_kw=dict(hspace=0.72))
-H = {"Gate": "runs_hapt/hapt_nepa_g1_d0_s*.json",
-     "Gate\n+dcor": "runs_hapt/hapt_nepa_g1_d1_s*.json",
-     "No gate": "runs_hapt/hapt_nepa_g0_d0_s*.json",
-     "AR\n+gate": "runs_hapt/hapt_ar_g1_d0_s*.json"}
+H = {"Gate": "runs_hapt/hapt_nepa_g1_d0_s[0-9].json",
+     "Gate\n+dcor": "runs_hapt/hapt_nepa_g1_d1_s[0-9].json",
+     "No gate": "runs_hapt/hapt_nepa_g0_d0_s[0-9].json",
+     "AR\n+gate": "runs_hapt/hapt_ar_g1_d0_s[0-9].json"}
 Hs = {k: stats(p) for k, p in H.items()}
 bars(a0, list(H), [
     ("slow kept: activity F1", BLUE,

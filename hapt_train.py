@@ -71,7 +71,7 @@ def main(args):
     dcor = args.get("dcor", "1") == "1"
     seed = int(args.get("seed", 0))
     lam = float(args.get("lam", 4))
-    tag = f"hapt_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}"
+    vfloor = args.get("vfloor", "0") == "1"  # D7: off by default since 2026-08-02
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     Wall, act, accmag, subj = load()
@@ -82,6 +82,22 @@ def main(args):
     Wt = torch.from_numpy(Wall).to(DEV)
     tr_idx = np.flatnonzero(~is_test)                     # pretrain + probe-fit pool
 
+    # D1 (amended): tau=auto from TRAINING subjects only; taumult= sweeps it
+    tau, tau_lbl = TAU, f"tau{TAU:g}"
+    taumult = float(args.get("taumult", 1))
+    if args.get("tau", "") == "auto":
+        from tac import tau_from_tac
+        sig = np.linalg.norm(
+            Wall[tr_idx].reshape(len(tr_idx), L, 4, 3), axis=-1).reshape(len(tr_idx), -1)
+        tac_info = tau_from_tac(sig, patch=4, eps=float(args.get("eps", 0.05)))
+        tau = tac_info["tau"] * taumult
+        tau_lbl = f"tauauto{taumult:g}x"
+    elif "tau" in args:
+        tau = float(args["tau"]); tau_lbl = f"tau{tau:g}"
+    tag = f"hapt_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}" + \
+          ("" if tau_lbl == f"tau{TAU:g}" and "tau" not in args else f"_{tau_lbl}") + \
+          ("" if vfloor else "_vf0")
+
     enc = Encoder().to(DEV)
     pred = Predictor(D_Z if mode == "nepa" else PATCH).to(DEV)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=LR)
@@ -89,7 +105,7 @@ def main(args):
         tgt = Encoder().to(DEV); tgt.load_state_dict(enc.state_dict())
         for p in tgt.parameters():
             p.requires_grad_(False)
-    gvals = torch.sigmoid((TAU - torch.tensor(OFFSETS, dtype=torch.float32)) / W).to(DEV)
+    gvals = torch.sigmoid((tau - torch.tensor(OFFSETS, dtype=torch.float32)) / W).to(DEV)
 
     n_anchor = 8
     for step in range(STEPS):
@@ -111,7 +127,8 @@ def main(args):
             ztgt = xb[bi.flatten(), (anchors + dvals).flatten()]
         loss = ((zhat - ztgt) ** 2).mean()
         std = z.reshape(-1, D_Z).std(0)
-        loss = loss + 1.0 * F.relu(1.0 - std).mean()
+        if vfloor:
+            loss = loss + 1.0 * F.relu(1.0 - std).mean()
         if dcor:
             zc = za - za.mean(0)
             C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)
@@ -132,7 +149,9 @@ def main(args):
     with torch.no_grad():
         Z = torch.cat([enc(Wt[i:i + 256])[:, -1] for i in range(0, len(Wt), 256)]).cpu().numpy()
     tr, te = tr_idx, np.flatnonzero(is_test)
-    res = {"tag": tag, "n_test_subj": len(test_u), "rankme": float(rankme(Z))}
+    res = {"tag": tag, "n_test_subj": len(test_u), "rankme": float(rankme(Z)),
+           "tau": float(tau), "tau_source": "auto" if args.get("tau") == "auto" else "manual",
+           "taumult": taumult}
     for name, sl in [("z_slow", slice(0, D_SLOW)), ("z_fast", slice(D_SLOW, D_Z)),
                      ("z_full", slice(0, D_Z))]:
         B = Z[:, sl]
@@ -141,6 +160,9 @@ def main(args):
         res[f"{name}->accmag_r2"] = float(Ridge().fit(B[tr], accmag[tr]).score(B[te], accmag[te]))
     print(json.dumps(res, indent=2), flush=True)
     json.dump(res, open(f"runs_hapt/{tag}.json", "w"), indent=2)
+    if args.get("save", "0") == "1":                       # for anchor/subset probes
+        torch.save({"enc": enc.state_dict(), "test_u": list(test_u)},
+                   f"runs_hapt/model_{tag}.pt")
 
 
 if __name__ == "__main__":

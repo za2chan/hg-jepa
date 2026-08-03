@@ -29,7 +29,7 @@ from train import (Encoder, Predictor, make_dataset, DEV, P, L, D_Z, OFFSETS, W,
 D_SLOW = 16
 
 
-def train_ungated(seed):
+def train_ungated(seed, vfloor=False):  # D7: off by default since 2026-08-02
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     train = make_dataset(1_000_000, seed=0)
     enc = Encoder().to(DEV); pred = Predictor(D_Z).to(DEV)
@@ -49,7 +49,9 @@ def train_ungated(seed):
         zhat = pred(za, didx.flatten())           # NO gate
         with torch.no_grad():
             ztgt = tgt(xb)[bi.flatten(), (anchors + dvals).flatten()]
-        loss = ((zhat - ztgt) ** 2).mean() + F.relu(1.0 - z.reshape(-1, D_Z).std(0)).mean()
+        loss = ((zhat - ztgt) ** 2).mean()
+        if vfloor:
+            loss = loss + F.relu(1.0 - z.reshape(-1, D_Z).std(0)).mean()
         opt.zero_grad(); loss.backward(); opt.step()
         with torch.no_grad():
             for pe, pt in zip(enc.parameters(), tgt.parameters()):

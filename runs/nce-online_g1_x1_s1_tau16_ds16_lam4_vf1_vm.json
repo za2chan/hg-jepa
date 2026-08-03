@@ -1,0 +1,32 @@
+{
+  "tag": "nce-online_g1_x1_s1_tau16_ds16_lam4_vf1_vm",
+  "n_probe": 97,
+  "rankme": 21.869609832763672,
+  "config": {
+    "loss": "nce",
+    "target": "online",
+    "gate": true,
+    "xcov": true,
+    "vfloor": true,
+    "seed": 1,
+    "data_seed": 1,
+    "eval_seed": 100001,
+    "tau": 16.0,
+    "tau_source": "manual",
+    "eps": 0.05,
+    "c_override": null,
+    "dslow": 16,
+    "lam": 4.0,
+    "regime_mode": "variance",
+    "tac": null
+  },
+  "z_slow->regime_acc": 0.6122448979591837,
+  "z_slow->u_r2": 0.01716405153274536,
+  "z_slow->phase_r2": -0.17909008264541626,
+  "z_fast->regime_acc": 0.6326530612244898,
+  "z_fast->u_r2": -0.35174691677093506,
+  "z_fast->phase_r2": 0.1983616054058075,
+  "z_full->regime_acc": 0.6530612244897959,
+  "z_full->u_r2": -0.2713627815246582,
+  "z_full->phase_r2": 0.22767382860183716
+}

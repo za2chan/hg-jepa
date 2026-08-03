@@ -10,13 +10,13 @@ plt.rcParams.update({"font.size": 8, "axes.edgecolor": C["muted"],
                      "axes.linewidth": 0.6, "figure.dpi": 200})
 
 import glob
-TAGS = {"NEPA gate+dcor (ours)": "nepa_g1_d1", "NEPA gate only": "nepa_g1_d0",
-        "NEPA nogate": "nepa_g0_d0", "AR + gate": "ar_g1_d0", "AR no gate": "ar_g0_d0"}
+TAGS = {"NEPA gate+dcor (ours)": "reg-ema_g1_x1", "NEPA gate only": "reg-ema_g1_x0",
+        "NEPA nogate": "reg-ema_g0_x0", "AR + gate": "ar_g1_x0", "AR no gate": "ar_g0_x0"}
 S = {}
 for name, pre in TAGS.items():
-    rs = [json.load(open(f)) for f in glob.glob(f"runs/{pre}_s*_tau16_ds16_lam4.json")]
+    rs = [json.load(open(f)) for f in glob.glob(f"runs/{pre}_s*_tau16_ds16_lam4_vf0.json")]
     S[name] = {k: (float(np.mean([r[k] for r in rs])), float(np.std([r[k] for r in rs])))
-               for k in rs[0] if k != "tag"}
+               for k in rs[0] if isinstance(rs[0][k], float)}
 FULL = {"regime": "z_full->regime_acc", "u": "z_full->u_r2", "phase": "z_full->phase_r2"}
 SLOW = {"regime": "z_slow->regime_acc", "u": "z_slow->u_r2", "phase": "z_slow->phase_r2"}
 

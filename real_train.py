@@ -84,7 +84,8 @@ def main(args):
     dcor = args.get("dcor", "1") == "1"
     seed = int(args.get("seed", 0))
     lam = float(args.get("lam", 4))
-    tag = f"real_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}"
+    vfloor = args.get("vfloor", "0") == "1"  # D7: off by default since 2026-08-02
+    tag = f"real_{mode}_g{int(gated)}_d{int(dcor)}_s{seed}" + ("" if vfloor else "_vf0")
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     data = load()
@@ -120,7 +121,8 @@ def main(args):
         loss = ((zhat - ztgt) ** 2).mean()
         # VICReg-style variance floor prevents EMA collapse (per-dim std -> 1)
         std = z.reshape(-1, D_Z).std(0)
-        loss = loss + 1.0 * F.relu(1.0 - std).mean()
+        if vfloor:
+            loss = loss + 1.0 * F.relu(1.0 - std).mean()
         if dcor:
             zc = za - za.mean(0)
             C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)

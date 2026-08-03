@@ -74,7 +74,8 @@ def main(args):
     dcor = args.get("dcor", "0") == "1"
     tmask = args.get("tmask", "0") == "1"
     seed = int(args.get("seed", 0)); lam = float(args.get("lam", 4))
-    tag = f"mech_dz{d_z}_ds{d_slow}_g{int(gated)}_d{int(dcor)}_t{int(tmask)}_s{seed}"
+    vfloor = args.get("vfloor", "0") == "1"  # D7: off by default since 2026-08-02
+    tag = f"mech_dz{d_z}_ds{d_slow}_g{int(gated)}_d{int(dcor)}_t{int(tmask)}_s{seed}" + ("" if vfloor else "_vf0")
 
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     train = make_dataset(1_000_000, seed=0); evald = make_dataset(200_000, seed=99)
@@ -105,7 +106,8 @@ def main(args):
             loss = err[:, :d_slow].mean() + (wfast * err[:, d_slow:]).mean()
         else:
             loss = ((zhat - ztgt) ** 2).mean()
-        loss = loss + F.relu(1.0 - z.reshape(-1, d_z).std(0)).mean()
+        if vfloor:
+            loss = loss + F.relu(1.0 - z.reshape(-1, d_z).std(0)).mean()
         if dcor:
             zc = za - za.mean(0)
             C = (zc[:, :d_slow].T @ zc[:, d_slow:]) / (len(za) - 1)
