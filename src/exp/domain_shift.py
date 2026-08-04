@@ -35,7 +35,8 @@ from train_real import train_real
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 NPZ = ROOT / "data/hapt_v2.npz"
 HAPT = dict(n_ax=3, tau=40.0, w=12, dmin=12, dmax=128, min_context=16)
-STEM = "nce+ema"                 # matches exp/ablation.py; D4 stem not re-confirmed yet
+# Both stems are carried (CLAUDE.md §2, amended 2026-08-04). CLI: argv[4].
+STEM = "nce+ema"
 BLOCKS = ("z_slow", "z_full")
 N_B, FIT_FRAC, STEPS = 6, 0.7, 2500
 
@@ -128,6 +129,8 @@ if __name__ == "__main__":
     n_part = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     seeds = list(range(int(sys.argv[2]) if len(sys.argv) > 2 else 3))
     steps = int(sys.argv[3]) if len(sys.argv) > 3 else STEPS
+    if len(sys.argv) > 4:
+        globals()['STEM'] = sys.argv[4]
     cells = []
     for p in range(n_part):
         for s in seeds:
