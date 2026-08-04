@@ -1,6 +1,9 @@
 # HGLP v2 — Protocol (FINAL — frozen for implementation)
 
-**Status: STEP 2 complete; STEP 3 begun.** Every item is decided; items marked
+**Status: STEP 2 complete; STEP 3 in progress.** Stems amended 2026-08-04
+(user-approved): HGLP-Reg = **L1**+EMA, HGLP-NCE = InfoNCE+**EMA**, and BOTH are
+carried in Part 1 and Part 2 (D4's "pick one" was a compute-cost rule that no
+longer applies). B1 is now **RoPE**. See CLAUDE.md §2 for the evidence. Every item is decided; items marked
 SWEEP have a decided *default* plus a grid. **The B5 gate is CLEARED —** the
 pilot (`src/pilot_b5.py`, 2026-08-04) confirmed the RF-bounded target is stable
 and materially better than the v1 cumulative target, so B5 is adopted. Core
@@ -43,7 +46,7 @@ Measured anchors used throughout (patch units unless noted; source
 | B3 Δ conditioning | **Continuous** — log₂Δ expanded to a vector. Not claimed as novel |
 | B4 anchor / Δ sampling | **Sample Δ first, then anchor over `[min_context, L − Δ)`** (fixes the starvation bug); Δ continuous in log space; dense (anchor × Δ) pairs |
 | B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. EMA (Reg) / online (NCE) unchanged. **GATED — pilot before locking.** Slice indexed from 0 (or RoPE), not absolute |
-| B6 loss | L2 + λ·xcov, **no variance floor**. Optimizer/schedule defaults swept |
+| B6 loss | **L1** + λ·xcov, **no variance floor** (L2 demoted to ablation: unstable, 0.641±0.239). Optimizer/schedule defaults swept |
 | C1 probe position | **Multi-position: probe every labeled position, one score each.** Last-position readout kept for the usage protocol |
 | C2 probe label | Label at the probed position (follows A2) |
 | C3 splits | Group split + disjoint eval windows + asserts |

@@ -32,10 +32,28 @@ Everything else in the paper is a footnote to one of these five.
 - Project: **HGLP** (Horizon-Gated Latent Prediction). "JEPA" appears only as
   a searchable keyword in README subtitle/abstract, never as the method name.
 - Two stems, same backbone/gate/penalty, different loss layer:
-  - **HGLP-Reg** = `loss=reg target=ema` (L2 to an EMA target encoder;
+  - **HGLP-Reg** = `loss=l1 target=ema` (L1 to an EMA target encoder;
     collapse handled by EMA asymmetry)
-  - **HGLP-NCE** = `loss=nce target=online` (InfoNCE vs in-batch negatives,
-    both-sided gradients, no EMA, no stop-grad; collapse handled by negatives)
+  - **HGLP-NCE** = `loss=nce target=ema` (InfoNCE vs in-batch negatives,
+    same-window negatives masked; collapse handled by negatives + EMA)
+  - **Amended 2026-08-04 (user-approved), evidence: 4 stems × 3 seeds × 3
+    datasets + gate×xcov ablation.** Both stems are carried in BOTH Part 1 and
+    Part 2 — D4's "pick one" existed only to avoid a real-data re-run, and a
+    full matrix is 6–9 min on the H200, so that cost rationale is void.
+    - Reg's loss L2 → **L1**: L2 is unstable across seeds (synthetic slow-kept
+      0.641±0.239; per-seed 0.513/0.975/0.434) and loses the slow factor. L1
+      repairs it (0.980±0.010). The defect is **specific to L2**, whose
+      squared-error gradient is dominated by large residuals and drowns a weak
+      slow signal; L1 (constant gradient magnitude) and InfoNCE (ranking) each
+      avoid it differently. Independently reproduces HEPA's stated reason for
+      L1. **L2 is retained as an ablation, not as the stem.**
+    - NCE's target online → **EMA**: the online form's low leak is partly
+      vacuous — z_fast carries the fast proxy at only 0.163 (HAPT) / 0.615
+      (PTB-XL) vs nce+ema's 0.628 / 0.881, i.e. the fast factor is weakly
+      represented anywhere rather than excluded from z_slow. **online is
+      retained as an ablation.** This supersedes D2's target choice; D2's
+      ⛔ condition (instability) was never triggered — online trains fine, it
+      just separates worse.
 - Penalty: **`L_xcov`** (squared cross-covariance between blocks). The old
   name `dcor` collides with Székely's distance correlation — do not reuse it.
 - Theory sections: **Gating / Exclusion** (informal arguments). Never
@@ -60,11 +78,21 @@ Everything else in the paper is a footnote to one of these five.
   lifetime — a spec error, corrected here.
 - **D2** NCE online target: **both-sided gradients, no EMA, no stop-grad.**
   If unstable → ⛔ stop and report; no autonomous fallback.
+  **SUPERSEDED 2026-08-04 (user-approved) → the NCE stem uses an EMA target.**
+  ⛔ was never triggered (online trains stably); it separates worse — its low
+  leak is partly vacuous (z_fast carries the fast proxy at 0.163 on HAPT).
+  online is kept as an ablation. See §2 for the evidence.
 - **D3** `make_dataset(..., seed=seed)`: seeds vary the data; all synthetic
   error bars regenerate; the re-run is folded into the overnight matrix.
 - **D4** Part-2 stem rule: the stem dominant on BOTH slow-kept and leak
   carries Part 2; metrics disagree → keep Reg. Apply mechanically.
-  **RESOLVED 2026-08-03 → Reg carries Part 2.** NCE-online (D2 pure form)
+  **SUPERSEDED 2026-08-04 (user-approved) → BOTH stems carry Part 2.** D4's
+  rule existed to avoid a real-data re-run ("avoids the real-data re-run"); a
+  full matrix is 6–9 min on the H200, so the cost rationale is void and
+  CLAUDE.md §2 defines two canonical stems in the first place. Reporting both
+  is also a stronger claim: the gate/xcov mechanism holds across two loss
+  families. Superseded reasoning follows.
+  **(2026-08-03, now historical) → Reg carries Part 2.** NCE-online (D2 pure form)
   trains stably but its embeddings are linearly uninformative on synthetic
   (slow-kept 0.456 vs Reg 0.776) and its low leak is vacuous (z_fast carries
   u at R²≈0). Metrics disagree → keep Reg. Three-point evidence
