@@ -10,6 +10,8 @@ import os
 import numpy as np
 import torch
 from sklearn.linear_model import Ridge, LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import f1_score
 
 from model import D_Z, D_SLOW
@@ -31,9 +33,9 @@ def probe_static(res):
     out = {}
     for b, sl in SL.items():
         B = Zl[:, sl]
-        clf = LogisticRegression(max_iter=1000, class_weight="balanced").fit(B[tr], y[tr])
+        clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(B[tr], y[tr])
         f1 = f1_score(y[te], clf.predict(B[te]), average="macro")
-        leak = Ridge().fit(B[tr], fz[tr]).score(B[te], fz[te])
+        leak = make_pipeline(StandardScaler(), Ridge()).fit(B[tr], fz[tr]).score(B[te], fz[te])
         out[b] = dict(slow_kept_f1=float(f1), leak_r2=float(leak),
                       rankme=float(rankme(B[te])))
     return out
@@ -51,7 +53,7 @@ def shift_static(res, strengths=(0.0, 0.25, 0.5, 1.0, 2.0), kind="noise", seed=0
     out = dict(strengths=list(strengths), kind=kind)
     for b in ("z_slow", "z_full"):
         sl = SL[b]
-        clf = LogisticRegression(max_iter=1000, class_weight="balanced").fit(Zc[tr][:, sl], y[tr])
+        clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(Zc[tr][:, sl], y[tr])
         f1s = []
         for s in strengths:
             if kind == "noise":

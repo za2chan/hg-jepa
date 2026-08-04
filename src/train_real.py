@@ -5,10 +5,14 @@ Data: (n, L, in_dim) windows + per-patch labels + per-patch fast proxy + group
 id. A3 global per-axis normalization is fit on the TRAIN group only. C3 group
 split. C1 multi-position probe (labeled positions only). B4/B5/B6 as in train.py.
 """
+import contextlib
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from sklearn.linear_model import Ridge, LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import f1_score
 
 from model import Encoder, Predictor, L, D_Z, D_SLOW
@@ -42,8 +46,11 @@ def _apply_norm(W, mu, sd, per, n_ax):
 
 def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
                w=12, dmin=12, dmax=128, batch=64, n_anchor=8, n_delta=4, lr=3e-4,
-               ema=0.996, min_context=16, gate=True, xcov=True, log_every=500):
+               ema=0.996, min_context=16, gate=True, xcov=True,
+               loss_kind="reg", target_enc="ema", temp=0.1, mask_same_window=True,
+               log_every=500):
     assert dmin >= w
+    use_ema = target_enc == "ema"
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     d = np.load(npz)
     Wall, lab, fast, grp = d["W"], d["lab"], d["fast"], d["subj"]
@@ -67,6 +74,10 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)
 
     ar_w = torch.arange(w, device=DEV)
+    bi_const = np.broadcast_to(np.arange(batch)[:, None, None],
+                               (batch, n_anchor, n_delta)).reshape(-1)
+    neg_mask = (torch.from_numpy(bi_const[:, None] == bi_const[None, :]).to(DEV)
+                & ~torch.eye(len(bi_const), dtype=torch.bool, device=DEV))
     losses = []
     for step in range(steps):
         bi_win = rng.choice(tr, batch)
@@ -90,24 +101,32 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
         g = torch.sigmoid((tau - dT) / W_gate).unsqueeze(-1) if gate else 1.0
         za_in = torch.cat([za[:, :D_SLOW], za[:, D_SLOW:] * g], -1)
         zhat = pred(za_in, torch.log2(dT).unsqueeze(-1))
-        with torch.no_grad():
+        tenc = tgt if use_ema else enc          # online (D2): both-sided grads
+        with (torch.no_grad() if use_ema else contextlib.nullcontext()):
             starts = torch.from_numpy(tp - w).to(DEV)[:, None] + ar_w
-            ztgt = tgt(xb[biT[:, None], starts])[:, -1]  # B5 bounded, indexed from 0
+            ztgt = tenc(xb[biT[:, None], starts])[:, -1]  # B5 bounded, indexed from 0
 
-        loss = ((zhat - ztgt) ** 2).mean()
+        if loss_kind == "reg":
+            loss = ((zhat - ztgt) ** 2).mean()
+        else:                                    # InfoNCE, in-batch negatives
+            logits = F.normalize(zhat, dim=-1) @ F.normalize(ztgt, dim=-1).T / temp
+            if mask_same_window:
+                logits = logits.masked_fill(neg_mask[:len(logits), :len(logits)], -1e4)
+            loss = F.cross_entropy(logits, torch.arange(len(logits), device=DEV))
         if xcov:
             zc = za - za.mean(0)
             C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)
             loss = loss + lam * (C ** 2).mean()
         opt.zero_grad(); loss.backward(); opt.step()
-        with torch.no_grad():
-            for pe, pt in zip(enc.parameters(), tgt.parameters()):
-                pt.mul_(ema).add_(pe, alpha=1 - ema)
+        if use_ema:
+            with torch.no_grad():
+                for pe, pt in zip(enc.parameters(), tgt.parameters()):
+                    pt.mul_(ema).add_(pe, alpha=1 - ema)
         losses.append(loss.item())
         if step % log_every == 0:
             print(f"  step {step} loss {loss.item():.4f}", flush=True)
 
-    return dict(enc=enc, tgt=tgt, Wt=Wt, lab=lab, fast=fast, is_test=is_test,
+    return dict(enc=enc, tgt=(tgt if use_ema else enc), Wt=Wt, lab=lab, fast=fast, is_test=is_test,
                 tr=tr, te=np.flatnonzero(is_test), losses=losses,
                 norm=(mu, sd, per, n_ax), in_dim=in_dim)
 
@@ -128,9 +147,9 @@ def probe(res, block="z_slow"):
         feat = B[idx][m]; y = lab[idx][m] - 1; fz = fast[idx][m]
         return feat, y, fz
     ftr, ytr, ztr = gather(res["tr"]); fte, yte, zte = gather(res["te"])
-    clf = LogisticRegression(max_iter=1000, class_weight="balanced").fit(ftr, ytr)
+    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(ftr, ytr)
     f1 = f1_score(yte, clf.predict(fte), average="macro")
-    leak = Ridge().fit(ftr, ztr).score(fte, zte)
+    leak = make_pipeline(StandardScaler(), Ridge()).fit(ftr, ztr).score(fte, zte)
     return dict(block=block, slow_kept_f1=float(f1), leak_r2=float(leak),
                 rankme=float(rankme(B[res["te"]].reshape(-1, B.shape[-1])[:5000])),
                 n_test=int(len(yte)))
@@ -153,7 +172,7 @@ def shift_eval(res, strengths=(0.0, 0.25, 0.5, 1.0, 2.0), kind="noise", seed=0):
     for block, sl in [("z_slow", slice(0, D_SLOW)), ("z_full", slice(0, D_Z))]:
         Bc = Zc[:, :, sl]
         ftr = Bc[res["tr"]][labeled[res["tr"]]]; ytr = lab[res["tr"]][labeled[res["tr"]]] - 1
-        clf = LogisticRegression(max_iter=1000, class_weight="balanced").fit(ftr, ytr)
+        clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(ftr, ytr)
         f1s = []
         for s in strengths:
             if kind == "noise":
