@@ -132,7 +132,7 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
 
 
 @torch.no_grad()
-def probe(res, block="z_slow"):
+def probe(res, block="z_slow", max_samples=None):
     """C1 multi-position probe on labeled positions. slow-kept = activity F1,
     leak = fast-proxy R2. Fit on train groups, score on held-out groups."""
     enc, Wt, lab, fast = res["enc"], res["Wt"], res["lab"], res["fast"]
@@ -147,6 +147,14 @@ def probe(res, block="z_slow"):
         feat = B[idx][m]; y = lab[idx][m] - 1; fz = fast[idx][m]
         return feat, y, fz
     ftr, ytr, ztr = gather(res["tr"]); fte, yte, zte = gather(res["te"])
+    if max_samples:                       # subsample for speed (positions are correlated)
+        rs = np.random.default_rng(0)
+        for nm in ("tr", "te"):
+            pass
+        if len(ftr) > max_samples:
+            i = rs.choice(len(ftr), max_samples, replace=False); ftr, ytr, ztr = ftr[i], ytr[i], ztr[i]
+        if len(fte) > max_samples:
+            i = rs.choice(len(fte), max_samples, replace=False); fte, yte, zte = fte[i], yte[i], zte[i]
     clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(ftr, ytr)
     f1 = f1_score(yte, clf.predict(fte), average="macro")
     leak = make_pipeline(StandardScaler(), Ridge()).fit(ftr, ztr).score(fte, zte)
