@@ -3,12 +3,14 @@
 **Status: STEP 2 complete; STEP 3 in progress.** Stems amended 2026-08-04
 (user-approved): HGLP-Reg = **L1**+EMA, HGLP-NCE = InfoNCE+**EMA**, and BOTH are
 carried in Part 1 and Part 2 (D4's "pick one" was a compute-cost rule that no
-longer applies). B1 is now **RoPE**. See CLAUDE.md §2 for the evidence. Every item is decided; items marked
-SWEEP have a decided *default* plus a grid. **The B5 gate is CLEARED —** the
-pilot (`src/pilot_b5.py`, 2026-08-04) confirmed the RF-bounded target is stable
-and materially better than the v1 cumulative target, so B5 is adopted. Core
-`src/` pipeline exists (`datagen`, `model`, `train`); next is E3 (HAPT τ) then
-the full matrix.
+longer applies). B1 is now **RoPE**. See CLAUDE.md §2 for the evidence.
+
+Every item is decided; items marked SWEEP have a decided *default* plus a grid.
+**The B5 gate is CLEARED** — the pilot (`src/pilot_b5.py`) confirmed the
+RF-bounded target is stable and materially better than the v1 cumulative target.
+`src/` is refactored into `hglp/` · `prep/` · `exp/`. Done: B5 pilot, 4-stem ×
+3-seed matrix on all three datasets, gate×xcov ablation for both stems.
+Next: domain robustness (Part 2), then post-hoc-rotation and Part-2 baselines.
 
 This document supersedes the STEP 1 draft. It was finalized over three review
 rounds (`PROTOCOL_QA_ko.md`, `PROTOCOL_QA2_ko.md`, `PROTOCOL_QA3_ko.md`) plus a
@@ -41,11 +43,11 @@ Measured anchors used throughout (patch units unless noted; source
 | A3 normalization | **Dataset-global, per-channel**, fit on the training split. Synthetic raw |
 | A4 channels | HAPT acc 3-axis / PTB-XL lead II / XJTU horizontal. **Channel-mixing is a deliberate design** |
 | A5 synthetic data | Persist with sha256; deterministic given seed; pin cudnn + record versions |
-| B1 position encoding | Learned absolute is the default; problem is fixed by B4, not the encoding. B5 weakened the premise → RoPE is the fallback if the B5 pilot shows position instability |
+| B1 position encoding | **RoPE (adopted 2026-08-04).** No per-position parameter exists → starvation impossible; prefix-invariance makes B5's variable-length slices in-distribution (asserted in `model.py`) |
 | B2 output norm | **Per-block LayerNorm** (after the split) |
 | B3 Δ conditioning | **Continuous** — log₂Δ expanded to a vector. Not claimed as novel |
 | B4 anchor / Δ sampling | **Sample Δ first, then anchor over `[min_context, L − Δ)`** (fixes the starvation bug); Δ continuous in log space; dense (anchor × Δ) pairs |
-| B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. EMA (Reg) / online (NCE) unchanged. **GATED — pilot before locking.** Slice indexed from 0 (or RoPE), not absolute |
+| B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. **Gate CLEARED — adopted.** EMA target for both stems. With RoPE no slice-indexing convention is needed |
 | B6 loss | **L1** + λ·xcov, **no variance floor** (L2 demoted to ablation: unstable, 0.641±0.239). Optimizer/schedule defaults swept |
 | C1 probe position | **Multi-position: probe every labeled position, one score each.** Last-position readout kept for the usage protocol |
 | C2 probe label | Label at the probed position (follows A2) |
