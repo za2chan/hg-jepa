@@ -61,8 +61,9 @@ def multi_position(Z, lab, fast, tr, te, block="z_slow", c_min=C_MIN,
     if classification:
         clf = make_pipeline(StandardScaler(),
                             LogisticRegression(max_iter=1000, class_weight="balanced"))
+        lbl = np.unique(ytr)                                      # C4: fixed label set
         out["slow_kept_f1"] = float(f1_score(yte, clf.fit(ftr, ytr).predict(fte),
-                                             average="macro"))
+                                             average="macro", labels=lbl, zero_division=0))
         out["chance_f1"] = float(1.0 / len(np.unique(ytr)))       # balanced macro-F1
     else:
         rg = make_pipeline(StandardScaler(), Ridge())

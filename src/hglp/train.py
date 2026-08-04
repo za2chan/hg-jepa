@@ -114,6 +114,8 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
 
         if loss_kind == "reg":
             loss = ((zhat - ztgt) ** 2).mean()
+        elif loss_kind == "l1":                            # HEPA-style L1
+            loss = (zhat - ztgt).abs().mean()
         elif loss_kind == "nce":                           # InfoNCE, in-batch negatives
             logits = F.normalize(zhat, dim=-1) @ F.normalize(ztgt, dim=-1).T / temp
             if mask_same_window:                           # drop slow-factor-sharing negs

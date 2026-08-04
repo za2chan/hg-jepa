@@ -45,7 +45,7 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
                w=12, dmin=12, dmax=128, batch=64, n_anchor=16, n_delta=4, lr=3e-4,
                ema=0.996, min_context=16, gate=True, xcov=True,
                loss_kind="reg", target_enc="ema", temp=0.1, mask_same_window=True,
-               log_every=500):
+               log_every=500, train_idx=None):
     assert dmin >= w
     use_ema = target_enc == "ema"
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
@@ -54,10 +54,13 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
     in_dim = Wall.shape[-1]
     Lw = Wall.shape[1]                                   # actual window length (HAPT 256, PTB-XL 100)
 
-    # C3 group split: hold out ~1/3 of groups
-    groups = np.unique(grp)
-    test_g = set(rng.permutation(groups)[:max(1, len(groups) // 3)].tolist())
-    is_test = np.array([g in test_g for g in grp])
+    if train_idx is None:
+        # C3 group split: hold out ~1/3 of groups
+        groups = np.unique(grp)
+        test_g = set(rng.permutation(groups)[:max(1, len(groups) // 3)].tolist())
+        is_test = np.array([g in test_g for g in grp])
+    else:                                     # explicit train set (exp/domain_shift.py)
+        is_test = np.ones(len(grp), bool); is_test[train_idx] = False
     tr = np.flatnonzero(~is_test)
 
     mu, sd, per = _norm_stats(Wall[tr], n_ax)            # A3 fit on train only
@@ -105,6 +108,8 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
 
         if loss_kind == "reg":
             loss = ((zhat - ztgt) ** 2).mean()
+        elif loss_kind == "l1":
+            loss = (zhat - ztgt).abs().mean()
         else:                                    # InfoNCE, in-batch negatives
             logits = F.normalize(zhat, dim=-1) @ F.normalize(ztgt, dim=-1).T / temp
             if mask_same_window:

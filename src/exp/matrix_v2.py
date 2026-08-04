@@ -12,7 +12,7 @@ import sys
 
 import numpy as np
 
-STEMS = [("reg", "ema"), ("nce", "ema"), ("nce", "online")]
+STEMS = [("reg", "ema"), ("l1", "ema"), ("nce", "ema"), ("nce", "online")]
 SEEDS = [0, 1, 2]
 
 

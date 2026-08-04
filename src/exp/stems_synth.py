@@ -27,11 +27,11 @@ from train import train, rankme, DEV
 from datagen import make_dataset
 from model import P, L
 
-STEMS = [("reg", "ema"), ("nce", "ema"), ("nce", "online")]
+STEMS = [("reg", "ema"), ("l1", "ema"), ("nce", "ema"), ("nce", "online")]
 
 
 @torch.no_grad()
-def probe(enc, seed=99, n_win=400, positions=range(24, 240, 12)):
+def probe(enc, seed=99, n_win=400, positions=tuple(range(64, 240, 12))):
     """Multi-position probe (C1) on held-out synthetic windows, per-position
     ground truth at the end sample of each patch."""
     d = make_dataset(300_000, seed=seed)
@@ -49,11 +49,17 @@ def probe(enc, seed=99, n_win=400, positions=range(24, 240, 12)):
             idx = starts + a * P + (P - 1)
             F_.append(Z[:, a, sl]); ys.append(s[idx]); yu.append(u[idx])
         F_ = np.concatenate(F_); ys = np.concatenate(ys); yu = np.concatenate(yu)
-        m = len(F_) // 2
+        # C3: 윈도우 단위 시간 컷. 위치 기준으로 자르면 같은 윈도우가 학습·테스트에
+        # 모두 들어가고, 랜덤 시작이라 윈도우끼리 95% 겹친다(측정치).
+        wid = np.tile(np.arange(len(starts)), len(list(positions)))
+        cut = np.sort(starts)[len(starts) // 2]
+        tr = np.flatnonzero(starts[wid] + L * P <= cut)
+        te = np.flatnonzero(starts[wid] > cut)
+        assert not (set(wid[tr]) & set(wid[te])), "window leaked across split"
         clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
-        acc = clf.fit(F_[:m], ys[:m]).score(F_[m:], ys[m:])
+        acc = clf.fit(F_[tr], ys[tr]).score(F_[te], ys[te])
         rg = make_pipeline(StandardScaler(), Ridge())
-        leak = rg.fit(F_[:m], yu[:m]).score(F_[m:], yu[m:])
+        leak = rg.fit(F_[tr], yu[tr]).score(F_[te], yu[te])
         out_std = float(F_.std())
         out[name] = dict(regime_acc=float(acc), leak_u_r2=float(leak),
                          rankme=float(rankme(F_[:5000])), feat_std=out_std)
