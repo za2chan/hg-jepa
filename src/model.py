@@ -16,9 +16,9 @@ D_MODEL, D_Z, D_SLOW = 96, 64, 16
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, in_dim=P):               # A4 channel-mixing: in_dim = patch_len * n_channels
         super().__init__()
-        self.embed = nn.Linear(P, D_MODEL)
+        self.embed = nn.Linear(in_dim, D_MODEL)
         self.pos = nn.Parameter(torch.randn(1, L, D_MODEL) * 0.02)
         layer = nn.TransformerEncoderLayer(D_MODEL, 4, 256, batch_first=True,
                                            norm_first=True, dropout=0.0)
