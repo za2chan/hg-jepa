@@ -10,6 +10,9 @@ v1 found: reg+ema 0.810 / nce+ema 0.810 both worked, nce+online 0.456 failed
 under v2, where the target no longer re-contains the anchor's past.
 Writes runs_v2/stems_synth.json.
 """
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "hglp"))
+
 import json
 import os
 
@@ -58,7 +61,7 @@ def probe(enc, seed=99, n_win=400, positions=range(24, 240, 12)):
 
 
 if __name__ == "__main__":
-    os.makedirs("../runs_v2", exist_ok=True)
+    os.makedirs("../../runs_v2", exist_ok=True)
     res = {}
     for lk, te in STEMS:
         tag = f"{lk}+{te}"
@@ -70,7 +73,7 @@ if __name__ == "__main__":
         for b in ("z_slow", "z_fast", "z_full"):
             print(f"  {b:7s} regime {pr[b]['regime_acc']:.3f} | leak(u R2) "
                   f"{pr[b]['leak_u_r2']:+.3f} | RankMe {pr[b]['rankme']:.1f}")
-    json.dump(res, open("../runs_v2/stems_synth.json", "w"), indent=2)
+    json.dump(res, open("../../runs_v2/stems_synth.json", "w"), indent=2)
 
     print("\n=== SUMMARY (slow-kept / leak from z_slow; z_fast should CARRY u) ===")
     for tag, pr in res.items():

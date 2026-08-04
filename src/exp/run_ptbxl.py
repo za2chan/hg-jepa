@@ -4,6 +4,9 @@ is the LAST position (full-record causal summary), not multi-position (which is
 for a VARYING slow factor like HAPT activity). Shift robustness uses ECG-
 realistic perturbations (noise, amplitude, baseline wander).
 """
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "hglp"))
+
 import json
 import os
 
@@ -69,9 +72,9 @@ def shift_static(res, strengths=(0.0, 0.25, 0.5, 1.0, 2.0), kind="noise", seed=0
 
 
 if __name__ == "__main__":
-    os.makedirs("../runs_v2", exist_ok=True)
+    os.makedirs("../../runs_v2", exist_ok=True)
     print("=== PTB-XL v2 (static NORM; HGLP-Reg, bounded target, gate+xcov) ===")
-    res = train_real("../data/ptbxl_v2.npz", n_ax=1, tau=16.0, w=8, dmin=8, dmax=48,
+    res = train_real("../../data/ptbxl_v2.npz", n_ax=1, tau=16.0, w=8, dmin=8, dmax=48,
                      min_context=8, seed=0)
     pr = probe_static(res)
     for b, r in pr.items():
@@ -83,5 +86,5 @@ if __name__ == "__main__":
         rz = s["z_slow"][-1] / s["z_slow"][0]; rf = s["z_full"][-1] / s["z_full"][0]
         print(f"  {k:7s} z_slow {[round(v,3) for v in s['z_slow']]} (ret {rz:.0%}) | "
               f"z_full {[round(v,3) for v in s['z_full']]} (ret {rf:.0%})")
-    json.dump(dict(probe=pr, shift=sh), open("../runs_v2/ptbxl_v2_seed0.json", "w"), indent=2)
+    json.dump(dict(probe=pr, shift=sh), open("../../runs_v2/ptbxl_v2_seed0.json", "w"), indent=2)
     print("saved runs_v2/ptbxl_v2_seed0.json")

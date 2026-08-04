@@ -3,6 +3,9 @@ real data. Reports mean±std so the D4 re-decision rests on error bars, not one
 seed. Usage:  python3 matrix_v2.py [synth|ptbxl|hapt]
 Writes runs_v2/matrix_<dataset>.json
 """
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "hglp"))
+
 import json
 import os
 import sys
@@ -64,17 +67,17 @@ def run_real(npz, n_ax, kw, static=False):
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "synth"
-    os.makedirs("../runs_v2", exist_ok=True)
+    os.makedirs("../../runs_v2", exist_ok=True)
     print(f"=== v2 stem matrix: {which} (3 stems x {len(SEEDS)} seeds) ===")
     if which == "synth":
         res, _ = run_synth()
     elif which == "ptbxl":
-        res, _ = run_real("../data/ptbxl_v2.npz", 1,
+        res, _ = run_real("../../data/ptbxl_v2.npz", 1,
                           dict(tau=16.0, w=8, dmin=8, dmax=48, min_context=8), static=True)
     else:
-        res, _ = run_real("../data/hapt_v2.npz", 3,
+        res, _ = run_real("../../data/hapt_v2.npz", 3,
                           dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16))
-    json.dump(res, open(f"../runs_v2/matrix_{which}.json", "w"), indent=2)
+    json.dump(res, open(f"../../runs_v2/matrix_{which}.json", "w"), indent=2)
 
     print(f"\n=== {which}: mean ± std over {len(SEEDS)} seeds ===")
     print(f"{'stem':12s} {'slow-kept':>16} {'leak (z_slow)':>17} {'z_fast carries':>16}")

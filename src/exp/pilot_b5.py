@@ -8,6 +8,9 @@ v2 RF-bounded target, then judges B5 on two axes:
 
 Writes runs_v2/pilot_b5.json + runs_v2/pilot_b5.png. Run from src/.
 """
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "hglp"))
+
 import json
 import os
 
@@ -89,7 +92,7 @@ def probe(enc, xb, starts, s, u, positions):
 
 
 def main():
-    os.makedirs("../runs_v2", exist_ok=True)
+    os.makedirs("../../runs_v2", exist_ok=True)
     xb, starts, s, u = eval_windows()
     anchors = np.arange(16, 120, 12)                           # a + Δ_max < L
     probe_pos = list(range(16, 240, 16))
@@ -112,8 +115,8 @@ def main():
     ax[1].axhline(0, color="k", lw=0.5, ls=":"); ax[1].set_xscale("log")
     ax[1].set_title("harmlessness(Δ) = R²(s,u) − R²(s)\nlower→0 = fast info useless at long Δ")
     ax[1].set_xlabel("Δ (patches, log)"); ax[1].legend(fontsize=8)
-    plt.tight_layout(); plt.savefig("../runs_v2/pilot_b5.png", dpi=120); plt.close()
-    json.dump(out, open("../runs_v2/pilot_b5.json", "w"), indent=2)
+    plt.tight_layout(); plt.savefig("../../runs_v2/pilot_b5.png", dpi=120); plt.close()
+    json.dump(out, open("../../runs_v2/pilot_b5.json", "w"), indent=2)
 
     # ---- verdict ----
     cb, cc = out["bounded"], out["cumulative"]

@@ -1,7 +1,9 @@
 """HGLP v2 training (protocol B4/B5/B6). HGLP-Reg (L2 + EMA target).
 
-B4: sample Δ log-uniform, then anchor in [min_context, L-1-Δ] (fixes the
-    starvation bug); several Δ per anchor for the fixed-anchor gate contrast.
+B4: sample Δ log-uniform, then anchor in [min_context, L-1-Δ]; several Δ per
+    anchor for the fixed-anchor gate contrast. With RoPE (B1 revised) there are
+    no per-position parameters, so anchor coverage no longer risks starving
+    anything — density is now purely about training signal per forward pass.
 B5: target = EMA encoder, either
       cumulative  -> read position (anchor+Δ) of the full-window encoding (v1)
       bounded     -> encode the w-slice x[anchor+Δ-w : anchor+Δ], read last (v2)
@@ -49,7 +51,7 @@ def _windows(x, rng, n):
 
 def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
           steps=2500, tau=16.0, W=4.0, lam=4.0, w=8, dmin=8, dmax=128, batch=64,
-          n_anchor=8, n_delta=4, lr=3e-4, ema=0.996, min_context=16, temp=0.1,
+          n_anchor=16, n_delta=4, lr=3e-4, ema=0.996, min_context=16, temp=0.1,
           mask_same_window=True, log_every=500):
     assert dmin >= w, "pilot expects Δ_min>=w so w_eff==w (see module docstring)"
     use_ema = target_enc == "ema"

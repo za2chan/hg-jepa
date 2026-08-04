@@ -16,14 +16,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import f1_score
 
 from model import Encoder, Predictor, L, D_Z, D_SLOW
+from probes import rankme, encode_all, multi_position, BLOCKS, C_MIN
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def rankme(Z, eps=1e-7):
-    s = np.linalg.svd(Z - Z.mean(0), compute_uv=False)
-    p = s / (s.sum() + eps) + eps
-    return float(np.exp(-(p * np.log(p)).sum()))
 
 
 def _norm_stats(W, n_ax):
@@ -45,7 +42,7 @@ def _apply_norm(W, mu, sd, per, n_ax):
 
 
 def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
-               w=12, dmin=12, dmax=128, batch=64, n_anchor=8, n_delta=4, lr=3e-4,
+               w=12, dmin=12, dmax=128, batch=64, n_anchor=16, n_delta=4, lr=3e-4,
                ema=0.996, min_context=16, gate=True, xcov=True,
                loss_kind="reg", target_enc="ema", temp=0.1, mask_same_window=True,
                log_every=500):
@@ -131,36 +128,12 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
                 norm=(mu, sd, per, n_ax), in_dim=in_dim)
 
 
-@torch.no_grad()
-def probe(res, block="z_slow", max_samples=None):
-    """C1 multi-position probe on labeled positions. slow-kept = activity F1,
-    leak = fast-proxy R2. Fit on train groups, score on held-out groups."""
-    enc, Wt, lab, fast = res["enc"], res["Wt"], res["lab"], res["fast"]
-    sl = slice(0, D_SLOW) if block == "z_slow" else (
-        slice(D_SLOW, D_Z) if block == "z_fast" else slice(0, D_Z))
-    Z = torch.cat([enc(Wt[i:i + 128]) for i in range(0, len(Wt), 128)]).cpu().numpy()
-    B = Z[:, :, sl]
-    labeled = (lab >= 1) & (lab <= 6)
 
-    def gather(idx):
-        m = labeled[idx]
-        feat = B[idx][m]; y = lab[idx][m] - 1; fz = fast[idx][m]
-        return feat, y, fz
-    ftr, ytr, ztr = gather(res["tr"]); fte, yte, zte = gather(res["te"])
-    if max_samples:                       # subsample for speed (positions are correlated)
-        rs = np.random.default_rng(0)
-        for nm in ("tr", "te"):
-            pass
-        if len(ftr) > max_samples:
-            i = rs.choice(len(ftr), max_samples, replace=False); ftr, ytr, ztr = ftr[i], ytr[i], ztr[i]
-        if len(fte) > max_samples:
-            i = rs.choice(len(fte), max_samples, replace=False); fte, yte, zte = fte[i], yte[i], zte[i]
-    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(ftr, ytr)
-    f1 = f1_score(yte, clf.predict(fte), average="macro")
-    leak = make_pipeline(StandardScaler(), Ridge()).fit(ftr, ztr).score(fte, zte)
-    return dict(block=block, slow_kept_f1=float(f1), leak_r2=float(leak),
-                rankme=float(rankme(B[res["te"]].reshape(-1, B.shape[-1])[:5000])),
-                n_test=int(len(yte)))
+def probe(res, block="z_slow", c_min=C_MIN, max_samples=60000):
+    """C1 multi-position probe with the context floor (see probes.multi_position)."""
+    Z = encode_all(res["enc"], res["Wt"])
+    return multi_position(Z, res["lab"], res["fast"], res["tr"], res["te"],
+                          block=block, c_min=c_min, max_samples=max_samples)
 
 
 @torch.no_grad()
@@ -170,10 +143,11 @@ def shift_eval(res, strengths=(0.0, 0.25, 0.5, 1.0, 2.0), kind="noise", seed=0):
     than z_full. Perturbation is in normalized input space (deploy-time norm)."""
     enc, Wt, lab, fast = res["enc"], res["Wt"], res["lab"], res["fast"]
     labeled = (lab >= 1) & (lab <= 6)
+    labeled[:, :C_MIN] = False                  # C1: same context floor as probe()
     g = torch.Generator(device=DEV).manual_seed(seed)
 
     def enc_all(Wc):
-        return torch.cat([enc(Wc[i:i + 128]) for i in range(0, len(Wc), 128)]).cpu().numpy()
+        return encode_all(enc, Wc)
     Zc = enc_all(Wt)
     Wte = Wt[res["te"]]; mte = labeled[res["te"]]; yte = lab[res["te"]][mte] - 1
     out = dict(strengths=list(strengths), kind=kind)
