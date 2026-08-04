@@ -105,15 +105,34 @@ Everything else in the paper is a footnote to one of these five.
 
 ## 5. Domain facts agents must not re-derive wrongly
 
-- **Backbone attribution (verified against the papers):** ours = **point
-  target at t+Δ** + EMA + L2. HEPA = interval-summary target over `(t, t+Δ]`
-  (bidirectional + attention pooling), weight-shared jointly-trained target
-  (no EMA), SIGReg, L1. LeNEPA = next-step (t+1) latent target, no horizon
-  variable. **Never write "as in HEPA."** In prose: the full four-way
-  contrast lives in Related Works (1–2 sentences); Method keeps exactly one
-  sentence on target shape — it is a premise of the gate's logic (an
-  interval target still contains fast content at long Δ, breaking the
-  harmless-to-close argument).
+- **Backbone attribution (re-verified against the papers 2026-08-03; the
+  earlier "point target" phrasing was imprecise and is corrected here with
+  user approval):**
+  - **v1 (what the old code did):** the target was the causal encoder's
+    output *read at* t+Δ — i.e. a **cumulative summary of x[0 … t+Δ]**, which
+    re-contains the anchor's own past x[0…t]. Calling that a "point target"
+    hid the receptive field. Correct phrasing: *a causal cumulative summary
+    starting at 0, read at t+Δ*.
+  - **v2 (decided):** **receptive-field-bounded point target** —
+    `TargetEncoder(x[t+Δ−w_eff : t+Δ])` read at the last position, with
+    `w_eff = min(w, Δ)` so the target's receptive field always lies inside
+    `(t, t+Δ]` and never re-contains the anchor's past. This is what makes
+    harmless-to-close hold *by construction* rather than by hope.
+  - **CPC** [van den Oord 2018]: target = `z_{t+k}` from a **local** encoder
+    `g_enc`; the cumulative context `c_t` appears only on the input side. So
+    CPC also excludes the anchor's past from the target.
+  - **HEPA**: interval-summary target over `(t, t+Δ]` (bidirectional +
+    attention pooling), weight-shared jointly-trained target (no EMA, no
+    stop-grad), SIGReg, L1, **sinusoidal absolute positions**, and **scalar
+    (continuous) Δ conditioning** — so continuous horizon conditioning is a
+    standard choice, not our contribution.
+  - **LeNEPA**: next-step (t+1) latent target, no horizon variable.
+  - **Never write "as in HEPA."** In prose: the full contrast lives in
+    Related Works (1–2 sentences); Method keeps exactly one sentence on
+    target shape. The live distinction vs HEPA is **"read one position inside
+    the future interval (ours) vs attention-pool the whole interval (HEPA)"**
+    — pooling mixes in near-future fast content, which is what weakens the
+    harmless-to-close argument.
 - **Why long-horizon prediction works at all:** the loss is a conditional
   expectation; the predictor cannot foresee regime switches — it can only
   lower error by encoding the current state. `z_slow` is a memo about NOW,
