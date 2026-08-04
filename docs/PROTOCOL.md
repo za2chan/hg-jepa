@@ -1,13 +1,15 @@
 # HGLP v2 — Protocol (FINAL — frozen for implementation)
 
-**Status: STEP 2 complete.** Every item below is decided. Implementation
-(STEP 3) may begin against this document. Nothing here is "to be decided";
-items marked SWEEP have a decided *default* plus a grid.
+**Status: STEP 2 complete.** Every item is decided; items marked SWEEP have a
+decided *default* plus a grid. **One item is GATED, not locked — B5 (target
+definition) is the leading candidate pending an early pilot (E4), which runs
+first.** Implementation (STEP 3) begins with that pilot.
 
 This document supersedes the STEP 1 draft. It was finalized over three review
-rounds (`PROTOCOL_QA_ko.md`, `PROTOCOL_QA2_ko.md`, `PROTOCOL_QA3_ko.md`), which
-overturned two of the draft's recommendations and corrected one factual claim.
-The "Why" line under each item records what settled it.
+rounds (`PROTOCOL_QA_ko.md`, `PROTOCOL_QA2_ko.md`, `PROTOCOL_QA3_ko.md`) plus a
+cross-review by a second session; together they overturned three of the draft's
+recommendations and corrected two factual claims (see the Appendix). The "Why"
+line under each item records what settled it.
 
 Source of truth: this file. `PROTOCOL_ko.md` is a reading mirror.
 Old pipeline is frozen in `legacy/`; old results in `runs/`, `runs_hapt/`, ….
@@ -34,13 +36,13 @@ Measured anchors used throughout (patch units unless noted; source
 | A3 normalization | **Dataset-global, per-channel**, fit on the training split. Synthetic raw |
 | A4 channels | HAPT acc 3-axis / PTB-XL lead II / XJTU horizontal. **Channel-mixing is a deliberate design** |
 | A5 synthetic data | Persist with sha256; deterministic given seed; pin cudnn + record versions |
-| B1 position encoding | Learned absolute retained; problem is fixed by B4, not by the encoding |
+| B1 position encoding | Learned absolute is the default; problem is fixed by B4, not the encoding. B5 weakened the premise → RoPE is the fallback if the B5 pilot shows position instability |
 | B2 output norm | **Per-block LayerNorm** (after the split) |
 | B3 Δ conditioning | **Continuous** — log₂Δ expanded to a vector. Not claimed as novel |
-| B4 anchor / Δ sampling | **Anchors over the full valid range**; Δ sampled continuously in log space; dense (anchor × Δ) pairs |
-| B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. EMA (Reg) / online (NCE) unchanged |
+| B4 anchor / Δ sampling | **Sample Δ first, then anchor over `[min_context, L − Δ)`** (fixes the starvation bug); Δ continuous in log space; dense (anchor × Δ) pairs |
+| B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. EMA (Reg) / online (NCE) unchanged. **GATED — pilot before locking.** Slice indexed from 0 (or RoPE), not absolute |
 | B6 loss | L2 + λ·xcov, **no variance floor**. Optimizer/schedule defaults swept |
-| C1 probe position | Inside the trained anchor range, asserted in code |
+| C1 probe position | **Multi-position: probe every labeled position, one score each.** Last-position readout kept for the usage protocol |
 | C2 probe label | Label at the probed position (follows A2) |
 | C3 splits | Group split + disjoint eval windows + asserts |
 | C4 metrics | Absolute scores, chance stated, linear + MLP + MINE, RankMe |
@@ -169,24 +171,32 @@ figure↔text drift incidents (CLAUDE.md §4).
 
 ### B1 — Position encoding
 
-**Decision.** **Keep learned absolute position embeddings.** The problem this
-item was opened for is fixed by B4 (anchor range), not by changing the
-encoding. Sinusoidal or RoPE are permitted alternatives but not required.
+**Decision.** **Learned absolute position embeddings are the default.** The
+problem this item was opened for is fixed by B4 (anchor range), not by changing
+the encoding. **But B5 weakened the premise:** feeding the target encoder a
+short slice raises a position-tagging question that absolute embeddings answer
+awkwardly (see B5). **RoPE is the explicit fallback** if the B5 pilot shows
+position-related instability.
 
 **Why.** v1 sampled anchors only from `[64, 128)`, so `pos[128:256]` received
 no gradient, targets at long Δ were computed on untrained position embeddings,
 and evaluation then read position 255. **Correction to the STEP 1 draft:**
 `pos[0:64]` *is* trained — a causal encoder's anchor outputs attend over it —
-so only `pos[128:256]` was starved. The severity is a train/eval context
-mismatch, not a catastrophic bug.
+so only `pos[128:256]` was starved (attention trains the anchor's *past*, i.e.
+lower indices; it can never reach the anchor's *future*, the higher indices).
+The severity is a train/eval context mismatch, not a catastrophic bug.
 
 Once anchors cover the full range (B4), every position is trained and every
 context length is in-distribution, which removes the starvation and the
 mismatch together. RoPE would remove per-position parameters but not the
-context-length mismatch, so it solves the smaller half of the problem while
-adding length-extrapolation caveats. HEPA's choice (sinusoidal) is a valid
-alternative for the same reason. We take the change with the fewest new
-trade-offs.
+context-length mismatch, so on its own it solves the smaller half of the
+problem while adding length-extrapolation caveats. **However**, once B5 feeds
+variable-length short slices to the target encoder, RoPE gains a second
+advantage: it is relative-only, so a short slice uses only short relative
+distances (always in-distribution), with no per-position parameter to
+mismatch. That makes it the natural fallback rather than a co-equal
+alternative. HEPA uses sinusoidal for a related reason. Default stays learned
+absolute (fewest changes); the pilot decides whether to switch.
 
 ### B2 — Output normalization
 
@@ -222,9 +232,10 @@ This is a standard choice and must be written as such.
 ### B4 — Anchor and Δ sampling
 
 **Decision.**
-- **Anchors: sampled over the full valid range** `[min_context, L − Δ_max)`.
-- **Δ: sampled continuously**, `log Δ ~ Uniform(log Δ_min, log Δ_max)`, instead
-  of drawing from a fixed 5-value grid.
+- **Δ is sampled first**, `log Δ ~ Uniform(log Δ_min, log Δ_max)`, instead of a
+  fixed 5-value grid.
+- **The anchor range is then set per-sample to** `[min_context, L − Δ)` — bound
+  to the Δ just drawn, **not** a fixed `L − Δ_max`.
 - **Density: many anchors × several Δ per anchor** per forward pass (exact
   counts: SWEEP).
 - The sampling procedure must be documented in code comments and in the run
@@ -233,10 +244,29 @@ This is a standard choice and must be written as such.
 **Why.** v1 drew 8 anchors, each with a single random Δ — 8 (anchor, Δ) pairs
 out of a 256-position forward pass, wasting ~97% of the computation. The gate's
 learning signal is the *contrast across Δ at a fixed anchor*, and one Δ per
-anchor barely provides it within a step. Full-range anchors simultaneously fix
-B1 (no starved positions) and C1 (any probe position is in-distribution), which
-is why this is the upstream decision of the three. Continuous Δ sampling is
-unlocked by B3 and removes the grid entirely, densifying coverage near τ.
+anchor barely provides it within a step.
+
+**Bug this fixes (caught in cross-review; the STEP 1 draft reproduced it).** A
+fixed anchor upper bound `L − Δ_max = 256 − 128 = 128` is *identical to v1's*,
+so `pos[128:256]` still starves — the "full valid range" phrasing was
+self-contradictory. The cause is applying the `anchor + Δ ≤ L` constraint at
+the *maximum* Δ uniformly, when it only needs to hold for the Δ actually used.
+Sampling Δ first and bounding the anchor at `L − Δ` lets small Δ push anchors
+to the end of the window (e.g. Δ=1 → anchors up to 254), so **every** position
+becomes an anchor for some Δ and every position embedding is trained.
+
+**Side effect to document (unavoidable geometry).** Anchor position now
+correlates with Δ: large Δ forces anchors toward the front (short context) and
+leaves fewer valid anchor positions, so far-horizon training signal comes from
+early, less diverse anchors. This is inherent to causal prediction in a finite
+window. It is mild here (Δ_max=128, L=256 ⇒ far-Δ anchors still span ~96
+positions) and benign (slow state reads fine from short context), but must be
+stated.
+
+Full-range anchors simultaneously fix B1 (no starved positions) and C1 (any
+probe position is in-distribution), which is why this is the upstream decision
+of the three. Continuous Δ sampling is unlocked by B3 and removes the grid
+entirely, densifying coverage near τ.
 
 Δ spacing is logarithmic because the governing quantity is the ratio Δ/T_ac,
 and the range to cover (T_ac(min) ≈ 5 p to T_ac(max) ≈ 82 p) spans more than
@@ -246,16 +276,28 @@ in the initial commit without recorded rationale.
 
 ### B5 — Target definition
 
-**Decision.** **Receptive-field-bounded point target.**
+**Decision.** **Receptive-field-bounded point target — GATED by a pilot
+before it is locked as the target definition.**
 
 ```
 w_eff = min(w, Δ)
-ztgt  = TargetEncoder( x[t+Δ − w_eff : t+Δ] )[last position]
+ztgt  = TargetEncoder( x[t+Δ − w_eff : t+Δ] )[last position]   # slice indexed from 0
 ```
 
 Target-encoder identity is unchanged and orthogonal to this: **EMA copy for
 HGLP-Reg, online (both-sided, no EMA, no stop-grad) for HGLP-NCE** — D2 stays
 locked. `w` is initialized from `T_ac(fast)` (label-free) and SWEPT.
+
+**Slice position indexing (settled in cross-review).** Feed the slice as a
+standalone short sequence, **indexed from 0** — not with the absolute indices
+`t+Δ−w … t+Δ`. Reason: with learned absolute embeddings, `pos[k]` is trained
+coupled to "k tokens of history"; the last slice token has only `w_eff−1`
+tokens of history, so indexing from 0 (last token = `pos[w_eff−1]`) matches
+that coupling and mimics a window prefix (in-distribution), whereas absolute
+indexing tags a short-history token with a mid-window position (out of
+distribution). RoPE, being relative-only, does this natively and is the
+fallback (see B1). This corrects an earlier suggestion to keep absolute
+indices.
 
 **Why.** v1's target was the causal encoder read at t+Δ, whose receptive field
 is `[0, t+Δ]` — it re-contains the anchor's own past `x[0…t]`. That breaks the
@@ -278,6 +320,20 @@ monitors it); the regression loss is unchanged (the target is still one D_Z
 vector); the method remains latent-prediction / JEPA-family and in fact moves
 closer to the CPC lineage. The live contrast with HEPA becomes "read one
 position inside the future interval vs attention-pool the whole interval."
+
+**Why GATED, not locked.** B5 is the one change no one has trained yet, and it
+carries a residual risk the pilot must clear: the target encoder is the EMA of
+the *context* encoder, which is optimized on full windows, yet B5 applies it to
+short slices. This is milder than it first sounds — a short slice is
+in-distribution (it is exactly a window *prefix*, which the encoder processes
+constantly, and under B4 those prefix positions are anchors too) — so
+catastrophic failure is ruled out a priori. What remains empirical is whether
+representations *shaped as context* also serve well *as targets*. The B5 pilot
+(part of E4) checks it cheaply via RankMe on the target, target-informativeness,
+and loss stability. **Fallback if it fails:** a separate small local target
+encoder that only ever sees `w`-slices (CPC-style), which removes the reuse
+mismatch by construction. Until the pilot clears it, B5 is the leading
+candidate, not a locked decision.
 
 ### B6 — Loss, optimizer, schedule
 
@@ -306,14 +362,36 @@ untuned v1 default, so each is swept rather than asserted.
 
 ### C1 — Probe positions
 
-**Decision.** Probe **only at positions inside the trained anchor range**, and
-`assert` that condition in code. With B4's full-range anchors this is satisfied
-almost everywhere, so in practice the last position is probed.
+**Decision.** **Multi-position probe.** Extract `z_slow` at **every labeled
+position** inside the trained anchor range and score each against that
+position's own label (`assert` the position is in-range). Cluster by window for
+error bars (positions within a window are correlated — treating them as
+independent would fabricate significance). The single **last-position readout
+is kept, but as the *usage* readout** (§1 usage protocols), not as the
+measurement.
 
-**Why.** v1 probed `enc(x)[:, −1]` (position 255), which was outside the anchor
-range `[64,128)` and carried an untrained position embedding — the probe read a
-representation the training task never shaped. The assert exists so this class
-of mismatch cannot silently return.
+**Why.** Two things share the word "probe" and must be separated. (1) The
+*measurement* — "does `z_slow` capture the slow factor, and by long integration
+rather than an end-point shortcut?" — is exactly what A2's per-position labels
+exist to test; probing only the last position would re-open the shortcut A2
+closed, and it cannot show tracking. (2) The *usage* readout — "what is the
+state now?" — is legitimately the last position ("z_slow is a memo about now",
+CLAUDE.md §5). These answer different questions and do not compete: multi-
+position **subsumes** last-position (you can always read off the last score),
+and it additionally yields the position-vs-performance curve and the
+transition-region trajectory. The behaviour just after a transition is
+**tracking latency, reported as a curve — not an error**. Multi-position is
+therefore the more faithful test of our own "memo about now" thesis (checked at
+every now, not only the last).
+
+v1 probed `enc(x)[:, −1]` (position 255), which was outside the anchor range
+`[64,128)` and carried an untrained position embedding — a representation the
+training task never shaped. B4 fixes the training side; the in-range assert
+keeps this class of mismatch from silently returning.
+
+**Correction to the FINAL draft's earlier wording** ("in practice the last
+position is probed"): that reproduced the end-point method A2 replaced. It is
+superseded by multi-position here.
 
 ### C2 — Probe label
 
@@ -365,9 +443,10 @@ unless RankMe is reported.
 ## D. Sweeps
 
 **Held fixed** (decided above, not swept): loss form (L2 + xcov, no vfloor);
-RF-bounded point target with `w_eff = min(w,Δ)`; continuous Δ conditioning;
-dataset-global normalization; full-range anchor sampling; per-block LayerNorm;
-group-split leak-free evaluation; per-position labels.
+RF-bounded point target with `w_eff = min(w,Δ)` (**pending the B5 pilot**);
+continuous Δ conditioning; dataset-global normalization; Δ-then-anchor sampling
+over `[min_context, L−Δ)`; per-block LayerNorm; group-split leak-free
+evaluation; per-position multi-position probing.
 
 **Swept:**
 
@@ -426,34 +505,43 @@ window-limited lower bound. Extending the window to 20.5 s (A1) exposes longer
 structure and may move τ, which in turn decides the Δ set. This is the same
 window-limitation the review identified for `T_ac(max)`.
 
-### E4 — Harmlessness curve (new experiment)
+### E4 — B5 pilot + harmlessness curve (runs FIRST, gates B5)
 
-**Decision.** Add an evaluation-layer experiment measuring the
-harmless-to-close premise directly. For each Δ, fit two regressions to the
-target and compare:
+**Decision.** Before B5 is locked and before the full matrix, run an **early
+pilot** that does two separable jobs:
 
-```
-A:  s(t)        → z̄(t+Δ)          slow factor only
-B:  s(t), u(t)  → z̄(t+Δ)          plus the fast factor
-harmlessness(Δ) = R²(B) − R²(A)
-```
+1. **B5 stability** — train one small model with the v1 cumulative target and
+   one with the v2 RF-bounded target; watch loss convergence, RankMe on the
+   target, and probe informativeness. This is what decides whether B5 is
+   adopted or falls back to a separate local target encoder.
+2. **Harmlessness curve** — on those models, for each Δ fit two regressions to
+   the target and compare:
 
-Run it for **both** the v1 cumulative target and the v2 RF-bounded target.
+   ```
+   A:  s(t)        → z̄(t+Δ)          slow factor only
+   B:  s(t), u(t)  → z̄(t+Δ)          plus the fast factor
+   harmlessness(Δ) = R²(B) − R²(A)
+   ```
 
-**Why.** The premise that the entire gating argument rests on has never been
-measured. It is a property of the data and the target definition, not of our
-model — so it must be measured **without** the gate or the block structure (an
-earlier draft of this experiment used a gate-free model's `z_fast`, which is
-meaningless because nothing makes those dims "fast"). Ground-truth factors are
-available on synthetic; real data uses proxies.
+**Why the reorder.** B5 is the single unvalidated change and the biggest
+schedule risk of the rewrite; it must be judged before the pipeline is built on
+top of it. The pilot is the judge.
+
+**Correction to an earlier claim ("no additional training").** That was wrong.
+The harmlessness curve is a property of *the data and the target definition*,
+so it must be measured without the gate or block structure — but the target
+`z̄` is still produced by an encoder, and comparing the two target *designs*
+means training one model per design. So this is **≥2 trainings**, not a pure
+eval-layer analysis. (Note: stability and the harmlessness curve are distinct —
+the curve does not by itself test convergence; the pilot bundles both because
+both need the same two trained models.)
 
 It yields three things: empirical support for the premise; a **direct
 comparison of the two target designs** (the cumulative target should *not*
-decay to zero, the RF-bounded one should) — which is the strongest available
-defence of the B5 decision; and a data-driven τ estimate at the Δ where the
-curve reaches zero, merging with the backlog's "model-based τ estimation."
-
-Cost: no additional training; a few Ridge fits on embeddings we already produce.
+decay to zero, the RF-bounded one should) — the strongest available defence of
+the B5 decision; and a data-driven τ estimate at the Δ where the curve reaches
+zero, merging with the backlog's "model-based τ estimation." Ground-truth
+factors are available on synthetic; real data uses proxies.
 
 ### E5 — Deferred
 
@@ -489,3 +577,14 @@ scoping pillar rather than weakening the method.
 | 8 | **VOID kept in pretraining** | Filtering by label would compromise the label-free-in-training claim |
 | 9 | **E1–E4 added** | Surfaced by review: τ channel mismatch, undecided channel design, window-limited τ, unmeasured premise |
 | 10 | **XJTU rationale corrected**: not "no slow state in the window" but "no fast/slow contrast, so the gate contributes nothing (z_slow 0.18 = z_full 0.18)" | Structurally XJTU is a static-factor case like PTB-XL; the original wording was inconsistent |
+
+### Cross-review round (after the FINAL draft was first written)
+
+| # | Change | Trigger |
+|---|---|---|
+| 11 | **B4 anchor bug fixed**: fixed upper bound `L−Δ_max` reproduced v1's starvation of `pos[128:256]` → **sample Δ first, bound anchor at `L−Δ`** | A second session showed "full valid range = `[min_context, L−Δ_max)`" is self-contradictory; the fix trains every position. Anchor–Δ correlation documented as an unavoidable side effect |
+| 12 | **B5 gated, not locked**: leading candidate pending an early pilot | B5 is the only untrained change; the EMA-context-encoder-on-short-slices reuse is benign a priori (a slice is a window prefix) but its target quality is empirical |
+| 13 | **B5 slice indexing decided**: index from 0 (not absolute); RoPE is the native/fallback form | With learned absolute embeddings `pos[k]` couples to "k tokens of history"; absolute indexing on a short slice is OOD. This corrects the reviewer's "keep absolute (b)" suggestion |
+| 14 | **C1 → multi-position probe**; last-position kept only as the usage readout | The FINAL draft's "probe the last position" reproduced the end-point method A2 replaced. Multi-position subsumes it and yields the tracking curve |
+| 15 | **E4 reordered to run first and gate B5; "no additional training" retracted** (it needs ≥2 trainings) | The pilot must judge B5 before the pipeline is built on it; harmlessness-curve and stability are distinct but share the two trained models |
+| 16 | **B1 fallback elevated**: RoPE is the explicit fallback if the B5 pilot shows position instability (was "keep absolute, document") | B5's variable-length slices weaken the case for learned absolute positions more than first stated |
