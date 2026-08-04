@@ -48,6 +48,7 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
     d = np.load(npz)
     Wall, lab, fast, grp = d["W"], d["lab"], d["fast"], d["subj"]
     in_dim = Wall.shape[-1]
+    Lw = Wall.shape[1]                                   # actual window length (HAPT 256, PTB-XL 100)
 
     # C3 group split: hold out ~1/3 of groups
     groups = np.unique(grp)
@@ -72,8 +73,8 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
         xb = Wt[bi_win]                                  # (B, L, in_dim), train groups
         z = enc(xb)
 
-        anchors = rng.integers(min_context, L - dmin, (batch, n_anchor))
-        hi = np.minimum(dmax, L - 1 - anchors)
+        anchors = rng.integers(min_context, Lw - dmin, (batch, n_anchor))
+        hi = np.minimum(dmax, Lw - 1 - anchors)
         lo = np.log(dmin)
         u = rng.random((batch, n_anchor, n_delta))
         deltas = np.exp(lo + u * (np.log(hi)[..., None] - lo)).round().astype(np.int64)
