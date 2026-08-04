@@ -1,9 +1,11 @@
 # HGLP v2 — Protocol (FINAL — frozen for implementation)
 
-**Status: STEP 2 complete.** Every item is decided; items marked SWEEP have a
-decided *default* plus a grid. **One item is GATED, not locked — B5 (target
-definition) is the leading candidate pending an early pilot (E4), which runs
-first.** Implementation (STEP 3) begins with that pilot.
+**Status: STEP 2 complete; STEP 3 begun.** Every item is decided; items marked
+SWEEP have a decided *default* plus a grid. **The B5 gate is CLEARED —** the
+pilot (`src/pilot_b5.py`, 2026-08-04) confirmed the RF-bounded target is stable
+and materially better than the v1 cumulative target, so B5 is adopted. Core
+`src/` pipeline exists (`datagen`, `model`, `train`); next is E3 (HAPT τ) then
+the full matrix.
 
 This document supersedes the STEP 1 draft. It was finalized over three review
 rounds (`PROTOCOL_QA_ko.md`, `PROTOCOL_QA2_ko.md`, `PROTOCOL_QA3_ko.md`) plus a
@@ -276,8 +278,30 @@ in the initial commit without recorded rationale.
 
 ### B5 — Target definition
 
-**Decision.** **Receptive-field-bounded point target — GATED by a pilot
-before it is locked as the target definition.**
+**Decision.** **Receptive-field-bounded point target. GATE CLEARED by the
+pilot (2026-08-04) — adopted.**
+
+**Pilot result** (`src/pilot_b5.py`, synthetic, HGLP-Reg, 2500 steps, seed 0;
+`runs_v2/pilot_b5.{json,png}`). Bounded vs cumulative target:
+- **Harmlessness curve as predicted, decisively.** Bounded: 0.10 at Δ=8 →
+  ~0.00 by Δ=16 and flat at 0 through Δ=128 (fast info becomes useless at long
+  Δ — harmless-to-close holds *by construction*). Cumulative: stays positive
+  at **every** Δ (0.024→0.008), never reaching 0 — the anchor's past keeps
+  leaking into the target.
+- **Bounded is also materially better on the actual goal:** leak (u R² from
+  z_slow) **0.041 vs 0.66**; target RankMe **12.9 vs 5.3** (cumulative shows
+  partial collapse); slow-kept 0.50 vs 0.46.
+- **Stability:** bounded converges, RankMe healthy, no collapse. Minor caveats
+  to watch in the full run, not blockers: a small late-training loss uptick
+  (0.02→0.06; target getting harder, not collapse), and slow-kept ≈0.50 under
+  per-position probing (includes transition + short-context positions; a pilot
+  sanity number, not the final metric). Fallback (separate local target
+  encoder) is **not** needed.
+
+Scope note: the pilot used Δ_min = w so `w_eff == w` for every pair (see
+`src/train.py`) — exactly the decided design in the Δ≥w regime where
+harmlessness is claimed. The full run drops Δ_min to 1 with slices grouped by
+`w_eff`.
 
 ```
 w_eff = min(w, Δ)
