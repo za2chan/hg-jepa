@@ -52,6 +52,7 @@ def _windows(x, rng, n):
 def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
           steps=2500, tau=16.0, W=4.0, lam=4.0, w=8, dmin=8, dmax=128, batch=64,
           n_anchor=16, n_delta=4, lr=3e-4, ema=0.996, min_context=16, temp=0.1,
+          gate=True, xcov=True,
           mask_same_window=True, log_every=500):
     assert dmin >= w, "pilot expects Δ_min>=w so w_eff==w (see module docstring)"
     use_ema = target_enc == "ema"
@@ -94,7 +95,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
         za = z[biT, torch.from_numpy(ai).to(DEV)]          # (N, D_Z)
         dT = torch.from_numpy(di).to(DEV).float()
 
-        g = torch.sigmoid((tau - dT) / W).unsqueeze(-1)    # continuous gate
+        g = torch.sigmoid((tau - dT) / W).unsqueeze(-1) if gate else 1.0
         za_in = torch.cat([za[:, :D_SLOW], za[:, D_SLOW:] * g], -1)
         zhat = pred(za_in, torch.log2(dT).unsqueeze(-1))
 
@@ -120,9 +121,10 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
             loss = F.cross_entropy(logits, torch.arange(len(logits), device=DEV))
         else:
             raise ValueError(loss_kind)
-        zc = za - za.mean(0)                               # B6 xcov, no vfloor
-        C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)
-        loss = loss + lam * (C ** 2).mean()
+        if xcov:                                           # B6 xcov, no vfloor
+            zc = za - za.mean(0)
+            C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)
+            loss = loss + lam * (C ** 2).mean()
 
         opt.zero_grad(); loss.backward(); opt.step()
         if use_ema:
@@ -138,7 +140,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
 
     return dict(enc=enc, tgt=(tgt if use_ema else enc), pred=pred, losses=losses,
                 data=data,
-                cfg=dict(target_mode=target_mode, loss_kind=loss_kind,
+                cfg=dict(target_mode=target_mode, loss_kind=loss_kind, gate=gate, xcov=xcov,
                          target_enc=target_enc, seed=seed, tau=tau, W=W, lam=lam,
                          w=w, dmin=dmin, dmax=dmax, steps=steps, temp=temp,
                          mask_same_window=mask_same_window))
