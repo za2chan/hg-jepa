@@ -1,0 +1,31 @@
+{
+  "tag": "reg-ema_g1_x1_s0_tau16_ds16_lam4_vf1",
+  "n_probe": 97,
+  "rankme": 13.671606063842773,
+  "config": {
+    "loss": "reg",
+    "target": "ema",
+    "gate": true,
+    "xcov": true,
+    "vfloor": true,
+    "seed": 0,
+    "data_seed": 0,
+    "eval_seed": 100000,
+    "tau": 16.0,
+    "tau_source": "manual",
+    "c": 2.5,
+    "dslow": 16,
+    "lam": 4.0,
+    "regime_mode": "freq",
+    "tac": null
+  },
+  "z_slow->regime_acc": 0.6938775510204082,
+  "z_slow->u_r2": 0.502811074256897,
+  "z_slow->phase_r2": 0.49470019340515137,
+  "z_fast->regime_acc": 0.5510204081632653,
+  "z_fast->u_r2": 0.7097735404968262,
+  "z_fast->phase_r2": 0.9490965604782104,
+  "z_full->regime_acc": 0.6530612244897959,
+  "z_full->u_r2": 0.7886514663696289,
+  "z_full->phase_r2": 0.9504384994506836
+}

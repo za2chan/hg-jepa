@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Synthetic",
+    "rate_hz": NaN,
+    "patch": 8,
+    "win_samp": 2048,
+    "win_sec": NaN,
+    "stride": "random anchors within window",
+    "label": "ground-truth regime at window end; Markov, dwell ~3000 steps",
+    "dwell_sec": NaN,
+    "win_over_dwell": 0.6826666666666666,
+    "transition_frac": 0.6826666666666666,
+    "extendable": "YES (generator) \u2014 reference config that satisfies the rules"
+  },
+  {
+    "name": "HAPT",
+    "rate_hz": 50.0,
+    "patch": 4,
+    "win_samp": 512,
+    "win_sec": 10.24,
+    "stride": "64 patches = 5.12 s (50% overlap)",
+    "label": "per-timestep activity; window-END sample (per[end])",
+    "dwell_sec": 17.22,
+    "win_over_dwell": 0.59465737514518,
+    "transition_frac": 0.5727956254272044,
+    "extendable": "NO \u2014 median segment 17.2 s < 20.5 s window at L=256; 70% of segments shorter than that"
+  },
+  {
+    "name": "PTB-XL",
+    "rate_hz": 100.0,
+    "patch": 10,
+    "win_samp": 1000,
+    "win_sec": 10.0,
+    "stride": "none \u2014 first 1000 samples of each record (1 window/record)",
+    "label": "per-record diagnosis (NORM); CONSTANT across the record",
+    "dwell_sec": 10.0,
+    "win_over_dwell": 1.0,
+    "transition_frac": 0.0,
+    "extendable": "NO \u2014 records are exactly 10 s (1000 samples)"
+  },
+  {
+    "name": "XJTU-SY",
+    "rate_hz": 25600.0,
+    "patch": 4,
+    "win_samp": 2048,
+    "win_sec": 0.08,
+    "stride": "6 random windows / 1.28 s snapshot",
+    "label": "per-snapshot life fraction (RUL); ~constant across 80 ms window",
+    "dwell_sec": NaN,
+    "win_over_dwell": NaN,
+    "transition_frac": 0.0,
+    "extendable": "within-snapshot to 1.28 s (16x); bounded by the 1.28 s snapshot; no timescale gap regardless (predicted negative)"
+  }
+]

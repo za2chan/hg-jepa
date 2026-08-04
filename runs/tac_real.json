@@ -1,0 +1,86 @@
+{
+  "HAPT": {
+    "per_series_patches": {
+      "raw": 13.25,
+      "energy": 24.5,
+      "envelope": 20.375,
+      "zcr": 2.0
+    },
+    "argmin_series": "raw",
+    "chosen_patches": 13.25,
+    "tau_patches": 39.69345262459038,
+    "eps": 0.05,
+    "c": 2.995732273553991,
+    "tac_slow_patches": 24.5,
+    "argmax_series": "energy",
+    "sec_per_patch": 0.08,
+    "tau_seconds": 3.1754762099672305,
+    "known_fast_dynamics": "gait cycle ~1 s",
+    "per_group_tau_patches": {
+      "n_groups": 30,
+      "median": 38.19558648781339,
+      "iqr": [
+        34.54453777941946,
+        39.97430252523606
+      ],
+      "min": 24.714791256820426,
+      "max": 48.3061829110581
+    }
+  },
+  "PTB-XL": {
+    "per_series_patches": {
+      "raw": 18.9,
+      "energy": 47.7,
+      "envelope": 48.0,
+      "zcr": 35.0
+    },
+    "argmin_series": "raw",
+    "chosen_patches": 18.9,
+    "tau_patches": 56.61933997017042,
+    "eps": 0.05,
+    "c": 2.995732273553991,
+    "tac_slow_patches": 48.0,
+    "argmax_series": "envelope",
+    "sec_per_patch": 0.1,
+    "tau_seconds": 5.661933997017043,
+    "known_fast_dynamics": "beat interval ~0.8 s",
+    "per_group_tau_patches": {
+      "n_groups": 10,
+      "median": 73.09586747471738,
+      "iqr": [
+        25.76329755256432,
+        108.74508153000987
+      ],
+      "min": 0.5991464547107982,
+      "max": 140.94920347071525
+    }
+  },
+  "XJTU": {
+    "per_series_patches": {
+      "raw": 125.0,
+      "energy": 124.0,
+      "envelope": 119.75,
+      "zcr": 4.0
+    },
+    "argmin_series": "envelope",
+    "chosen_patches": 119.75,
+    "tau_patches": 358.7389397580904,
+    "eps": 0.05,
+    "c": 2.995732273553991,
+    "tac_slow_patches": 125.0,
+    "argmax_series": "raw",
+    "sec_per_patch": 0.00015625,
+    "tau_seconds": 0.05605295933720163,
+    "known_fast_dynamics": "shaft rotation ~25-29 ms (35-40 Hz)",
+    "per_group_tau_patches": {
+      "n_groups": 15,
+      "median": 165.13974157966373,
+      "iqr": [
+        66.09334328528493,
+        333.6496819670757
+      ],
+      "min": 19.47225977810094,
+      "max": 361.7346720316444
+    }
+  }
+}

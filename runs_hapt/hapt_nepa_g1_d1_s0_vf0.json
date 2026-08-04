@@ -1,0 +1,14 @@
+{
+  "tag": "hapt_nepa_g1_d1_s0_vf0",
+  "n_test_subj": 10,
+  "rankme": 31.110185623168945,
+  "tau": 5.0,
+  "tau_source": "manual",
+  "taumult": 1.0,
+  "z_slow->activity_f1": 0.7090517492924091,
+  "z_slow->accmag_r2": 0.04123222827911377,
+  "z_fast->activity_f1": 0.6114383349048214,
+  "z_fast->accmag_r2": 0.6054657697677612,
+  "z_full->activity_f1": 0.7507419993420492,
+  "z_full->accmag_r2": 0.6326364874839783
+}
