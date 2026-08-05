@@ -131,13 +131,61 @@ def run_synth(lk, te):
     return res
 
 
+def run_real(npz, n_ax, kw, lk, te, static=False):
+    """Real data: same comparison, using the shared multi-position probe pipeline
+    so the gated and post-hoc numbers are produced by identical scoring code."""
+    from train_real import train_real
+    from probes import encode_all, C_MIN, BLOCKS
+    from model import D_SLOW, D_Z
+    res = {m: [] for m in ("gate(z_slow)", "PCA", "ICA-slow", "SFA", "ungated(z_slow)")}
+    for s in SEEDS:
+        gated = train_real(npz, n_ax=n_ax, seed=s, loss_kind=lk, target_enc=te,
+                           log_every=10 ** 9, **kw)
+        ungated = train_real(npz, n_ax=n_ax, seed=s, loss_kind=lk, target_enc=te,
+                             gate=False, xcov=False, log_every=10 ** 9, **kw)
+        lab, fast, tr, teI = gated["lab"], gated["fast"], gated["tr"], gated["te"]
+
+        def flat(enc, sl, idx):
+            Z = encode_all(enc, gated["Wt"])[:, :, sl]
+            if static:                      # PTB-XL: one global label per record
+                return Z[idx, -1], lab[idx, -1], fast[idx, -1]
+            ok = (lab >= 1) & (lab <= 6); ok[:, :C_MIN] = False
+            m = ok[idx]
+            return Z[idx][m], lab[idx][m] - 1, fast[idx][m]
+
+        cls = not static or True            # both are classification here
+        a, ya, za = flat(gated["enc"], slice(0, D_SLOW), tr)
+        b, yb, zb = flat(gated["enc"], slice(0, D_SLOW), teI)
+        res["gate(z_slow)"].append(score(a, ya, za, b, yb, zb, cls))
+
+        Ftr, ytr, ztr = flat(ungated["enc"], slice(0, D_Z), tr)
+        Fte, yte, zte = flat(ungated["enc"], slice(0, D_Z), teI)
+        cap = 40000
+        if len(Ftr) > cap:                  # unmixing fits are O(n) but sklearn is slow
+            i = np.random.default_rng(0).choice(len(Ftr), cap, replace=False)
+            Ftr, ytr, ztr = Ftr[i], ytr[i], ztr[i]
+        res["ungated(z_slow)"].append(
+            score(Ftr[:, :D_SLOW], ytr, ztr, Fte[:, :D_SLOW], yte, zte, cls))
+        for m, (p, q) in subspaces(Ftr, Fte, D_SLOW).items():
+            res[m].append(score(p, ytr, ztr, q, yte, zte, cls))
+        print(f"  seed {s} done", flush=True)
+    return res
+
+
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "synth"
     stem = sys.argv[2] if len(sys.argv) > 2 else "nce+ema"
     lk, te = stem.split("+")
     os.makedirs("../../runs_v2", exist_ok=True)
     print(f"=== post-hoc rotation baseline: {which}, stem {stem}, {len(SEEDS)} seeds ===")
-    res = run_synth(lk, te)
+    if which == "synth":
+        res = run_synth(lk, te)
+    elif which == "ptbxl":
+        res = run_real("../../data/ptbxl_v2.npz", 1,
+                       dict(tau=16.0, w=8, dmin=8, dmax=48, min_context=8), lk, te, static=True)
+    else:
+        res = run_real("../../data/hapt_v2.npz", 3,
+                       dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16), lk, te)
     agg = {m: dict(slow_kept=(float(np.mean([c[0] for c in v])), float(np.std([c[0] for c in v]))),
                    leak=(float(np.mean([c[1] for c in v])), float(np.std([c[1] for c in v]))))
            for m, v in res.items() if v}
