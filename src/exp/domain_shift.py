@@ -45,27 +45,68 @@ STEM = "nce+ema"
 BLOCKS = ("z_slow", "z_fast", "z_full")
 UNGATED_BLOCKS = ("z_slow", "z_full")          # 'z_slow' here = an arbitrary first-16
 N_B, FIT_FRAC, STEPS = 6, 0.7, 2500
+N_BLOCKS = 10          # contiguous blocks per subject for SPLIT_MODE="block"
+SPLIT_MODE = "block"   # "block" (default) | "time" (the original, kept for comparison)
 
 
-def split(subj, part, n_b=N_B, fit_frac=FIT_FRAC, seed=0):
-    """A/B subject partition (rotation `part`) + time split inside A.
+def _blocks(idx, fit_frac, rng, n_blocks):
+    """Cut one subject's time-ordered window indices into n_blocks contiguous
+    blocks and assign whole blocks to fit/test at random.
 
-    HAPT windows are cut with stride L/2, so window i overlaps i±1: the window
-    AT the fit/test boundary shares samples with both sides and is dropped.
-    Global index order is time order within a recording (prep/hapt.py), so
-    idx[:k] is early and idx[k+1:] is late for that subject.
-    Also returns B's LATE windows: HAPT's activity protocol is ordered, so
-    A_test and all-of-B differ in label mix as well as in subject; the
-    time-matched B slice is the diagnostic that separates the two.
+    Why not a plain random split: windows are cut with stride L/2, so window i
+    shares half its samples with i±1 and a per-window random split leaks
+    immediately. Why not the time split it replaces: HAPT is recorded in a fixed
+    activity-protocol ORDER, so "first 70% vs last 30%" makes the two sides
+    differ in label mix as well as in time -- the late third is 85% dynamic and
+    contains no STANDING. Block assignment samples both sides from across the
+    whole protocol, so the label mixes match in expectation and the only thing
+    left between A_test and B is the subject.
+
+    The FIRST window of every block is dropped: it is the only one that can
+    overlap the last window of the preceding block, which may be on the other
+    side of the split. (The half-block hash assert in check() verifies this.)
     """
+    out = ([], [])
+    for j, blk in enumerate(np.array_split(idx, n_blocks)):
+        if len(blk) < 2:
+            continue
+        out[int(rng.random() >= fit_frac)].append(blk[1:])   # drop the seam window
+    return [np.concatenate(v) if v else np.empty(0, int) for v in out]
+
+
+def split(subj, part, n_b=N_B, fit_frac=FIT_FRAC, seed=0, mode=None,
+          n_blocks=N_BLOCKS):
+    """A/B subject partition (rotation `part`) + a within-A split of windows.
+
+    mode="block" (default): whole contiguous blocks assigned at random, so A_fit
+      and A_test share the activity mix -- see _blocks().
+    mode="time": the original first-70%/last-30% cut, kept so the two designs can
+      be compared rather than silently swapped.
+
+    Global index order is time order within a recording (prep/hapt.py).
+    Also returns B's LATE windows: under mode="time" that is the diagnostic that
+    separates the label shift from the subject shift; under mode="block" it is
+    only reported for continuity.
+    """
+    mode = mode or SPLIT_MODE
     subs = np.random.default_rng(seed).permutation(np.unique(subj))
     assert (part + 1) * n_b <= len(subs), "B folds must stay disjoint"
     b_sub = subs[part * n_b:(part + 1) * n_b]
     a_sub = np.setdiff1d(subs, b_sub)
     cut = lambda s: int(np.sum(subj == s) * fit_frac)
-    early = lambda ss: np.sort(np.concatenate([np.flatnonzero(subj == s)[:cut(s)] for s in ss]))
     late = lambda ss: np.sort(np.concatenate([np.flatnonzero(subj == s)[cut(s) + 1:] for s in ss]))
-    fit, test, ood = early(a_sub), late(a_sub), np.flatnonzero(np.isin(subj, b_sub))
+    if mode == "block":
+        rng = np.random.default_rng(1000 + part)     # same split for every seed
+        pairs = [_blocks(np.flatnonzero(subj == s), fit_frac, rng, n_blocks) for s in a_sub]
+        fit = np.sort(np.concatenate([p[0] for p in pairs]))
+        test = np.sort(np.concatenate([p[1] for p in pairs]))
+    elif mode == "time":
+        early = lambda ss: np.sort(np.concatenate(
+            [np.flatnonzero(subj == s)[:cut(s)] for s in ss]))
+        fit, test = early(a_sub), late(a_sub)
+    else:
+        raise ValueError(mode)
+    ood = np.flatnonzero(np.isin(subj, b_sub))
     return fit, test, ood, late(b_sub), a_sub, b_sub
 
 
@@ -103,7 +144,23 @@ def run(part, seed, steps):
     # macro-F1 averages over the classes PRESENT in each eval set, so the sets are
     # only comparable if their class support matches — record it, do not assume it.
     n_cls = lambda ix: int(np.isin(np.arange(1, 7), res["lab"][ix][:, C_MIN:]).sum())
-    out = dict(part=part, seed=seed, n_cls=[n_cls(test), n_cls(ood), n_cls(ood_late)], **meta)
+
+    def dist(ix):
+        v = res["lab"][ix][:, C_MIN:]
+        v = v[(v >= 1) & (v <= 6)]
+        return np.bincount(v, minlength=7)[1:7] / max(len(v), 1)
+
+    # The point of the block split is that A_test and B should now have the SAME
+    # activity mix, so half the L1 distance between their label distributions (=
+    # total variation) is the number that says whether it worked. Under the time
+    # split it was large by construction: the late third is ~85% dynamic and has
+    # no STANDING at all.
+    d_test, d_ood = dist(test), dist(ood)
+    out = dict(part=part, seed=seed, n_cls=[n_cls(test), n_cls(ood), n_cls(ood_late)],
+               lab_dist=dict(fit=dist(fit).round(4).tolist(), test=d_test.round(4).tolist(),
+                             ood=d_ood.round(4).tolist(),
+                             ood_late=dist(ood_late).round(4).tolist()),
+               label_tv=float(np.abs(d_test - d_ood).sum() / 2), **meta)
     for r, blocks, pre in ((res, BLOCKS, ""), (ung, UNGATED_BLOCKS, "ungated_")):
         Z = encode_all(r["enc"], r["Wt"])
         for b in blocks:
@@ -153,6 +210,8 @@ if __name__ == "__main__":
     steps = int(sys.argv[3]) if len(sys.argv) > 3 else STEPS
     if len(sys.argv) > 4:
         globals()['STEM'] = sys.argv[4]
+    if len(sys.argv) > 5:
+        globals()['SPLIT_MODE'] = sys.argv[5]
     cells = []
     for p in range(n_part):
         for s in seeds:
@@ -161,12 +220,15 @@ if __name__ == "__main__":
             c = cells[-1]
             print(f"  n: fit {c['n_fit']} / A_test {c['n_test']} / B {c['n_ood']} "
                   f"/ B_late {c['n_ood_late']} | classes present {c['n_cls']} "
+                  f"| label TV(A_test,B) {c['label_tv']:.3f} "
                   f"| B subjects {c['b_sub']}", flush=True)
     agg = summarize(cells, n_part)
     out = dict(config=dict(stem=STEM, steps=steps, seeds=seeds, n_partitions=n_part,
+                           split_mode=SPLIT_MODE, n_blocks=N_BLOCKS,
                            n_b=N_B, fit_frac=FIT_FRAC, c_min=C_MIN, **HAPT),
+               label_tv=float(np.mean([c["label_tv"] for c in cells])),
                cells=cells, agg=agg)
-    path = ROOT / ("runs_v2/domain_shift_hapt.json" if steps == STEPS
+    path = ROOT / (f"runs_v2/domain_shift_hapt_{STEM}_{SPLIT_MODE}.json" if steps == STEPS
                    else "runs_v2/domain_shift_hapt_smoke.json")
     json.dump(out, open(path, "w"), indent=2)
 
