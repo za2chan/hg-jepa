@@ -52,7 +52,7 @@ Measured anchors used throughout (patch units unless noted; source
 | C1 probe position | **Multi-position: probe every labeled position, one score each.** Last-position readout kept for the usage protocol |
 | C2 probe label | Label at the probed position (follows A2) |
 | C3 splits | Group split + disjoint eval windows + asserts |
-| C4 metrics | Absolute scores, chance stated, linear + MLP + MINE, RankMe |
+| C4 metrics | **Block × factor matrix + dimension-matched random-subspace null**; absolute scores, chance stated, linear + MLP + MINE, RankMe (amended 2026-08-05) |
 | E1 τ channel | **Per-axis T_ac, min rule** (extends D1) |
 | E2 channel design | Channel-mixing, documented with rationale |
 | E3 HAPT τ | **Re-estimate at L=256** before fixing the Δ set |
@@ -178,12 +178,31 @@ figure↔text drift incidents (CLAUDE.md §4).
 
 ### B1 — Position encoding
 
-**Decision.** **Learned absolute position embeddings are the default.** The
-problem this item was opened for is fixed by B4 (anchor range), not by changing
-the encoding. **But B5 weakened the premise:** feeding the target encoder a
-short slice raises a position-tagging question that absolute embeddings answer
-awkwardly (see B5). **RoPE is the explicit fallback** if the B5 pilot shows
-position-related instability.
+**Decision (revised 2026-08-04 — RoPE adopted).** **Rotary position encoding.**
+The fallback branch below was taken: B5's variable-length slices made the
+position-tagging question unavoidable, and RoPE removes it rather than answering
+it. Two properties are asserted in `model.py`:
+
+1. **No per-position parameter exists**, so starvation is impossible by
+   construction (the learned-absolute run left 12 positions untrained even after
+   B4, because the anchor upper bound `L − Δ_min` never reaches the tail).
+2. **Prefix invariance** — `enc(x[:, :k]) == enc(x)[:, :k]` to 1e-5. A slice
+   encoded standalone equals the same slice as the prefix of a longer sequence,
+   which is exactly what makes B5's variable-length target slices
+   in-distribution with no indexing convention. This is FALSE for learned
+   absolute embeddings.
+
+Measured effect (single seed, synthetic slow-kept): reg+ema 0.535 → 0.583,
+nce+ema 0.972 → 0.994, nce+online 0.972 → 0.992. Anchors per window were raised
+8 → 16 at the same time, since with no per-position parameters anchor density is
+purely about training signal rather than coverage.
+
+**Superseded decision (kept for the record).** **Learned absolute position
+embeddings are the default.** The problem this item was opened for is fixed by
+B4 (anchor range), not by changing the encoding. **But B5 weakened the
+premise:** feeding the target encoder a short slice raises a position-tagging
+question that absolute embeddings answer awkwardly (see B5). **RoPE is the
+explicit fallback** if the B5 pilot shows position-related instability.
 
 **Why.** v1 sampled anchors only from `[64, 128)`, so `pos[128:256]` received
 no gradient, targets at long Δ were computed on untrained position embeddings,
@@ -450,22 +469,59 @@ the review touched it; the asserts are added to protect it.
 
 ### C4 — Metric definitions
 
-**Decision.**
+**Decision (amended 2026-08-05).** The unit of reporting is the **block × factor
+matrix with a dimension-matched random-subspace null**, not a pair of `z_slow`
+numbers. Every row is scored on **both** factors:
+
+| row | expected |
+|---|---|
+| `z_slow` (d_slow) | slow ↑, fast ↓ |
+| `z_fast` (D_Z − d_slow) | slow ↓, **fast ↑** |
+| `rand<d>` — a random d-dim subspace of the SAME embedding, both block widths | the reference |
+| `z_full` | ceiling |
+
 - **slow-kept** — slow-factor score from `z_slow` (activity F1 / regime acc /
   life R²).
 - **leak** — *fast*-factor score from `z_slow` (u R² / accmag R² / phase R²);
-  lower is better. Report **linear probe and MLP probe and MINE**, because
-  linear probes overstate exclusion (v1 finding).
+  lower is better **only when read against `rand<d_slow>`**. Report **linear probe
+  and MLP probe and MINE**, because linear probes overstate exclusion (v1 finding).
+- **SEP** = inclusion × allocation × exclusion, each clipped to [0,1]:
+  `z_slow`'s slow score over `z_full`'s; `z_fast`'s fast score over the
+  **comparison set's** ceiling; and `1 − leak / rand<d_slow>`. Allocation must
+  NOT be normalised by the model's own `z_full` — a model that encodes the fast
+  factor nowhere then scores a perfect ratio against itself.
 - **chance stated explicitly per metric**: balanced macro-F1 chance = 1/k;
   R² chance = 0. Never implied.
 - **RankMe** effective rank as the collapse monitor (it replaces the removed
   variance floor as the *check*).
 - **Absolute scores, never ratios.**
 
-**Why.** Each element traces to a specific v1 review finding: ratios hid
-collapse (#4), linear probes overstated exclusion (nonlinear.py: MLP leak 0.45
-vs linear 0.19), and the variance floor's removal left collapse unmonitored
-unless RankMe is reported.
+**Why.** The original one-sided form (slow high, leak low, both from `z_slow`)
+cannot distinguish separation from three impostors that all produce a low leak:
+a model that never encoded the fast factor anywhere (nce+online: HAPT `z_fast`
+carries the proxy at 0.163), a subspace that drops it by accident because it
+sits in low-variance directions (PCA on HAPT), and a fast proxy too weakly
+represented for ANY subspace to score on. The `z_fast` row catches the first
+two; the random null catches the third and makes "leak 0.045" readable — on
+HAPT an arbitrary 16-dim readout already scores only 0.188, so a low leak there
+means far less than the same number on PTB-XL, where the null is 0.445.
+
+Note the asymmetry this introduces, deliberately: post-hoc rotations (PCA/ICA/
+SFA) are full-rank, so their complement retains the fast factor **by
+construction** and they pass the allocation test for free. The gate is compared
+against a *differently trained* encoder, so allocation is a real constraint only
+on us. Reporting it makes the comparison harder for our method, not easier.
+
+The rest traces to specific v1 review findings: ratios hid collapse (#4), linear
+probes overstated exclusion (nonlinear.py: MLP leak 0.45 vs linear 0.19), and
+the variance floor's removal left collapse unmonitored unless RankMe is reported.
+
+**Caveat surfaced by the null (2026-08-05):** B2's per-block LayerNorm is applied
+to the two blocks separately *regardless of gate/xcov*, so the `g0_x0` cell is
+not a mechanism-free control — it privileges the coordinate split, and it
+normalises away each block's magnitude, which is what HAPT's fast proxy is. The
+random subspace is the genuinely mechanism-free reference; the gap between the
+ungated block and the null measures per-block LN's own contribution.
 
 ---
 
