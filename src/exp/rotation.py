@@ -34,40 +34,49 @@ from sklearn.decomposition import PCA, FastICA
 SEEDS = [0, 1, 2]
 
 
-def sfa(X, d):
-    """Slow Feature Analysis: whiten, then take eigenvectors of the derivative
-    covariance with the SMALLEST eigenvalues = slowest directions."""
+def sfa(X, d, pairs):
+    """Slow Feature Analysis (Wiskott & Sejnowski 2002): whiten, then take the
+    eigenvectors of the DERIVATIVE covariance with the smallest eigenvalues.
+
+    `pairs` is (M, 2) of row indices that are ADJACENT IN TIME. Derivatives are
+    taken only over those pairs. Differencing raw adjacent rows of the flattened
+    array (as an earlier version did) is not a time derivative at all and
+    silently degenerates SFA into low-variance PCA."""
     Xc = X - X.mean(0)
     C = np.cov(Xc, rowvar=False) + 1e-6 * np.eye(Xc.shape[1])
     ev, EV = np.linalg.eigh(C)
     Wht = EV / np.sqrt(np.maximum(ev, 1e-12))          # whitening
     Y = Xc @ Wht
-    dY = np.diff(Y, axis=0)
+    dY = Y[pairs[:, 1]] - Y[pairs[:, 0]]               # true temporal derivative
     Cd = np.cov(dY, rowvar=False)
     dv, DV = np.linalg.eigh(Cd)                        # ascending = slowest first
     return Wht @ DV[:, :d]
 
 
-def slowness_rank(S, d):
-    """Rank components by temporal slowness (mean squared derivative), slowest d."""
-    score = (np.diff(S, axis=0) ** 2).mean(0) / (S.var(0) + 1e-12)
+def slowness_rank(S, d, pairs):
+    """Rank components by temporal slowness over time-adjacent pairs."""
+    dS = S[pairs[:, 1]] - S[pairs[:, 0]]
+    score = (dS ** 2).mean(0) / (S.var(0) + 1e-12)
     return np.argsort(score)[:d]
 
 
-def subspaces(Ztr, Zte, d):
-    """Return {method: (train_feat, test_feat)} — all label-free."""
+def subspaces(Xfit, pairs, apply_to, d):
+    """Fit each label-free unmixing on the TIME-ORDERED training embeddings
+    `Xfit` (with `pairs` giving time-adjacent rows), then project every array in
+    `apply_to`. Fitting on the full temporal stream and scoring at the probe
+    positions keeps the temporal methods on the data they were designed for."""
     out = {}
-    p = PCA(n_components=d).fit(Ztr)
-    out["PCA"] = (p.transform(Ztr), p.transform(Zte))
+    p = PCA(n_components=d).fit(Xfit)
+    out["PCA"] = [p.transform(A) for A in apply_to]
     try:
-        ica = FastICA(n_components=d, random_state=0, max_iter=500).fit(Ztr)
-        Str, Ste = ica.transform(Ztr), ica.transform(Zte)
-        keep = slowness_rank(Str, d)                    # label-free ordering
-        out["ICA-slow"] = (Str[:, keep], Ste[:, keep])
+        ica = FastICA(n_components=d, random_state=0, max_iter=500).fit(Xfit)
+        keep = slowness_rank(ica.transform(Xfit), d, pairs)     # label-free, temporal
+        out["ICA-slow"] = [ica.transform(A)[:, keep] for A in apply_to]
     except Exception as e:                              # FastICA can fail to converge
         print(f"    ICA skipped: {type(e).__name__}", flush=True)
-    Wsfa = sfa(Ztr, d)
-    out["SFA"] = ((Ztr - Ztr.mean(0)) @ Wsfa, (Zte - Ztr.mean(0)) @ Wsfa)
+    Wsfa = sfa(Xfit, d, pairs)
+    mu = Xfit.mean(0)
+    out["SFA"] = [(A - mu) @ Wsfa for A in apply_to]
     return out
 
 
@@ -125,7 +134,17 @@ def run_synth(lk, te):
         res["ungated(z_slow)"].append(
             score(Fu_full[tr][:, :D_SLOW], ys[tr], yu[tr], Fu_full[teI][:, :D_SLOW],
                   ys[teI], yu[teI], True))
-        for m, (a, b) in subspaces(Fu_full[tr], Fu_full[teI], D_SLOW).items():
+        # 시간 인접 쌍: 같은 윈도우의 이웃한 probe 위치. F_ 는 위치-major 배치
+        # (row = pos_idx * n_win + win_idx) 이므로 인접 위치는 n_win 만큼 떨어져 있다.
+        nw, npos = len(starts), len(pos)
+        rank = -np.ones(len(Fu_full), int); rank[tr] = np.arange(len(tr))
+        pm = np.arange(npos)[:, None] * nw + np.arange(nw)[None, :]          # (npos, nw)
+        pr = np.stack([rank[pm[p]] for p in range(npos)])                    # (npos, nw)
+        ok = (pr[:-1] >= 0) & (pr[1:] >= 0)             # 두 시점 모두 학습 split 인 쌍만
+        pairs = np.stack([pr[:-1][ok], pr[1:][ok]], 1)
+        Xfit = Fu_full[tr]
+        for m, (a, b) in ((k, v) for k, v in
+                          subspaces(Xfit, pairs, [Fu_full[tr], Fu_full[teI]], D_SLOW).items()):
             res[m].append(score(a, ys[tr], yu[tr], b, ys[teI], yu[teI], True))
         print(f"  seed {s} done", flush=True)
     return res
@@ -145,28 +164,42 @@ def run_real(npz, n_ax, kw, lk, te, static=False):
                              gate=False, xcov=False, log_every=10 ** 9, **kw)
         lab, fast, tr, teI = gated["lab"], gated["fast"], gated["tr"], gated["te"]
 
-        def flat(enc, sl, idx):
+        def probe_set(enc, sl, idx):
+            """Features actually SCORED: labeled positions (HAPT) or the last
+            position of each record (PTB-XL, static label)."""
             Z = encode_all(enc, gated["Wt"])[:, :, sl]
-            if static:                      # PTB-XL: one global label per record
+            if static:
                 return Z[idx, -1], lab[idx, -1], fast[idx, -1]
             ok = (lab >= 1) & (lab <= 6); ok[:, :C_MIN] = False
             m = ok[idx]
             return Z[idx][m], lab[idx][m] - 1, fast[idx][m]
 
+        def fit_stream(enc, idx, max_win=1500):
+            """Time-ordered embeddings the unmixings are FIT on: every position
+            from C_MIN onward, window-major so positions stay contiguous in time.
+            Returns (X, pairs) with pairs = time-adjacent rows within a window."""
+            Z = encode_all(enc, gated["Wt"])
+            w = idx if len(idx) <= max_win else np.random.default_rng(0).choice(
+                idx, max_win, replace=False)
+            lo = 0 if static else C_MIN
+            Zs = Z[w][:, lo:]                                   # (nw, T, D)
+            nw, T, D = Zs.shape
+            base = np.arange(nw)[:, None] * T
+            pairs = np.stack([(base + np.arange(T - 1)).ravel(),
+                              (base + np.arange(1, T)).ravel()], 1)
+            return Zs.reshape(-1, D), pairs
+
         cls = not static or True            # both are classification here
-        a, ya, za = flat(gated["enc"], slice(0, D_SLOW), tr)
-        b, yb, zb = flat(gated["enc"], slice(0, D_SLOW), teI)
+        a, ya, za = probe_set(gated["enc"], slice(0, D_SLOW), tr)
+        b, yb, zb = probe_set(gated["enc"], slice(0, D_SLOW), teI)
         res["gate(z_slow)"].append(score(a, ya, za, b, yb, zb, cls))
 
-        Ftr, ytr, ztr = flat(ungated["enc"], slice(0, D_Z), tr)
-        Fte, yte, zte = flat(ungated["enc"], slice(0, D_Z), teI)
-        cap = 40000
-        if len(Ftr) > cap:                  # unmixing fits are O(n) but sklearn is slow
-            i = np.random.default_rng(0).choice(len(Ftr), cap, replace=False)
-            Ftr, ytr, ztr = Ftr[i], ytr[i], ztr[i]
+        Ftr, ytr, ztr = probe_set(ungated["enc"], slice(0, D_Z), tr)
+        Fte, yte, zte = probe_set(ungated["enc"], slice(0, D_Z), teI)
+        Xfit, pairs = fit_stream(ungated["enc"], tr)        # unmixings see the SERIES
         res["ungated(z_slow)"].append(
             score(Ftr[:, :D_SLOW], ytr, ztr, Fte[:, :D_SLOW], yte, zte, cls))
-        for m, (p, q) in subspaces(Ftr, Fte, D_SLOW).items():
+        for m, (p, q) in subspaces(Xfit, pairs, [Ftr, Fte], D_SLOW).items():
             res[m].append(score(p, ytr, ztr, q, yte, zte, cls))
         print(f"  seed {s} done", flush=True)
     return res
