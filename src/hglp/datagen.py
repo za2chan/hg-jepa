@@ -16,7 +16,14 @@ U_TAU = 50
 FREQ_MOD = 0.05
 
 
-def generate(n_steps, seed=0, regime_mode="freq"):
+def _freqs(gap):
+    """Carrier frequency per regime. `gap` is the fractional spread around 0.100.
+    The default returns the module constant BIT-IDENTICALLY, so existing runs and
+    their data hashes are unaffected; other values recompute."""
+    return REGIME_FREQ if gap == 0.05 else 0.100 * (1 + gap * np.array([-1.0, 0.0, 1.0]))
+
+
+def generate(n_steps, seed=0, regime_mode="freq", gap=0.05):
     rng = np.random.default_rng(seed)
     s = np.empty(n_steps, dtype=np.int64)
     cur = rng.integers(3)
@@ -31,18 +38,19 @@ def generate(n_steps, seed=0, regime_mode="freq"):
     noise = rng.standard_normal(n_steps) * np.sqrt(1 - a * a)
     for t in range(1, n_steps):
         u[t] = a * u[t - 1] + noise[t]
+    fr = _freqs(gap)
     if regime_mode == "variance":
         u_eff = REGIME_USCALE[s] * u
-        freq = np.full(n_steps, REGIME_FREQ[1])
+        freq = np.full(n_steps, fr[1])
     else:
-        u_eff, freq = u, REGIME_FREQ[s]
+        u_eff, freq = u, fr[s]
     phi = np.cumsum(2 * np.pi * freq * (1 + FREQ_MOD * u_eff))
     x = REGIME_AMP[s] * np.sin(phi) + 0.2 * u_eff + 0.1 * rng.standard_normal(n_steps)
     return (x.astype(np.float32), s, u.astype(np.float32), phi.astype(np.float32))
 
 
-def make_dataset(n_steps=1_000_000, seed=0, regime_mode="freq", path=None):
-    x, s, u, phi = generate(n_steps, seed, regime_mode)
+def make_dataset(n_steps=1_000_000, seed=0, regime_mode="freq", path=None, gap=0.05):
+    x, s, u, phi = generate(n_steps, seed, regime_mode, gap)
     d = dict(x=x, s=s, u=u, sin_phi=np.sin(phi).astype(np.float32),
              cos_phi=np.cos(phi).astype(np.float32))
     h = hashlib.sha256()

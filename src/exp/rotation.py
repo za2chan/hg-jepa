@@ -34,9 +34,10 @@ from sklearn.decomposition import PCA, FastICA
 SEEDS = [0, 1, 2]
 
 
-def sfa(X, d, pairs):
-    """Slow Feature Analysis (Wiskott & Sejnowski 2002): whiten, then take the
-    eigenvectors of the DERIVATIVE covariance with the smallest eigenvalues.
+def sfa_basis(X, pairs):
+    """Slow Feature Analysis (Wiskott & Sejnowski 2002): whiten, then order the
+    eigenvectors of the DERIVATIVE covariance by ascending eigenvalue (slowest
+    first). Returns the FULL basis so the complement is available too.
 
     `pairs` is (M, 2) of row indices that are ADJACENT IN TIME. Derivatives are
     taken only over those pairs. Differencing raw adjacent rows of the flattened
@@ -50,51 +51,57 @@ def sfa(X, d, pairs):
     dY = Y[pairs[:, 1]] - Y[pairs[:, 0]]               # true temporal derivative
     Cd = np.cov(dY, rowvar=False)
     dv, DV = np.linalg.eigh(Cd)                        # ascending = slowest first
-    return Wht @ DV[:, :d]
+    return Wht @ DV
 
 
-def slowness_rank(S, d, pairs):
-    """Rank components by temporal slowness over time-adjacent pairs."""
+def slowness_order(S, pairs):
+    """Order components by temporal slowness over time-adjacent pairs."""
     dS = S[pairs[:, 1]] - S[pairs[:, 0]]
-    score = (dS ** 2).mean(0) / (S.var(0) + 1e-12)
-    return np.argsort(score)[:d]
+    return np.argsort((dS ** 2).mean(0) / (S.var(0) + 1e-12))
 
 
-def subspaces(Xfit, pairs, apply_to, d):
+def unmixings(Xfit, pairs, d):
     """Fit each label-free unmixing on the TIME-ORDERED training embeddings
-    `Xfit` (with `pairs` giving time-adjacent rows), then project every array in
-    `apply_to`. Fitting on the full temporal stream and scoring at the probe
-    positions keeps the temporal methods on the data they were designed for."""
+    `Xfit` (with `pairs` giving time-adjacent rows) and return
+    {method: (W_slow, W_fast)} -- a FULL-RANK basis split into the method's own
+    d "slowest" directions and the remaining D-d.
+
+    The complement matters: a method is only a real alternative to the gate if
+    its slow subspace excludes the fast factor AND its complement RETAINS it.
+    Excluding by discarding is not separating. Means are dropped because the
+    probe standardises features anyway."""
+    D = Xfit.shape[1]
     out = {}
-    p = PCA(n_components=d).fit(Xfit)
-    out["PCA"] = [p.transform(A) for A in apply_to]
+    C = PCA(n_components=D).fit(Xfit).components_.T          # cols by variance
+    out["PCA"] = (C[:, :d], C[:, d:])
     try:
-        ica = FastICA(n_components=d, random_state=0, max_iter=500).fit(Xfit)
-        keep = slowness_rank(ica.transform(Xfit), d, pairs)     # label-free, temporal
-        out["ICA-slow"] = [ica.transform(A)[:, keep] for A in apply_to]
+        ica = FastICA(n_components=D, random_state=0, max_iter=1000).fit(Xfit)
+        M = ica.components_.T[:, slowness_order(ica.transform(Xfit), pairs)]
+        out["ICA-slow"] = (M[:, :d], M[:, d:])
     except Exception as e:                              # FastICA can fail to converge
         print(f"    ICA skipped: {type(e).__name__}", flush=True)
-    Wsfa = sfa(Xfit, d, pairs)
-    mu = Xfit.mean(0)
-    out["SFA"] = [(A - mu) @ Wsfa for A in apply_to]
+    S = sfa_basis(Xfit, pairs)
+    out["SFA"] = (S[:, :d], S[:, d:])
     return out
 
 
-def score(ftr, ytr, ztr, fte, yte, zte, classification):
-    from sklearn.linear_model import Ridge, LogisticRegression
-    from sklearn.metrics import f1_score
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-    if classification:
-        lbl = np.unique(ytr)
-        clf = make_pipeline(StandardScaler(),
-                            LogisticRegression(max_iter=1000, class_weight="balanced"))
-        kept = float(f1_score(yte, clf.fit(ftr, ytr).predict(fte), average="macro",
-                              labels=lbl, zero_division=0))
-    else:
-        kept = float(make_pipeline(StandardScaler(), Ridge()).fit(ftr, ytr).score(fte, yte))
-    leak = float(make_pipeline(StandardScaler(), Ridge()).fit(ftr, ztr).score(fte, zte))
-    return kept, leak
+METHODS = ("gate", "PCA", "ICA-slow", "SFA", "ungated(block)", "random")
+
+
+def two_sided(a, ya, za, b, yb, zb, W, cls):
+    """Score BOTH halves of a split on BOTH factors -> ((s,f) slow-half, (s,f) fast-half)."""
+    from probes import score
+    Ws, Wf = W
+    return (score(a @ Ws, ya, za, b @ Ws, yb, zb, cls),
+            score(a @ Wf, ya, za, b @ Wf, yb, zb, cls))
+
+
+def _split_mats(D, d, seed):
+    """Coordinate split (first d vs rest) and a random-rotation split of the same widths."""
+    I = np.eye(D)
+    from probes import rand_subspace
+    Q = rand_subspace(D, D, seed)
+    return (I[:, :d], I[:, d:]), (Q[:, :d], Q[:, d:])
 
 
 def run_synth(lk, te):
@@ -103,7 +110,7 @@ def run_synth(lk, te):
     from model import P, L, D_SLOW, D_Z
     from train import DEV
     import torch
-    res = {m: [] for m in ("gate(z_slow)", "PCA", "ICA-slow", "SFA", "ungated(z_slow)")}
+    res = {m: [] for m in METHODS}
     for s in SEEDS:
         gated = train(loss_kind=lk, target_enc=te, seed=s, log_every=10 ** 9)
         ungated = train(loss_kind=lk, target_enc=te, seed=s, gate=False, xcov=False,
@@ -122,30 +129,28 @@ def run_synth(lk, te):
         ys = np.concatenate([sreg[starts + a * P + (P - 1)] for a in pos])
         yu = np.concatenate([u[starts + a * P + (P - 1)] for a in pos])
 
-        def feats(enc, sl):
+        def feats(enc):
             with torch.no_grad():
                 Z = torch.cat([enc(xb[i:i + 128]) for i in range(0, len(xb), 128)]).cpu().numpy()
-            return np.concatenate([Z[:, a, sl] for a in pos])
-        # our method
-        F_ = feats(gated["enc"], slice(0, D_SLOW))
-        res["gate(z_slow)"].append(score(F_[tr], ys[tr], yu[tr], F_[teI], ys[teI], yu[teI], True))
-        # ungated: raw first-16 (the "arbitrary block" control) + post-hoc rotations
-        Fu_full = feats(ungated["enc"], slice(0, D_Z))
-        res["ungated(z_slow)"].append(
-            score(Fu_full[tr][:, :D_SLOW], ys[tr], yu[tr], Fu_full[teI][:, :D_SLOW],
-                  ys[teI], yu[teI], True))
-        # 시간 인접 쌍: 같은 윈도우의 이웃한 probe 위치. F_ 는 위치-major 배치
+            return np.concatenate([Z[:, a] for a in pos])
+
+        coord, randsplit = _split_mats(D_Z, D_SLOW, s)
+        Fg = feats(gated["enc"])
+        arg = lambda F: (F[tr], ys[tr], yu[tr], F[teI], ys[teI], yu[teI])
+        res["gate"].append(two_sided(*arg(Fg), coord, True))
+        Fu = feats(ungated["enc"])                       # ungated: arbitrary block + rotations
+        res["ungated(block)"].append(two_sided(*arg(Fu), coord, True))
+        res["random"].append(two_sided(*arg(Fu), randsplit, True))
+        # 시간 인접 쌍: 같은 윈도우의 이웃한 probe 위치. F 는 위치-major 배치
         # (row = pos_idx * n_win + win_idx) 이므로 인접 위치는 n_win 만큼 떨어져 있다.
         nw, npos = len(starts), len(pos)
-        rank = -np.ones(len(Fu_full), int); rank[tr] = np.arange(len(tr))
+        rank = -np.ones(len(Fu), int); rank[tr] = np.arange(len(tr))
         pm = np.arange(npos)[:, None] * nw + np.arange(nw)[None, :]          # (npos, nw)
         pr = np.stack([rank[pm[p]] for p in range(npos)])                    # (npos, nw)
         ok = (pr[:-1] >= 0) & (pr[1:] >= 0)             # 두 시점 모두 학습 split 인 쌍만
         pairs = np.stack([pr[:-1][ok], pr[1:][ok]], 1)
-        Xfit = Fu_full[tr]
-        for m, (a, b) in ((k, v) for k, v in
-                          subspaces(Xfit, pairs, [Fu_full[tr], Fu_full[teI]], D_SLOW).items()):
-            res[m].append(score(a, ys[tr], yu[tr], b, ys[teI], yu[teI], True))
+        for m, W in unmixings(Fu[tr], pairs, D_SLOW).items():
+            res[m].append(two_sided(*arg(Fu), W, True))
         print(f"  seed {s} done", flush=True)
     return res
 
@@ -154,9 +159,9 @@ def run_real(npz, n_ax, kw, lk, te, static=False):
     """Real data: same comparison, using the shared multi-position probe pipeline
     so the gated and post-hoc numbers are produced by identical scoring code."""
     from train_real import train_real
-    from probes import encode_all, C_MIN, BLOCKS
+    from probes import encode_all, C_MIN
     from model import D_SLOW, D_Z
-    res = {m: [] for m in ("gate(z_slow)", "PCA", "ICA-slow", "SFA", "ungated(z_slow)")}
+    res = {m: [] for m in METHODS}
     for s in SEEDS:
         gated = train_real(npz, n_ax=n_ax, seed=s, loss_kind=lk, target_enc=te,
                            log_every=10 ** 9, **kw)
@@ -164,10 +169,10 @@ def run_real(npz, n_ax, kw, lk, te, static=False):
                              gate=False, xcov=False, log_every=10 ** 9, **kw)
         lab, fast, tr, teI = gated["lab"], gated["fast"], gated["tr"], gated["te"]
 
-        def probe_set(enc, sl, idx):
+        def probe_set(enc, idx):
             """Features actually SCORED: labeled positions (HAPT) or the last
             position of each record (PTB-XL, static label)."""
-            Z = encode_all(enc, gated["Wt"])[:, :, sl]
+            Z = encode_all(enc, gated["Wt"])
             if static:
                 return Z[idx, -1], lab[idx, -1], fast[idx, -1]
             ok = (lab >= 1) & (lab <= 6); ok[:, :C_MIN] = False
@@ -189,18 +194,20 @@ def run_real(npz, n_ax, kw, lk, te, static=False):
                               (base + np.arange(1, T)).ravel()], 1)
             return Zs.reshape(-1, D), pairs
 
-        cls = not static or True            # both are classification here
-        a, ya, za = probe_set(gated["enc"], slice(0, D_SLOW), tr)
-        b, yb, zb = probe_set(gated["enc"], slice(0, D_SLOW), teI)
-        res["gate(z_slow)"].append(score(a, ya, za, b, yb, zb, cls))
+        cls = True                          # both datasets are classification here
+        coord, randsplit = _split_mats(D_Z, D_SLOW, s)
+        a, ya, za = probe_set(gated["enc"], tr)
+        b, yb, zb = probe_set(gated["enc"], teI)
+        res["gate"].append(two_sided(a, ya, za, b, yb, zb, coord, cls))
 
-        Ftr, ytr, ztr = probe_set(ungated["enc"], slice(0, D_Z), tr)
-        Fte, yte, zte = probe_set(ungated["enc"], slice(0, D_Z), teI)
+        Ftr, ytr, ztr = probe_set(ungated["enc"], tr)
+        Fte, yte, zte = probe_set(ungated["enc"], teI)
+        arg = (Ftr, ytr, ztr, Fte, yte, zte)
+        res["ungated(block)"].append(two_sided(*arg, coord, cls))
+        res["random"].append(two_sided(*arg, randsplit, cls))
         Xfit, pairs = fit_stream(ungated["enc"], tr)        # unmixings see the SERIES
-        res["ungated(z_slow)"].append(
-            score(Ftr[:, :D_SLOW], ytr, ztr, Fte[:, :D_SLOW], yte, zte, cls))
-        for m, (p, q) in subspaces(Xfit, pairs, [Ftr, Fte], D_SLOW).items():
-            res[m].append(score(p, ytr, ztr, q, yte, zte, cls))
+        for m, W in unmixings(Xfit, pairs, D_SLOW).items():
+            res[m].append(two_sided(*arg, W, cls))
         print(f"  seed {s} done", flush=True)
     return res
 
@@ -219,18 +226,29 @@ if __name__ == "__main__":
     else:
         res = run_real("../../data/hapt_v2.npz", 3,
                        dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16), lk, te)
-    agg = {m: dict(slow_kept=(float(np.mean([c[0] for c in v])), float(np.std([c[0] for c in v]))),
-                   leak=(float(np.mean([c[1] for c in v])), float(np.std([c[1] for c in v]))))
+    def ms(v, half, factor):
+        a = [c[half][factor] for c in v]
+        return float(np.mean(a)), float(np.std(a))
+
+    agg = {m: {h: dict(slow=ms(v, i, 0), fast=ms(v, i, 1))
+               for i, h in enumerate(("slow_half", "fast_half"))}
            for m, v in res.items() if v}
     json.dump(agg, open(f"../../runs_v2/rotation_{which}_{stem}.json", "w"), indent=2)
-    print(f"\n=== can label-free post-hoc unmixing of the UNGATED embedding match the gate? ===")
-    print(f"{'method':18s} {'slow-kept':>16} {'leak':>16}")
+
+    print("\n=== can a label-free post-hoc unmixing of the UNGATED embedding match the gate? ===")
+    print("    a real alternative must do BOTH: keep slow / drop fast in its slow half,")
+    print("    AND keep fast in its complement. `random` is the null both are judged against.\n")
+    print(f"{'method':16s} | {'slow half (16d)':>21} | {'fast half (48d)':>21}")
+    print(f"{'':16s} | {'slow F1':>10}{'fast R2':>11} | {'slow F1':>10}{'fast R2':>11}")
     for m, r in agg.items():
-        a, b = r["slow_kept"], r["leak"]
-        print(f"{m:18s} {a[0]:8.3f}±{a[1]:.3f} {b[0]:+9.3f}±{b[1]:.3f}")
-    g = agg["gate(z_slow)"]
-    best = min((m for m in agg if m not in ("gate(z_slow)",)),
-               key=lambda m: agg[m]["leak"][0] - agg[m]["slow_kept"][0])
-    print(f"\n  gate: kept {g['slow_kept'][0]:.3f} leak {g['leak'][0]:+.3f}")
-    print(f"  best post-hoc ({best}): kept {agg[best]['slow_kept'][0]:.3f} "
-          f"leak {agg[best]['leak'][0]:+.3f}")
+        a, b = r["slow_half"], r["fast_half"]
+        print(f"{m:16s} | {a['slow'][0]:10.3f}{a['fast'][0]:+11.3f} | "
+              f"{b['slow'][0]:10.3f}{b['fast'][0]:+11.3f}")
+    null = agg["random"]["slow_half"]["fast"][0]
+    print(f"\n  random-16 null on the fast factor: {null:+.3f}  "
+          f"(a slow half above this excluded NOTHING)")
+    for m, r in agg.items():
+        if m == "random":
+            continue
+        print(f"  {m:16s} exclusion vs null {null - r['slow_half']['fast'][0]:+.3f}   "
+              f"fast retained in complement {r['fast_half']['fast'][0]:.3f}")

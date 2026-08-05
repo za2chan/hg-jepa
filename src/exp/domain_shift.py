@@ -37,7 +37,13 @@ NPZ = ROOT / "data/hapt_v2.npz"
 HAPT = dict(n_ax=3, tau=40.0, w=12, dmin=12, dmax=128, min_context=16)
 # Both stems are carried (CLAUDE.md §2, amended 2026-08-04). CLI: argv[4].
 STEM = "nce+ema"
-BLOCKS = ("z_slow", "z_full")
+# z_slow vs z_full OF THE SAME GATED MODEL only answers "which readout of our
+# model is more robust", not "is our model more robust" — the ungated control is
+# the baseline a method claim needs (same issue the gate x xcov ablation fixed).
+# z_fast is carried so the shift can be attributed: if the fast structure shifts
+# as much as the slow one, excluding it cannot buy robustness.
+BLOCKS = ("z_slow", "z_fast", "z_full")
+UNGATED_BLOCKS = ("z_slow", "z_full")          # 'z_slow' here = an arbitrary first-16
 N_B, FIT_FRAC, STEPS = 6, 0.7, 2500
 
 
@@ -89,39 +95,55 @@ def run(part, seed, steps):
     fit, test, ood, ood_late, a_sub, b_sub = split(d["subj"], part)
     meta = check(d["W"], d["subj"], fit, test, ood, ood_late, a_sub, b_sub)
     lk, te = STEM.split("+")
-    res = train_real(str(NPZ), seed=seed, steps=steps, train_idx=fit,
-                     loss_kind=lk, target_enc=te, log_every=10 ** 9, **HAPT)
+    kw = dict(seed=seed, steps=steps, train_idx=fit, loss_kind=lk, target_enc=te,
+              log_every=10 ** 9, **HAPT)
+    res = train_real(str(NPZ), **kw)
     assert np.array_equal(res["tr"], fit), "encoder trained on something other than A_fit"
-    Z = encode_all(res["enc"], res["Wt"])
+    ung = train_real(str(NPZ), gate=False, xcov=False, **kw)     # baseline for the claim
     # macro-F1 averages over the classes PRESENT in each eval set, so the sets are
     # only comparable if their class support matches — record it, do not assume it.
     n_cls = lambda ix: int(np.isin(np.arange(1, 7), res["lab"][ix][:, C_MIN:]).sum())
     out = dict(part=part, seed=seed, n_cls=[n_cls(test), n_cls(ood), n_cls(ood_late)], **meta)
-    for b in BLOCKS:
-        # one probe fit (same train rows + seed -> same subsample) scored on each set
-        p_ = {k: multi_position(Z, res["lab"], res["fast"], fit, ix, block=b, c_min=C_MIN)
-              for k, ix in (("in", test), ("ood", ood), ("ood_late", ood_late))}
-        f1 = {k: v["slow_kept_f1"] for k, v in p_.items()}
-        out[b] = dict(in_f1=f1["in"], ood_f1=f1["ood"], delta=f1["in"] - f1["ood"],
-                      ood_late_f1=f1["ood_late"], delta_late=f1["in"] - f1["ood_late"],
-                      in_leak=p_["in"]["leak_r2"], ood_leak=p_["ood"]["leak_r2"],
-                      chance_f1=p_["in"]["chance_f1"], rankme=p_["in"]["rankme"])
+    for r, blocks, pre in ((res, BLOCKS, ""), (ung, UNGATED_BLOCKS, "ungated_")):
+        Z = encode_all(r["enc"], r["Wt"])
+        for b in blocks:
+            # one probe fit (same train rows + seed -> same subsample) scored on each set
+            p_ = {k: multi_position(Z, r["lab"], r["fast"], fit, ix, block=b, c_min=C_MIN)
+                  for k, ix in (("in", test), ("ood", ood), ("ood_late", ood_late))}
+            f1 = {k: v["slow_kept_f1"] for k, v in p_.items()}
+            # the fast proxy's OWN domain drop: the test of whether subject shift
+            # moves the fast structure as much as the slow one (an interpretation
+            # that was previously asserted, not measured)
+            out[pre + b] = dict(
+                in_f1=f1["in"], ood_f1=f1["ood"], delta=f1["in"] - f1["ood"],
+                ood_late_f1=f1["ood_late"], delta_late=f1["in"] - f1["ood_late"],
+                in_leak=p_["in"]["leak_r2"], ood_leak=p_["ood"]["leak_r2"],
+                delta_fast=p_["in"]["leak_r2"] - p_["ood"]["leak_r2"],
+                chance_f1=p_["in"]["chance_f1"], rankme=p_["in"]["rankme"])
     return out
+
+
+ALL_BLOCKS = list(BLOCKS) + ["ungated_" + b for b in UNGATED_BLOCKS]
+# the reference each claim is measured against: same-model readout, and the real
+# baseline (an ungated model's full embedding)
+CLAIMS = (("vs_full", "z_full"), ("vs_ungated", "ungated_z_full"))
 
 
 def summarize(cells, n_part):
     ms = lambda v: (float(np.mean(v)), float(np.std(v)))
     agg = {}
-    for b in BLOCKS:
+    for b in ALL_BLOCKS:
         agg[b] = {k: ms([c[b][k] for c in cells])
-                  for k in ("in_f1", "ood_f1", "delta", "ood_late_f1", "delta_late")}
+                  for k in ("in_f1", "ood_f1", "delta", "ood_late_f1", "delta_late",
+                            "delta_fast")}
         for k in ("delta", "delta_late"):                   # error bar over partitions
             agg[b][k + "_over_partitions"] = ms(
                 [np.mean([c[b][k] for c in cells if c["part"] == p]) for p in range(n_part)])
     for k in ("delta", "delta_late"):
-        paired = [c["z_full"][k] - c["z_slow"][k] for c in cells]
-        agg["claim_" + k] = dict(full_minus_slow=ms(paired), n_runs=len(paired),
-                                 n_supporting=int(np.sum(np.array(paired) > 0)))
+        for name, ref in CLAIMS:
+            paired = [c[ref][k] - c["z_slow"][k] for c in cells]
+            agg[f"claim_{k}_{name}"] = dict(ref_minus_slow=ms(paired), n_runs=len(paired),
+                                            n_supporting=int(np.sum(np.array(paired) > 0)))
     return agg
 
 
@@ -156,16 +178,21 @@ if __name__ == "__main__":
         print(f"{c['part']:>4} {c['seed']:>4} | {s['in_f1']:6.3f} {s['ood_f1']:6.3f} "
               f"{s['delta']:+7.3f} {s['delta_late']:+6.3f} | {f['in_f1']:6.3f} "
               f"{f['ood_f1']:6.3f} {f['delta']:+7.3f} {f['delta_late']:+6.3f}")
-    for b in BLOCKS:
+    for b in ALL_BLOCKS:
         a = agg[b]
-        print(f"{b:7s} in {a['in_f1'][0]:.3f}±{a['in_f1'][1]:.3f}  "
+        print(f"{b:16s} in {a['in_f1'][0]:.3f}±{a['in_f1'][1]:.3f}  "
               f"ood {a['ood_f1'][0]:.3f}±{a['ood_f1'][1]:.3f}  "
               f"Δ {a['delta'][0]:+.3f}±{a['delta'][1]:.3f} (runs) "
               f"±{a['delta_over_partitions'][1]:.3f} (partitions)  |  "
-              f"Δlate {a['delta_late'][0]:+.3f}±{a['delta_late'][1]:.3f}")
+              f"Δlate {a['delta_late'][0]:+.3f}±{a['delta_late'][1]:.3f}  |  "
+              f"Δfast {a['delta_fast'][0]:+.3f}")
+    print("\n  Δfast = drop in the FAST proxy's R2 under the same shift. If it is as "
+          "large as\n  Δ_slow, subject shift moves both structures and excluding the "
+          "fast one cannot help.")
     for k in ("delta", "delta_late"):
-        cl = agg["claim_" + k]
-        print(f"claim Δ_slow < Δ_full ({k}): Δ_full−Δ_slow = {cl['full_minus_slow'][0]:+.3f}"
-              f"±{cl['full_minus_slow'][1]:.3f}, holds in "
-              f"{cl['n_supporting']}/{cl['n_runs']} runs")
+        for name, ref in CLAIMS:
+            cl = agg[f"claim_{k}_{name}"]
+            print(f"claim Δ_slow < Δ_{ref} ({k}): diff = {cl['ref_minus_slow'][0]:+.3f}"
+                  f"±{cl['ref_minus_slow'][1]:.3f}, holds in "
+                  f"{cl['n_supporting']}/{cl['n_runs']} runs")
     print("saved", path)
