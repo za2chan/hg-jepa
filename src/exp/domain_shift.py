@@ -131,6 +131,32 @@ def check(W, subj, fit, test, ood, ood_late, a_sub, b_sub):
                 n_ood_late=len(ood_late), a_sub=a_sub.tolist(), b_sub=b_sub.tolist())
 
 
+N_DRAW = 4         # subject-matched draws averaged into delta_matched
+# Only the blocks that appear in a claim get the matched treatment: it costs
+# n_draw x 2 extra probe fits per block, and z_fast is never a claim's subject.
+MATCHED_BLOCKS = ("z_slow", "z_full")
+
+
+def _matched(Z, r, fit, test, ood, subj, block, n_draw=N_DRAW, seed=0):
+    """Subject- and size-matched in-domain vs out-of-domain score.
+
+    Each draw takes |B| of A's subjects and their A_test windows, then an equal
+    number of B windows. Averaging over draws removes the eval-set breadth effect
+    that makes the raw drop negative without saying anything about domain shift.
+    """
+    rng = np.random.default_rng(seed)
+    a_subs, b_subs = np.unique(subj[test]), np.unique(subj[ood])
+    f1 = lambda ix: multi_position(Z, r["lab"], r["fast"], fit, ix,
+                                   block=block, c_min=C_MIN)["slow_kept_f1"]
+    ins, oods = [], []
+    for _ in range(n_draw):
+        pick = rng.choice(a_subs, len(b_subs), replace=False)
+        ia = test[np.isin(subj[test], pick)]
+        ib = rng.choice(ood, min(len(ia), len(ood)), replace=False)
+        ins.append(f1(ia)); oods.append(f1(ib))
+    return dict(in_=float(np.mean(ins)), ood=float(np.mean(oods)))
+
+
 def run(part, seed, steps):
     d = np.load(NPZ)
     fit, test, ood, ood_late, a_sub, b_sub = split(d["subj"], part)
@@ -161,6 +187,7 @@ def run(part, seed, steps):
                              ood=d_ood.round(4).tolist(),
                              ood_late=dist(ood_late).round(4).tolist()),
                label_tv=float(np.abs(d_test - d_ood).sum() / 2), **meta)
+    subj = d["subj"]
     for r, blocks, pre in ((res, BLOCKS, ""), (ung, UNGATED_BLOCKS, "ungated_")):
         Z = encode_all(r["enc"], r["Wt"])
         for b in blocks:
@@ -168,12 +195,24 @@ def run(part, seed, steps):
             p_ = {k: multi_position(Z, r["lab"], r["fast"], fit, ix, block=b, c_min=C_MIN)
                   for k, ix in (("in", test), ("ood", ood), ("ood_late", ood_late))}
             f1 = {k: v["slow_kept_f1"] for k, v in p_.items()}
+            # A_test spans 24 subjects and B spans 6. One linear probe covering 24
+            # people scores lower than the same probe covering 6, so the raw drop
+            # comes out NEGATIVE (B beats A_test) even with the label mix matched.
+            # Fix: draw 6 of the 24 A subjects and an equal number of B windows, so
+            # both sides have the same subject count AND the same window count.
+            # (Scoring each subject alone does NOT work: A_test averages 15 windows
+            # per subject covering only 4.25 of the 6 classes, so macro-F1 over the
+            # full label set charges them for classes that are simply absent.)
+            per = (_matched(Z, r, fit, test, ood, subj, b)
+                   if b in MATCHED_BLOCKS else dict(in_=float("nan"), ood=float("nan")))
             # the fast proxy's OWN domain drop: the test of whether subject shift
             # moves the fast structure as much as the slow one (an interpretation
             # that was previously asserted, not measured)
             out[pre + b] = dict(
                 in_f1=f1["in"], ood_f1=f1["ood"], delta=f1["in"] - f1["ood"],
                 ood_late_f1=f1["ood_late"], delta_late=f1["in"] - f1["ood_late"],
+                in_matched_f1=per["in_"], ood_matched_f1=per["ood"],
+                delta_matched=per["in_"] - per["ood"],
                 in_leak=p_["in"]["leak_r2"], ood_leak=p_["ood"]["leak_r2"],
                 delta_fast=p_["in"]["leak_r2"] - p_["ood"]["leak_r2"],
                 chance_f1=p_["in"]["chance_f1"], rankme=p_["in"]["rankme"])
@@ -192,11 +231,11 @@ def summarize(cells, n_part):
     for b in ALL_BLOCKS:
         agg[b] = {k: ms([c[b][k] for c in cells])
                   for k in ("in_f1", "ood_f1", "delta", "ood_late_f1", "delta_late",
-                            "delta_fast")}
-        for k in ("delta", "delta_late"):                   # error bar over partitions
+                            "delta_fast", "in_matched_f1", "ood_matched_f1", "delta_matched")}
+        for k in ("delta", "delta_late", "delta_matched"):                   # error bar over partitions
             agg[b][k + "_over_partitions"] = ms(
                 [np.mean([c[b][k] for c in cells if c["part"] == p]) for p in range(n_part)])
-    for k in ("delta", "delta_late"):
+    for k in ("delta", "delta_late", "delta_matched"):
         for name, ref in CLAIMS:
             paired = [c[ref][k] - c["z_slow"][k] for c in cells]
             agg[f"claim_{k}_{name}"] = dict(ref_minus_slow=ms(paired), n_runs=len(paired),
@@ -247,11 +286,13 @@ if __name__ == "__main__":
               f"Δ {a['delta'][0]:+.3f}±{a['delta'][1]:.3f} (runs) "
               f"±{a['delta_over_partitions'][1]:.3f} (partitions)  |  "
               f"Δlate {a['delta_late'][0]:+.3f}±{a['delta_late'][1]:.3f}  |  "
-              f"Δfast {a['delta_fast'][0]:+.3f}")
+              f"Δfast {a['delta_fast'][0]:+.3f}  |  "
+              f"matched in {a['in_matched_f1'][0]:.3f} ood {a['ood_matched_f1'][0]:.3f} "
+              f"Δm {a['delta_matched'][0]:+.3f}±{a['delta_matched'][1]:.3f}")
     print("\n  Δfast = drop in the FAST proxy's R2 under the same shift. If it is as "
           "large as\n  Δ_slow, subject shift moves both structures and excluding the "
           "fast one cannot help.")
-    for k in ("delta", "delta_late"):
+    for k in ("delta", "delta_late", "delta_matched"):
         for name, ref in CLAIMS:
             cl = agg[f"claim_{k}_{name}"]
             print(f"claim Δ_slow < Δ_{ref} ({k}): diff = {cl['ref_minus_slow'][0]:+.3f}"

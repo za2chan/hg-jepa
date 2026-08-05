@@ -127,8 +127,9 @@ def block_factor(Ftr, ytr, ztr, Fte, yte, zte, d_slow=D_SLOW, n_rand=3, seed=0,
     return out
 
 
-def sep_index(bf, fast_ceiling):
+def sep_index(bf, fast_ceiling, fast_null=None):
     """One scalar summarising the block x factor matrix. In [0, 1], higher better.
+    SUPPORTING value only -- the matrix is the result; this just sorts cells.
 
         inclusion  z_slow keeps the slow factor, relative to the whole embedding
         allocation z_fast actually HOLDS the fast factor -- normalised by the
@@ -137,9 +138,21 @@ def sep_index(bf, fast_ceiling):
                    and would otherwise score a perfect ratio against itself
         exclusion  z_slow holds LESS fast information than a random block of the
                    same width; 0 if it holds as much (i.e. the gate did nothing)
+
+    `fast_null` is the random-subspace reference. Default (None) uses the cell's
+    OWN rand<d_slow>, which answers "is the slow block special inside THIS
+    embedding". Passing the UNGATED cell's null instead fixes one yardstick for
+    the whole comparison, which is the reported default: a same-model null moves
+    with the model being judged. Measured, the two agree on ordering everywhere
+    and the ungated one is uniformly the more conservative (synth .947/.938,
+    PTB-XL .622/.553, HAPT .900/.788), so nothing rests on the choice.
+
+    The exclusion term cannot be dropped: inclusion and allocation both saturate
+    (any embedding keeps the slow factor, any 48-dim block holds the fast one),
+    so without it the no-mechanism control scores 0.993 against our 0.997.
     """
     (Ss, Fs), (_, Ff), (Sfull, _) = bf["z_slow"], bf["z_fast"], bf["z_full"]
-    Fr = bf[f"rand{D_SLOW}"][1]
+    Fr = bf[f"rand{D_SLOW}"][1] if fast_null is None else fast_null
     incl = Ss / max(Sfull, 1e-6)
     alloc = Ff / max(fast_ceiling, 1e-6)
     excl = 1.0 - Fs / Fr if Fr > 1e-3 else float(Fs <= 1e-3)

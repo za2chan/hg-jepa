@@ -136,7 +136,9 @@ def report(out):
     rank = []
     for tag, b in out.items():
         m = {k: (v["slow"], v["fast"]) for k, v in b.items()}
-        s = sep_index(m, ceil)
+        stem = tag.split("/")[0]
+        base = out.get(f"{stem}/g0_x0")
+        s = sep_index(m, ceil, base[f"rand{D_SLOW}"]["fast"] if base else None)
         rank.append((s["sep"], tag))
         print(f"{tag:16s} {m['z_slow'][0]:6.3f}/{m['z_slow'][1]:+.3f} "
               f"{m['z_fast'][0]:6.3f}/{m['z_fast'][1]:+.3f} "

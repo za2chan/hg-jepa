@@ -20,9 +20,17 @@ def load(name):
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def sep_of(cell, ceiling):
+def sep_of(cell, ceiling, null=None):
     from probes import sep_index
-    return sep_index({k: (v["slow"], v["fast"]) for k, v in cell.items()}, ceiling)
+    return sep_index({k: (v["slow"], v["fast"]) for k, v in cell.items()}, ceiling, null)
+
+
+def ungated_null(d, tag):
+    """The g0_x0 cell of the same stem: one fixed yardstick for the comparison."""
+    from model import D_SLOW
+    stem = tag.split("/")[0]
+    c = d.get(f"{stem}/g0_x0")
+    return c[f"rand{D_SLOW}"]["fast"] if c else None
 
 
 def block_factor_tables():
@@ -37,7 +45,7 @@ def block_factor_tables():
               f"| rand{D_SLOW} fast (null) | 배제 여유 | SEP |")
         print("|---|---|---|---|---|---|---|---|")
         for tag, c in d.items():
-            s = sep_of(c, ceiling)
+            s = sep_of(c, ceiling, ungated_null(d, tag))
             null = c[f"rand{D_SLOW}"]["fast"]
             print(f"| {tag} | {c['z_slow']['slow']:.3f} | {c['z_slow']['fast']:+.3f} "
                   f"| {c['z_fast']['slow']:.3f} | {c['z_fast']['fast']:+.3f} "
