@@ -6,9 +6,6 @@ set -u
 cd "$(dirname "$0")"
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
-while pgrep -f "twosided.py" > /dev/null; do sleep 30; done
-log "twosided done"
-
 for ds in synth ptbxl hapt; do
   ( for stem in nce+ema l1+ema; do
       log "rotation $ds $stem"

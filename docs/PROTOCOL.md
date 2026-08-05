@@ -506,11 +506,20 @@ two; the random null catches the third and makes "leak 0.045" readable — on
 HAPT an arbitrary 16-dim readout already scores only 0.188, so a low leak there
 means far less than the same number on PTB-XL, where the null is 0.445.
 
-Note the asymmetry this introduces, deliberately: post-hoc rotations (PCA/ICA/
-SFA) are full-rank, so their complement retains the fast factor **by
-construction** and they pass the allocation test for free. The gate is compared
-against a *differently trained* encoder, so allocation is a real constraint only
-on us. Reporting it makes the comparison harder for our method, not easier.
+**Correction (2026-08-05, same day).** An earlier draft of this section claimed
+that post-hoc rotations pass the allocation test "by construction" because they
+are full-rank. **That is wrong, and the first two-sided run refuted it.** A
+full-rank split guarantees the two halves *jointly* retain everything; it says
+nothing about either half alone. Measured on synthetic (nce+ema, 3 seeds): PCA's
+top-16 carries the fast factor at 0.879 — *above* the random-16 null of 0.852,
+i.e. variance ranking actively concentrates it — while its complement carries
+−0.006. PCA fails **both** sides. So allocation is a real constraint on the
+baselines too, and the two-sided matrix is informative for them, not just for us.
+
+The asymmetry that does survive is narrower: the gate is compared against a
+*differently trained* encoder, so its `z_full` can differ from the ungated one,
+whereas every post-hoc method is a re-basis of one fixed embedding and shares its
+`z_full` exactly.
 
 The rest traces to specific v1 review findings: ratios hid collapse (#4), linear
 probes overstated exclusion (nonlinear.py: MLP leak 0.45 vs linear 0.19), and
