@@ -83,56 +83,67 @@ def ablation():
     return rows
 
 
-ROT_ORDER = ["gate(z_slow)", "PCA", "ICA-slow", "SFA", "ungated(z_slow)"]
-ROT_LBL = {"gate(z_slow)": r"\textbf{HGLP gate}", "PCA": "PCA",
+ROT_ORDER = ["gate", "PCA", "ICA-slow", "SFA", "ungated(block)", "random"]
+ROT_LBL = {"gate": r"\textbf{HGLP gate}", "PCA": "PCA",
            "ICA-slow": "ICA (slowness-ranked)", "SFA": "SFA",
-           "ungated(z_slow)": "ungated, arbitrary block"}
+           "ungated(block)": "ungated, arbitrary block",
+           "random": r"\emph{random 16-dim (null)}"}
 
 
 def rotation():
+    """Two-sided: a subspace only replaces the gate if its slow half drops the fast
+    factor BELOW what a random 16-dim readout gives, while its complement keeps it."""
     dsets = ["synth", "ptbxl", "hapt"]
     names = {"synth": "Synthetic", "ptbxl": "PTB-XL", "hapt": "HAPT"}
-    L = [r"\begin{tabular}{l" + "cc" * len(dsets) + "}", r"\toprule",
-         " & " + " & ".join(rf"\multicolumn{{2}}{{c}}{{{names[d]}}}" for d in dsets) + r" \\",
-         "$d_{slow}$=16 subspace by & " + " & ".join("kept $\\uparrow$ & leak $\\downarrow$" for _ in dsets) + r" \\",
-         r"\midrule"]
+    L = [r"\begin{tabular}{l" + "ccc" * len(dsets) + "}", r"\toprule",
+         " & " + " & ".join(rf"\multicolumn{{3}}{{c}}{{{names[d]}}}" for d in dsets) + r" \\",
+         "$d_{slow}$=16 subspace by & "
+         + " & ".join(r"slow $\uparrow$ & fast $\downarrow$ & compl. fast $\uparrow$"
+                      for _ in dsets) + r" \\", r"\midrule"]
     for stem in STEMS:
-        L.append(rf"\multicolumn{{{1+2*len(dsets)}}}{{l}}{{\emph{{{STEM_LBL[stem]}}}}} \\")
+        L.append(rf"\multicolumn{{{1+3*len(dsets)}}}{{l}}{{\emph{{{STEM_LBL[stem]}}}}} \\")
         for m in ROT_ORDER:
             cs = []
             for ds in dsets:
                 r = load(f"rotation_{ds}_{stem}.json")[m]
-                cs += [f"{r['slow_kept'][0]:.3f}", f"{r['leak'][0]:.3f}"]
+                cs += [f"{r['slow_half']['slow'][0]:.3f}", f"{r['slow_half']['fast'][0]:.3f}",
+                       f"{r['fast_half']['fast'][0]:.3f}"]
             L.append(f"{ROT_LBL[m]} & " + " & ".join(cs) + r" \\")
         L.append(r"\midrule" if stem != STEMS[-1] else r"\bottomrule")
     L.append(r"\end{tabular}")
     (R / "tab_rotation.tex").write_text("\n".join(L) + "\n")
 
-    # slow-kept is near-tied across methods; leak is what separates them -> bars of leak,
-    # with slow-kept annotated on each bar so the trade-off stays visible.
-    bars = ["gate(z_slow)", "PCA", "SFA", "ungated(z_slow)"]   # ICA == PCA on all three
-    blbl = {"gate(z_slow)": "HGLP gate", "PCA": "PCA / ICA", "SFA": "SFA",
-            "ungated(z_slow)": "ungated block"}
-    mcol = {"gate(z_slow)": "#1a5fb4", "PCA": "#e8a33d",
-            "SFA": "#3a9e6e", "ungated(z_slow)": "#9aa0a6"}
+    # Bars of the fast factor retained in each slow half; the random-subspace null is
+    # the line every bar must fall BELOW to have excluded anything at all.
+    bars = ["gate", "PCA", "SFA", "ungated(block)"]            # ICA == PCA on all three
+    blbl = {"gate": "HGLP gate", "PCA": "PCA / ICA", "SFA": "SFA",
+            "ungated(block)": "ungated block"}
+    mcol = {"gate": "#1a5fb4", "PCA": "#e8a33d",
+            "SFA": "#3a9e6e", "ungated(block)": "#9aa0a6"}
     stem = "nce+ema"
     fig, axes = plt.subplots(1, 3, figsize=(11.5, 3.6))
     for ax, ds in zip(axes, dsets):
+        d = load(f"rotation_{ds}_{stem}.json")
         y = range(len(bars))
-        v = [load(f"rotation_{ds}_{stem}.json")[m] for m in bars]
-        ax.barh(list(y), [r["leak"][0] for r in v],
-                xerr=[r["leak"][1] for r in v], height=.62,
+        v = [d[m] for m in bars]
+        ax.barh(list(y), [r["slow_half"]["fast"][0] for r in v],
+                xerr=[r["slow_half"]["fast"][1] for r in v], height=.62,
                 color=[mcol[m] for m in bars], error_kw=dict(lw=1, capsize=3))
+        null = d["random"]["slow_half"]["fast"][0]
+        ax.axvline(null, color="#c01c28", ls="--", lw=1.2, zorder=3)
+        ax.text(null, -0.85, f" random 16-dim null {null:.2f}", color="#c01c28",
+                fontsize=7.5, va="top")
         for i, r in enumerate(v):
-            ax.text(r["leak"][0] + r["leak"][1] + .02, i,
-                    f"kept {r['slow_kept'][0]:.3f}", va="center", fontsize=8, color="#444")
+            ax.text(r["slow_half"]["fast"][0] + r["slow_half"]["fast"][1] + .02, i,
+                    f"slow {r['slow_half']['slow'][0]:.3f} | compl. fast "
+                    f"{r['fast_half']['fast'][0]:.2f}", va="center", fontsize=7, color="#444")
         ax.set_yticks(list(y)); ax.set_yticklabels([blbl[m] for m in bars], fontsize=9)
-        ax.invert_yaxis()
-        ax.set_xlim(0, max(r["leak"][0] for r in v) * 1.75)
-        ax.set_xlabel("fast-factor leak $\\downarrow$ better")
+        ax.invert_yaxis(); ax.set_ylim(len(bars) - 0.4, -1.1)
+        ax.set_xlim(0, max([r["slow_half"]["fast"][0] for r in v] + [null]) * 2.1)
+        ax.set_xlabel("fast factor kept in the slow half $\\downarrow$ better")
         ax.set_title(names[ds], fontsize=10)
         ax.grid(alpha=.25, lw=.6, axis="x"); ax.set_axisbelow(True)
-    fig.suptitle("Post-hoc rotation keeps the slow factor but does not exclude the fast one "
+    fig.suptitle("A subspace has excluded nothing unless it falls below the random-16 null "
                  f"({STEM_LBL[stem]}, 3 seeds)", fontsize=10.5, y=1.02)
     fig.tight_layout()
     fig.savefig(R / "fig_rotation.png", dpi=200, bbox_inches="tight")
