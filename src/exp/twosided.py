@@ -35,10 +35,18 @@ from probes import block_factor, sep_index, encode_all, C_MIN
 from model import D_SLOW, D_Z, P, L
 
 SEEDS = [0, 1, 2]
-# (loss, target, gate, xcov). The 2x2 for both stems, then the two loss ablations.
-CELLS = ([(lk, "ema", g, x) for lk in ("l1", "nce")
+# (loss, target, gate, xcov, blocknorm). 2x2 for both stems + the two loss ablations.
+CELLS = ([(lk, "ema", g, x, True) for lk in ("l1", "nce")
           for g, x in ((False, False), (True, False), (False, True), (True, True))]
-         + [("reg", "ema", True, True), ("nce", "online", True, True)])
+         + [("reg", "ema", True, True, True), ("nce", "online", True, True, True)])
+
+# B2's per-block LayerNorm privileges the coordinate split even with gate and xcov
+# OFF, so "g0_x0" was never a mechanism-free control -- which is why the ungated
+# block and the random-16 null do not agree. It also normalises away each block's
+# MAGNITUDE, and HAPT's fast proxy IS a magnitude (||acc||). These cells isolate it:
+# identical models, one LayerNorm over all of D_Z instead of two per block.
+BN_CELLS = [(lk, "ema", g, x, bn) for lk in ("l1", "nce")
+            for g, x in ((False, False), (True, True)) for bn in (True, False)]
 
 
 def synth_feats(enc, seed=99, n_win=400, positions=tuple(range(64, 240, 12)), gap=0.05):
@@ -88,22 +96,24 @@ DATASETS = {
 }
 
 
-def run(which):
+def run(which, cells_spec=CELLS):
     out = {}
-    for lk, te_, gate, xcov in CELLS:
-        tag = f"{lk}+{te_}/g{int(gate)}_x{int(xcov)}"
+    for lk, te_, gate, xcov, bn in cells_spec:
+        tag = (f"{lk}+{te_}/g{int(gate)}_x{int(xcov)}"
+               + ("" if bn else "_noBN"))
         cells = []
         for s in SEEDS:
             if which == "synth":
                 from train import train
                 r = train(loss_kind=lk, target_enc=te_, seed=s, gate=gate, xcov=xcov,
-                          log_every=10 ** 9)
+                          blocknorm=bn, log_every=10 ** 9)
                 f = synth_feats(r["enc"])
             else:
                 from train_real import train_real
                 npz, n_ax, kw, static = DATASETS[which]
                 r = train_real(npz, n_ax=n_ax, seed=s, gate=gate, xcov=xcov,
-                               loss_kind=lk, target_enc=te_, log_every=10 ** 9, **kw)
+                               blocknorm=bn, loss_kind=lk, target_enc=te_,
+                               log_every=10 ** 9, **kw)
                 f = real_feats(r, static)
             cells.append(block_factor(*f, seed=s))
         keys = cells[0].keys()
@@ -166,8 +176,10 @@ if __name__ == "__main__":
     if which == "selfcheck":
         _selfcheck(); sys.exit()
     os.makedirs("../../runs_v2", exist_ok=True)
-    print(f"=== block x factor + random null: {which}, {len(CELLS)} cells x {len(SEEDS)} seeds ===")
-    res = run(which)
-    json.dump(res, open(f"../../runs_v2/twosided_{which}.json", "w"), indent=2)
+    bn = len(sys.argv) > 2 and sys.argv[2] == "bn"
+    spec, tag = (BN_CELLS, f"twosided_bn_{which}") if bn else (CELLS, f"twosided_{which}")
+    print(f"=== block x factor + random null: {which}, {len(spec)} cells x {len(SEEDS)} seeds ===")
+    res = run(which, spec)
+    json.dump(res, open(f"../../runs_v2/{tag}.json", "w"), indent=2)
     report(res)
-    print(f"\nsaved runs_v2/twosided_{which}.json")
+    print(f"\nsaved runs_v2/{tag}.json")

@@ -43,7 +43,7 @@ def _apply_norm(W, mu, sd, per, n_ax):
 
 def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
                w=12, dmin=12, dmax=128, batch=64, n_anchor=16, n_delta=4, lr=3e-4,
-               ema=0.996, min_context=16, gate=True, xcov=True,
+               ema=0.996, min_context=16, gate=True, xcov=True, blocknorm=True,
                loss_kind="reg", target_enc="ema", temp=0.1, mask_same_window=True,
                log_every=500, train_idx=None):
     assert dmin >= w
@@ -67,8 +67,8 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
     Wn = _apply_norm(Wall, mu, sd, per, n_ax)
     Wt = torch.from_numpy(Wn).to(DEV)
 
-    enc, pred = Encoder(in_dim).to(DEV), Predictor().to(DEV)
-    tgt = Encoder(in_dim).to(DEV); tgt.load_state_dict(enc.state_dict())
+    enc, pred = Encoder(in_dim, blocknorm).to(DEV), Predictor().to(DEV)
+    tgt = Encoder(in_dim, blocknorm).to(DEV); tgt.load_state_dict(enc.state_dict())
     for p_ in tgt.parameters():
         p_.requires_grad_(False)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)

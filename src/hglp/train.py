@@ -52,7 +52,7 @@ def _windows(x, rng, n):
 def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
           steps=2500, tau=16.0, W=4.0, lam=4.0, w=8, dmin=8, dmax=128, batch=64,
           n_anchor=16, n_delta=4, lr=3e-4, ema=0.996, min_context=16, temp=0.1,
-          gate=True, xcov=True, gap=0.05,
+          gate=True, xcov=True, gap=0.05, blocknorm=True,
           mask_same_window=True, log_every=500):
     assert dmin >= w, "pilot expects Δ_min>=w so w_eff==w (see module docstring)"
     use_ema = target_enc == "ema"
@@ -61,8 +61,8 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
     data = make_dataset(1_000_000, seed=seed, gap=gap)
     x = data["x"]
 
-    enc, pred = Encoder().to(DEV), Predictor().to(DEV)
-    tgt = Encoder().to(DEV); tgt.load_state_dict(enc.state_dict())
+    enc, pred = Encoder(blocknorm=blocknorm).to(DEV), Predictor().to(DEV)
+    tgt = Encoder(blocknorm=blocknorm).to(DEV); tgt.load_state_dict(enc.state_dict())
     for p_ in tgt.parameters():
         p_.requires_grad_(False)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)
@@ -143,6 +143,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
     return dict(enc=enc, tgt=(tgt if use_ema else enc), pred=pred, losses=losses,
                 data=data,
                 cfg=dict(target_mode=target_mode, loss_kind=loss_kind, gate=gate, xcov=xcov,
+                         blocknorm=blocknorm,
                          target_enc=target_enc, seed=seed, tau=tau, W=W, lam=lam,
                          gap=gap, data_sha256=data["sha256"],
                          w=w, dmin=dmin, dmax=dmax, steps=steps, temp=temp,

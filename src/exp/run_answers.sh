@@ -28,4 +28,10 @@ log "domain_shift done"
 python3 difficulty.py train > /tmp/difficulty_train.log 2>&1
 log "difficulty done"
 python3 fastaxis.py > /tmp/fastaxis.log 2>&1
+log "fastaxis done"
+
+for ds in synth hapt ptbxl; do
+  log "blocknorm ablation $ds"
+  python3 twosided.py "$ds" bn > "/tmp/ts_bn_${ds}.log" 2>&1
+done
 log "ALL DONE"

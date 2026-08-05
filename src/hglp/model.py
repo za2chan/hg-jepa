@@ -66,12 +66,22 @@ class Block(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, in_dim=P):                # A4: in_dim = patch_len * n_channels
+    """B2's per-block LayerNorm is itself a mechanism that breaks rotation symmetry:
+    it is applied to dims [0:D_SLOW] and [D_SLOW:] SEPARATELY, so the coordinate
+    split is privileged even when the gate and xcov are off. It also removes two
+    degrees of freedom per block -- the within-block mean and the block's overall
+    MAGNITUDE -- which matters because a fast proxy can itself be a magnitude
+    (HAPT's is ||acc||). `blocknorm=False` falls back to a single LayerNorm over
+    all of D_Z, which treats every coordinate alike; that is the genuinely
+    mechanism-free control."""
+
+    def __init__(self, in_dim=P, blocknorm=True):   # A4: in_dim = patch_len * n_channels
         super().__init__()
         self.embed = nn.Linear(in_dim, D_MODEL)
         self.blocks = nn.ModuleList([Block(D_MODEL, N_HEAD, D_FF) for _ in range(N_LAYER)])
         self.norm = nn.LayerNorm(D_MODEL)
         self.out = nn.Linear(D_MODEL, D_Z)
+        self.blocknorm = blocknorm
 
     def forward(self, x):                        # x: (B, T, in_dim), any T
         T = x.shape[1]
@@ -80,6 +90,8 @@ class Encoder(nn.Module):
         for b in self.blocks:
             h = b(h, cos, sin)
         z = self.out(self.norm(h))
+        if not self.blocknorm:
+            return F.layer_norm(z, (D_Z,))
         zs = F.layer_norm(z[..., :D_SLOW], (D_SLOW,))              # B2 per-block LN
         zf = F.layer_norm(z[..., D_SLOW:], (D_Z - D_SLOW,))
         return torch.cat([zs, zf], -1)
