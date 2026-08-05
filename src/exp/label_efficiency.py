@@ -14,6 +14,11 @@ not a training function, so our stems, the ungated control and the SSL baselines
 (`src/baselines/common.py` contract: `embed` -> (B, L, D), plus lab/tr/te) are
 scored by identical code. `fast` is deliberately NOT consumed — leak is the
 block x factor matrix's job (`exp/twosided.py`); this file measures label cost.
+The two corrections the baseline adapters ask for are caller-side and need no
+change here: PCA-16 the baseline embedding before passing it (D = 320 / 1536 vs
+our 64, and this metric is dominated by probe dimension — that is what `rand16`
+measures), and pass `c_min=L-1` for a last-position-only comparison, where a
+bidirectional encoder no longer sees more of the window than our causal one.
 
 The budget unit is the WINDOW, never the position. HAPT windows are cut with
 stride L/2 and carry ~132 labelled positions each past the C1 floor, so a

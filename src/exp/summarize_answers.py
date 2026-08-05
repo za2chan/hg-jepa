@@ -91,26 +91,35 @@ def rotation_tables():
 
 
 def domain_tables():
-    for stem in ("nce+ema", "l1+ema"):
-        d = load(f"domain_shift_hapt_{stem}.json")
-        a = (d or {}).get("agg", {})
-        if not any("delta_fast" in v for v in a.values() if isinstance(v, dict)):
-            print(f"\n### HAPT / {stem} — domain shift: NOT YET AVAILABLE\n"); continue
-        print(f"\n### HAPT / {stem} — 도메인 이동 (3 파티션 × 3 시드 = 9런)\n")
-        print("| 블록 | in F1 | ood F1 | Δ | Δ_late | **Δ_fast** |")
-        print("|---|---|---|---|---|---|")
-        for b in [k for k in a if not k.startswith("claim_")]:
-            v = a[b]
-            print(f"| {b} | {v['in_f1'][0]:.3f} | {v['ood_f1'][0]:.3f} "
-                  f"| {v['delta'][0]:+.3f}±{v['delta'][1]:.3f} "
-                  f"| {v['delta_late'][0]:+.3f}±{v['delta_late'][1]:.3f} "
-                  f"| {v['delta_fast'][0]:+.3f} |")
-        print()
-        for k in a:
-            if k.startswith("claim_"):
-                c = a[k]
-                print(f"- `{k}`: {c['ref_minus_slow'][0]:+.3f}±{c['ref_minus_slow'][1]:.3f}, "
-                      f"{c['n_supporting']}/{c['n_runs']} 런에서 성립")
+    for mode in ("block", "time"):
+        for stem in ("nce+ema", "l1+ema"):
+            d = load(f"domain_shift_hapt_{stem}_{mode}.json")
+            a = (d or {}).get("agg", {})
+            if not a:
+                print(f"\n### HAPT / {stem} / {mode} — NOT AVAILABLE\n"); continue
+            tv = d.get("label_tv")
+            print(f"\n### HAPT / {stem} / {mode} 분할 — 도메인 이동 (3 파티션 × 3 시드 = 9런"
+                  + (f"; 라벨 TV {tv:.3f})\n" if tv is not None else ")\n"))
+            has_m = "delta_matched" in a.get("z_slow", {})
+            print("| 블록 | in F1 | ood F1 | Δ | Δ_late | Δ_fast |"
+                  + (" **Δ_matched** |" if has_m else ""))
+            print("|---|---|---|---|---|---|" + ("---|" if has_m else ""))
+            for b in [k for k in a if not k.startswith("claim_")]:
+                v = a[b]
+                row = (f"| {b} | {v['in_f1'][0]:.3f} | {v['ood_f1'][0]:.3f} "
+                       f"| {v['delta'][0]:+.3f}±{v['delta'][1]:.3f} "
+                       f"| {v['delta_late'][0]:+.3f}±{v['delta_late'][1]:.3f} "
+                       f"| {v['delta_fast'][0]:+.3f} |")
+                if has_m:
+                    m = v.get("delta_matched", [float("nan")] * 2)
+                    row += f" {m[0]:+.3f}±{m[1]:.3f} |"
+                print(row)
+            print()
+            for k in sorted(a):
+                if k.startswith("claim_"):
+                    c = a[k]
+                    print(f"- `{k}`: {c['ref_minus_slow'][0]:+.3f}±{c['ref_minus_slow'][1]:.3f}, "
+                          f"**{c['n_supporting']}/{c['n_runs']}** 런")
 
 
 def difficulty_table():
