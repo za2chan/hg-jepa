@@ -118,6 +118,23 @@ def blocknorm_table():
             continue
         any_ = True
         ceiling = max(v["z_full"]["fast"] for v in d.values())
+        # (A) the headline: the model we actually ship (gate + xcov + per-block LN)
+        #     against the ONLY genuinely mechanism-free control, g0_x0 with LN off.
+        #     Tables (B) and (C) decompose this; neither of them states it.
+        print(f"\n### {label} — 우리 모델 vs 진짜 무메커니즘 대조군 (3 seeds) ★\n")
+        print("배포하는 모델(`g1_x1`, per-block LN 포함)을 **메커니즘이 하나도 없는** "
+              "`g0_x0_noBN`의 무작위 16차원과 비교합니다. 논문의 \"우리 방법이 분리한다\"는 "
+              "이 표로 주장합니다. 아래 (1)(2)는 그 성과를 부품별로 분해한 것입니다.\n")
+        print(BN_HDR)
+        for tag, c in d.items():
+            if tag.endswith("/g1_x1"):
+                print(_bn_row(d, tag, c, "_noBN", ceiling))
+        legend(("cell", "`g1_x1` = 게이트·xcov 켬 + per-block LN 켬 = **배포 모델**"),
+               *[r for r in BF_LEGEND if r[0] in
+                 ("z_slow 느림↑", "z_slow 빠름↓", "z_fast 빠름↑", "배제 여유", "SEP")],
+               ("기준선", "**`g0_x0_noBN`**의 무작위 16차원 — 게이트도 xcov도 per-block LN도 "
+                          "없는, 유일하게 완전한 무메커니즘 기준"))
+
         # (1) each condition against its OWN reference — what the gate adds on top of
         #     whatever LayerNorm already did in that condition.
         print(f"\n### {label} — per-block LayerNorm은 그 자체로 메커니즘인가 (3 seeds)\n")
