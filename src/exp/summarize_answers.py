@@ -151,7 +151,7 @@ def layernorm():
 def rotation():
     print("\n## 4. 라벨 없는 사후 회전으로 게이트를 대체할 수 있는가\n")
     print("**반론:** 잠재 예측 손실은 회전에 거의 불변이니, 게이트 없이 학습한 임베딩을 "
-          "사후에 회전하면 되지 않나. 각 칸은 `기준선 대비 배제 여유 / 여집합의 빠른 인자`.\n")
+          "사후에 회전하면 되지 않나. 값은 SEP*입니다.\n")
     methods = ["gate", "PCA", "ICA-slow", "SFA", "ungated(block)"]
     rows = []
     for stem in STEMS:
@@ -160,20 +160,34 @@ def rotation():
             if not d or "random" not in d:
                 continue
             null = d["random"]["slow_half"]["fast"][0]
-            cells = [f"{null - d[m]['slow_half']['fast'][0]:+.3f} / "
-                     f"{d[m]['fast_half']['fast'][0]:.2f}" for m in methods]
-            rows.append([label, stem, f"{null:+.3f}"] + cells)
-    table(["데이터셋", "스템", "무작위 기준선"] + methods, rows,
-          "**기준선 열이 그 데이터셋에서 배제를 잴 수 있는 범위 전체입니다.** HAPT는 "
-          "0.04~0.11밖에 안 되므로 그 열들의 차이는 **잡음**입니다 — 어제 \"HAPT에서 PCA가 "
-          "게이트를 이긴다\"고 보고한 것은 이 범위를 못 보고 읽은 것이었습니다.\n\n"
-          "**PCA를 보세요** — 합성에서 배제 여유가 음수이고 여집합도 0에 가깝습니다. "
-          "빠른 인자를 옮긴 게 아니라 느린 절반에 **몰아넣었습니다**.",
-          [("무작위 기준선", "무작위 16차원이 빠른 인자를 맞힌 R². **이 값이 작으면 그 "
-                             "데이터셋에서는 배제를 측정할 수 없습니다**"),
-           ("각 칸 앞 숫자", "`기준선 − 그 방법의 leak`. 0 이하면 아무것도 배제 못 함"),
-           ("각 칸 뒤 숫자", "나머지 48차원의 빠른 인자 R². 낮으면 옮긴 게 아니라 **버린 것**"),
-           ("gate", "우리 z_slow. 나머지는 **게이트 없는 모델**의 임베딩을 라벨 없이 사후 분해")])
+            s_ceil = max(r["slow_half"]["slow"][0] for r in d.values())
+            f_ceil = max(r["fast_half"]["fast"][0] for r in d.values())
+            cl = lambda v: min(max(v, 0.0), 1.0)
+
+            def sep(m):
+                a, b = d[m]["slow_half"], d[m]["fast_half"]
+                return (cl(a["slow"][0] / s_ceil) * cl(b["fast"][0] / f_ceil)
+                        * cl(1 - a["fast"][0] / null if null > 1e-3 else 0.0))
+            best = max(sep(m) for m in methods if m != "gate")
+            rows.append([label, stem, f"{null:+.3f}"]
+                        + [(f"**{sep(m):.3f}**" if m == "gate" else f"{sep(m):.3f}")
+                           for m in methods]
+                        + [f"**{sep('gate') - best:+.3f}**"])
+    table(["데이터셋", "스템", "측정 가능 범위"] + methods + ["게이트 − 최고 사후회전"], rows,
+          "**\"측정 가능 범위\"가 결론을 지배합니다.** 이 값이 그 데이터셋에서 배제를 "
+          "잴 수 있는 폭 전체입니다. 합성은 0.70~0.85로 넓어 게이트가 압도하고, PTB-XL은 "
+          "0.36~0.40으로 중간이라 사후 회전과 접전이며, **HAPT는 0.04~0.11밖에 안 되므로 "
+          "그 행의 차이는 전부 잡음입니다** — 어제 \"HAPT에서 PCA가 게이트를 이긴다\"고 "
+          "보고한 것은 이 폭을 못 보고 읽은 것이었습니다.\n\n"
+          "SEP*는 이 표 안의 최댓값으로 정규화하므로 **다른 표의 SEP과 비교하지 마세요.**",
+          [("측정 가능 범위", "무작위 16차원이 빠른 인자를 맞힌 R². **작으면 그 데이터셋에서는 "
+                              "배제를 측정할 수 없습니다**"),
+           ("gate", "우리 z_slow. 나머지 열은 **게이트 없는 모델**의 임베딩을 라벨 없이 "
+                    "사후 분해한 것"),
+           ("SEP*", "포함×배정×배제. 배정 항이 있으므로 **여집합에 빠른 인자를 남기지 못한 "
+                    "방법은 여기서 걸립니다**(합성의 PCA가 그 예)"),
+           ("게이트 − 최고 사후회전", "게이트가 최선의 사후 방법보다 얼마나 앞서는가. "
+                                      "0 근처면 대체 가능하다는 뜻")])
 
 
 # ------------------------------------------------------------- 5. domain shift
@@ -182,7 +196,7 @@ def domain():
     print("**주장:** `Δ_slow < Δ_기준`. 게이트 없는 대조군 모델의 `z_full`이 올바른 비교 "
           "대상입니다(같은 모델의 z_full은 readout 비교일 뿐).\n")
     rows = []
-    for mode in ("block", "time"):
+    for mode in ("block",):
         for stem in STEMS:
             d = load(f"domain_shift_hapt_{stem}_{mode}.json")
             a = (d or {}).get("agg", {})

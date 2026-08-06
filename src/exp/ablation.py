@@ -80,6 +80,15 @@ if __name__ == "__main__":
         res = run_real("../../data/ptbxl_v2.npz", 1,
                        dict(tau=16.0, w=8, dmin=8, dmax=48, min_context=8), lk, te)
         sk, lkm = "slow_kept_f1", "leak_r2"
+    elif which == "sleepedf":
+        # tau=24 approved 2026-08-06: D1's rule on the ENERGY-derived series of the
+        # EOG proxy (T_ac 4 patches, u-scale x2, c=3.0). Reported as a hyperparameter
+        # with the sensitivity plateau in runs_v2/tau_sweep_sleepedf.json, not as an
+        # automatic estimate. steps=5000: 2500 leaves the 48-dim z_fast undertrained.
+        res = run_real("../../data/sleepedf_v2.npz", 3,
+                       dict(tau=24.0, w=12, dmin=12, dmax=128, min_context=16,
+                            steps=5000), lk, te)
+        sk, lkm = "slow_kept_f1", "leak_r2"
     else:
         res = run_real("../../data/hapt_v2.npz", 3,
                        dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16), lk, te)

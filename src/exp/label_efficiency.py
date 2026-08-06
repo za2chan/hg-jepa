@@ -50,6 +50,11 @@ from probes import C_MIN, encode_all, rand_subspace
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 NPZ = ROOT / "data/hapt_v2.npz"
 HAPT = dict(n_ax=3, tau=40.0, w=12, dmin=12, dmax=128, min_context=16)
+SLEEPEDF = dict(n_ax=3, tau=24.0, w=12, dmin=12, dmax=128, min_context=16)
+# steps=5000 for sleepedf: 2500 leaves the 48-dim z_fast undertrained (measured).
+DSETS = {"hapt": (ROOT / "data/hapt_v2.npz", HAPT, 2500),
+         "sleepedf": (ROOT / "data/sleepedf_v2.npz", SLEEPEDF, 5000)}
+DATASET = "hapt"          # overridden by argv[1]
 
 BUDGETS = (5, 10, 25, 50, 100, 250, 500, None)   # None = every train window
 N_DRAW, STEPS, N_SEED = 5, 2500, 1
@@ -130,6 +135,21 @@ def label_efficiency(feats, lab, tr, te, budgets=BUDGETS, n_draw=N_DRAW, seed=0,
     return out, meta
 
 
+def common_budgets(cells):
+    """Budgets every cell actually has.
+
+    The `None` ("all labelled windows") budget resolves to len(tr), and the C3
+    group split holds out a random third of the SUBJECTS, so len(tr) differs
+    between seeds (measured: 1409 vs 1431). Pooling on one cell's budget list
+    then raises KeyError on another -- which it did, after the whole run had
+    finished and before anything was saved."""
+    arm = next(iter(cells[0]))
+    keep = set(cells[0][arm])
+    for c in cells[1:]:
+        keep &= set(c[arm])
+    return sorted(keep)
+
+
 def summarize(cells, budgets):
     """Pool draws across cells (stems x encoder seeds) into mean/sd per budget."""
     return {a: dict(budgets=list(budgets),
@@ -180,15 +200,15 @@ def report(agg, meta, cr):
           "is\n  16-vs-64 parameters, not slowness.")
 
 
-def hapt(stem, seed, steps, n_draw):
+def build_cell(stem, seed, steps, n_draw):
     """Our encoder, gated and ungated, from one C3 split — all arms share the
     window array, so the same draws apply to every arm."""
     from train_real import train_real
     lk, tgt = stem.split("+")
     kw = dict(seed=seed, steps=steps, loss_kind=lk, target_enc=tgt,
-              log_every=10 ** 9, **HAPT)
-    res = train_real(str(NPZ), **kw)
-    ung = train_real(str(NPZ), gate=False, xcov=False, **kw)
+              log_every=10 ** 9, **DSETS[DATASET][1])
+    res = train_real(str(DSETS[DATASET][0]), **kw)
+    ung = train_real(str(DSETS[DATASET][0]), gate=False, xcov=False, **kw)
     assert np.array_equal(res["tr"], ung["tr"]), "gated/ungated split differs"
     Z, Zu = encode_all(res["enc"], res["Wt"]), encode_all(ung["enc"], ung["Wt"])
     Q = rand_subspace(D_Z, D_SLOW, seed)
@@ -245,29 +265,38 @@ def _selfcheck():
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "selfcheck":
         _selfcheck(); sys.exit()
-    steps = int(sys.argv[1]) if len(sys.argv) > 1 else STEPS
+    if len(sys.argv) > 1 and sys.argv[1] in DSETS:
+        DATASET = sys.argv.pop(1)
+    steps = int(sys.argv[1]) if len(sys.argv) > 1 else DSETS[DATASET][2]
     n_seed = int(sys.argv[2]) if len(sys.argv) > 2 else N_SEED
     n_draw = int(sys.argv[3]) if len(sys.argv) > 3 else N_DRAW
     _selfcheck()                            # the sampler IS the experiment
     cells, tags, meta = [], [], None
     for stem in STEMS:
         for s in range(n_seed):
-            print(f"=== HAPT label efficiency: {stem} seed {s} "
+            print(f"=== {DATASET} label efficiency: {stem} seed {s} "
                   f"({steps} steps, {n_draw} draws/budget) ===", flush=True)
-            c, meta = hapt(stem, s, steps, n_draw)
+            c, meta = build_cell(stem, s, steps, n_draw)
             cells.append(c); tags.append(f"{stem}/s{s}")
-            print("  " + "  ".join(f"{a} {c[a][meta['budgets'][0]][0]:.3f}"
-                                   f"->{c[a][meta['budgets'][-1]][0]:.3f}" for a in c),
-                  flush=True)
-    agg = summarize(cells, meta["budgets"])
+            ks = meta["budgets"]
+            print("  " + "  ".join(f"{a} {c[a][ks[0]][0]:.3f}->{c[a][ks[-1]][0]:.3f}"
+                                   for a in c), flush=True)
+    budgets = common_budgets(cells)
+    dropped = [b for b in meta["budgets"] if b not in budgets]
+    if dropped:                       # never silently: say which budget was lost
+        print(f"  note: budgets {dropped} are not shared by all cells (len(tr) "
+              f"varies with the C3 split) — pooling over {budgets}", flush=True)
+    meta["budgets"] = budgets
+    agg = summarize(cells, budgets)
     cr = crossings(agg)
     out = dict(config=dict(stems=list(STEMS), n_seeds=n_seed, steps=steps,
-                           n_draw=n_draw, dataset="hapt", **HAPT),
+                           n_draw=n_draw, dataset=DATASET, **DSETS[DATASET][1]),
                meta=meta, agg=agg, crossings=cr,
                cells={t: {a: {str(k): v for k, v in d.items()} for a, d in c.items()}
                       for t, c in zip(tags, cells)})
-    path = ROOT / ("runs_v2/label_efficiency_hapt.json" if steps == STEPS
-                   else "runs_v2/label_efficiency_hapt_smoke.json")
+    path = ROOT / (f"runs_v2/label_efficiency_{DATASET}.json"
+                   if steps == DSETS[DATASET][2]
+                   else f"runs_v2/label_efficiency_{DATASET}_smoke.json")
     json.dump(out, open(path, "w"), indent=2)
     report(agg, meta, cr)
     print("saved", path)

@@ -75,13 +75,15 @@ class Encoder(nn.Module):
     all of D_Z, which treats every coordinate alike; that is the genuinely
     mechanism-free control."""
 
-    def __init__(self, in_dim=P, blocknorm=True):   # A4: in_dim = patch_len * n_channels
+    def __init__(self, in_dim=P, blocknorm=True, d_slow=D_SLOW):
+        # A4: in_dim = patch_len * n_channels. d_slow is swept (protocol D).
         super().__init__()
         self.embed = nn.Linear(in_dim, D_MODEL)
         self.blocks = nn.ModuleList([Block(D_MODEL, N_HEAD, D_FF) for _ in range(N_LAYER)])
         self.norm = nn.LayerNorm(D_MODEL)
         self.out = nn.Linear(D_MODEL, D_Z)
         self.blocknorm = blocknorm
+        self.d_slow = d_slow
 
     def forward(self, x):                        # x: (B, T, in_dim), any T
         T = x.shape[1]
@@ -92,8 +94,9 @@ class Encoder(nn.Module):
         z = self.out(self.norm(h))
         if not self.blocknorm:
             return F.layer_norm(z, (D_Z,))
-        zs = F.layer_norm(z[..., :D_SLOW], (D_SLOW,))              # B2 per-block LN
-        zf = F.layer_norm(z[..., D_SLOW:], (D_Z - D_SLOW,))
+        ds = self.d_slow
+        zs = F.layer_norm(z[..., :ds], (ds,))                      # B2 per-block LN
+        zf = F.layer_norm(z[..., ds:], (D_Z - ds,))
         return torch.cat([zs, zf], -1)
 
 

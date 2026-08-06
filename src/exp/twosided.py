@@ -48,6 +48,12 @@ CELLS = ([(lk, "ema", g, x, True) for lk in ("l1", "nce")
 BN_CELLS = [(lk, "ema", g, x, bn) for lk in ("l1", "nce")
             for g, x in ((False, False), (True, True)) for bn in (True, False)]
 
+# The two gate x xcov cells missing from the LN-free world, so the 2x2 can be read
+# entirely without per-block LN. "no mechanism" must mean no gate, no xcov AND no
+# per-block LN -- LN privileges the coordinate split on its own.
+BN22_CELLS = [(lk, "ema", g, x, False) for lk in ("l1", "nce")
+              for g, x in ((True, False), (False, True))]
+
 
 def synth_feats(enc, seed=99, n_win=400, positions=tuple(range(64, 240, 12)), gap=0.05):
     """Held-out synthetic windows -> (full embeddings, regime label, fast factor u)
@@ -91,6 +97,8 @@ DATASETS = {
     "synth": None,
     "hapt": ("../../data/hapt_v2.npz", 3,
              dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16), False),
+    "sleepedf": ("../../data/sleepedf_v2.npz", 3,
+                 dict(tau=24.0, w=12, dmin=12, dmax=128, min_context=16, steps=5000), False),
     "ptbxl": ("../../data/ptbxl_v2.npz", 1,
               dict(tau=16.0, w=8, dmin=8, dmax=48, min_context=8), True),
 }
@@ -178,8 +186,10 @@ if __name__ == "__main__":
     if which == "selfcheck":
         _selfcheck(); sys.exit()
     os.makedirs("../../runs_v2", exist_ok=True)
-    bn = len(sys.argv) > 2 and sys.argv[2] == "bn"
-    spec, tag = (BN_CELLS, f"twosided_bn_{which}") if bn else (CELLS, f"twosided_{which}")
+    mode = sys.argv[2] if len(sys.argv) > 2 else ""
+    spec, tag = {"bn": (BN_CELLS, f"twosided_bn_{which}"),
+                 "bn22": (BN22_CELLS, f"twosided_bn22_{which}")}.get(
+                     mode, (CELLS, f"twosided_{which}"))
     print(f"=== block x factor + random null: {which}, {len(spec)} cells x {len(SEEDS)} seeds ===")
     res = run(which, spec)
     json.dump(res, open(f"../../runs_v2/{tag}.json", "w"), indent=2)

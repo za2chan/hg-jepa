@@ -52,7 +52,7 @@ def _windows(x, rng, n):
 def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
           steps=2500, tau=16.0, W=4.0, lam=4.0, w=8, dmin=8, dmax=128, batch=64,
           n_anchor=16, n_delta=4, lr=3e-4, ema=0.996, min_context=16, temp=0.1,
-          gate=True, xcov=True, gap=0.05, blocknorm=True,
+          gate=True, xcov=True, gap=0.05, blocknorm=True, d_slow=D_SLOW,
           mask_same_window=True, log_every=500):
     assert dmin >= w, "pilot expects Δ_min>=w so w_eff==w (see module docstring)"
     use_ema = target_enc == "ema"
@@ -61,8 +61,9 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
     data = make_dataset(1_000_000, seed=seed, gap=gap)
     x = data["x"]
 
-    enc, pred = Encoder(blocknorm=blocknorm).to(DEV), Predictor().to(DEV)
-    tgt = Encoder(blocknorm=blocknorm).to(DEV); tgt.load_state_dict(enc.state_dict())
+    mk = lambda: Encoder(blocknorm=blocknorm, d_slow=d_slow).to(DEV)
+    enc, pred = mk(), Predictor().to(DEV)
+    tgt = mk(); tgt.load_state_dict(enc.state_dict())
     for p_ in tgt.parameters():
         p_.requires_grad_(False)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)
@@ -96,7 +97,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
         dT = torch.from_numpy(di).to(DEV).float()
 
         g = torch.sigmoid((tau - dT) / W).unsqueeze(-1) if gate else 1.0
-        za_in = torch.cat([za[:, :D_SLOW], za[:, D_SLOW:] * g], -1)
+        za_in = torch.cat([za[:, :d_slow], za[:, d_slow:] * g], -1)
         zhat = pred(za_in, torch.log2(dT).unsqueeze(-1))
 
         # B5 target: receptive field (cumulative|bounded) x encoder (ema|online).
@@ -125,7 +126,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
             raise ValueError(loss_kind)
         if xcov:                                           # B6 xcov, no vfloor
             zc = za - za.mean(0)
-            C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)
+            C = (zc[:, :d_slow].T @ zc[:, d_slow:]) / (len(za) - 1)
             loss = loss + lam * (C ** 2).mean()
 
         opt.zero_grad(); loss.backward(); opt.step()
@@ -138,12 +139,12 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
             zs = z.reshape(-1, D_Z).std(0)
             print(f"[{loss_kind}+{target_enc}/{target_mode}] step {step} "
                   f"loss {loss.item():.4f} "
-                  f"std {zs[:D_SLOW].mean():.3f}/{zs[D_SLOW:].mean():.3f}", flush=True)
+                  f"std {zs[:d_slow].mean():.3f}/{zs[d_slow:].mean():.3f}", flush=True)
 
     return dict(enc=enc, tgt=(tgt if use_ema else enc), pred=pred, losses=losses,
                 data=data,
                 cfg=dict(target_mode=target_mode, loss_kind=loss_kind, gate=gate, xcov=xcov,
-                         blocknorm=blocknorm,
+                         blocknorm=blocknorm, d_slow=d_slow,
                          target_enc=target_enc, seed=seed, tau=tau, W=W, lam=lam,
                          gap=gap, data_sha256=data["sha256"],
                          w=w, dmin=dmin, dmax=dmax, steps=steps, temp=temp,

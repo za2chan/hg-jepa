@@ -44,6 +44,7 @@ def _apply_norm(W, mu, sd, per, n_ax):
 def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
                w=12, dmin=12, dmax=128, batch=64, n_anchor=16, n_delta=4, lr=3e-4,
                ema=0.996, min_context=16, gate=True, xcov=True, blocknorm=True,
+               d_slow=D_SLOW,
                loss_kind="reg", target_enc="ema", temp=0.1, mask_same_window=True,
                log_every=500, train_idx=None):
     assert dmin >= w
@@ -67,8 +68,9 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
     Wn = _apply_norm(Wall, mu, sd, per, n_ax)
     Wt = torch.from_numpy(Wn).to(DEV)
 
-    enc, pred = Encoder(in_dim, blocknorm).to(DEV), Predictor().to(DEV)
-    tgt = Encoder(in_dim, blocknorm).to(DEV); tgt.load_state_dict(enc.state_dict())
+    mk = lambda: Encoder(in_dim, blocknorm, d_slow).to(DEV)
+    enc, pred = mk(), Predictor().to(DEV)
+    tgt = mk(); tgt.load_state_dict(enc.state_dict())
     for p_ in tgt.parameters():
         p_.requires_grad_(False)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)
@@ -99,7 +101,7 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
         dT = torch.from_numpy(di).to(DEV).float()
 
         g = torch.sigmoid((tau - dT) / W_gate).unsqueeze(-1) if gate else 1.0
-        za_in = torch.cat([za[:, :D_SLOW], za[:, D_SLOW:] * g], -1)
+        za_in = torch.cat([za[:, :d_slow], za[:, d_slow:] * g], -1)
         zhat = pred(za_in, torch.log2(dT).unsqueeze(-1))
         tenc = tgt if use_ema else enc          # online (D2): both-sided grads
         with (torch.no_grad() if use_ema else contextlib.nullcontext()):
@@ -117,7 +119,7 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
             loss = F.cross_entropy(logits, torch.arange(len(logits), device=DEV))
         if xcov:
             zc = za - za.mean(0)
-            C = (zc[:, :D_SLOW].T @ zc[:, D_SLOW:]) / (len(za) - 1)
+            C = (zc[:, :d_slow].T @ zc[:, d_slow:]) / (len(za) - 1)
             loss = loss + lam * (C ** 2).mean()
         opt.zero_grad(); loss.backward(); opt.step()
         if use_ema:
