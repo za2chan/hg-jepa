@@ -26,11 +26,15 @@ def sep_of(cell, ceiling, null=None):
 
 
 def ungated_null(d, tag):
-    """The g0_x0 cell of the same stem: one fixed yardstick for the comparison."""
+    """The g0_x0 cell of the same stem: one fixed yardstick for the comparison.
+
+    reg+ema and nce+online were only run as the full-mechanism cell, so they have
+    no ungated counterpart; they fall back to their own random subspace. That is
+    the less conservative form, so those two rows are marked in the table."""
     from model import D_SLOW
     stem = tag.split("/")[0]
     c = d.get(f"{stem}/g0_x0")
-    return c[f"rand{D_SLOW}"]["fast"] if c else None
+    return (c or d[tag])[f"rand{D_SLOW}"]["fast"], c is not None
 
 
 def block_factor_tables():
@@ -41,15 +45,21 @@ def block_factor_tables():
             print(f"\n### {label} — block x factor: NOT YET AVAILABLE\n"); continue
         ceiling = max(v["z_full"]["fast"] for v in d.values())
         print(f"\n### {label} — block × factor (3 seeds; fast-factor ceiling {ceiling:.3f})\n")
+        # The null MUST be the same one sep_index uses, or the margin column and the
+        # SEP column in the same row disagree (they did, until 2026-08-06).
         print("| cell | z_slow slow↑ | z_slow fast↓ | z_fast slow↓ | z_fast fast↑ "
-              f"| rand{D_SLOW} fast (null) | 배제 여유 | SEP |")
-        print("|---|---|---|---|---|---|---|---|")
+              f"| 기준선(ungated) | 배제 여유 | (자기 rand{D_SLOW}) | SEP |")
+        print("|---|---|---|---|---|---|---|---|---|")
         for tag, c in d.items():
-            s = sep_of(c, ceiling, ungated_null(d, tag))
-            null = c[f"rand{D_SLOW}"]["fast"]
+            null, fixed = ungated_null(d, tag)
+            s = sep_of(c, ceiling, null)
             print(f"| {tag} | {c['z_slow']['slow']:.3f} | {c['z_slow']['fast']:+.3f} "
                   f"| {c['z_fast']['slow']:.3f} | {c['z_fast']['fast']:+.3f} "
-                  f"| {null:+.3f} | {null - c['z_slow']['fast']:+.3f} | **{s['sep']:.3f}** |")
+                  f"| {null:+.3f}{'' if fixed else ' ⁎'} "
+                  f"| {null - c['z_slow']['fast']:+.3f} "
+                  f"| {c[f'rand{D_SLOW}']['fast']:+.3f} | **{s['sep']:.3f}** |")
+        print("\n⁎ = no ungated counterpart was run for this stem; its own random "
+              "subspace is used, which is the less conservative choice.")
 
 
 def blocknorm_table():
@@ -61,12 +71,18 @@ def blocknorm_table():
             continue
         any_ = True
         print(f"\n### {label} — per-block LayerNorm은 그 자체로 메커니즘인가 (3 seeds)\n")
-        print(f"| cell | z_slow fast↓ | rand{D_SLOW} fast (null) | 배제 여유 | z_fast fast↑ |")
-        print("|---|---|---|---|---|")
+        print(f"| cell | z_slow fast↓ | 기준선(ungated) | 배제 여유 | (자기 rand{D_SLOW}) "
+              "| z_fast fast↑ |")
+        print("|---|---|---|---|---|---|")
         for tag, c in d.items():
-            null = c[f"rand{D_SLOW}"]["fast"]
+            # each BN setting has its own ungated reference: g0_x0 with the same BN flag
+            stem = tag.split("/")[0]
+            suffix = "_noBN" if tag.endswith("_noBN") else ""
+            ref = d.get(f"{stem}/g0_x0{suffix}")
+            null = ref[f"rand{D_SLOW}"]["fast"] if ref else c[f"rand{D_SLOW}"]["fast"]
             print(f"| {tag} | {c['z_slow']['fast']:+.3f} | {null:+.3f} "
-                  f"| {null - c['z_slow']['fast']:+.3f} | {c['z_fast']['fast']:+.3f} |")
+                  f"| {null - c['z_slow']['fast']:+.3f} "
+                  f"| {c[f'rand{D_SLOW}']['fast']:+.3f} | {c['z_fast']['fast']:+.3f} |")
     if not any_:
         print("\n### per-block LayerNorm ablation: NOT YET AVAILABLE\n")
 
