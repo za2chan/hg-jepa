@@ -35,6 +35,11 @@ from probes import block_factor, sep_index, encode_all, C_MIN
 from model import D_SLOW, D_Z, P, L
 
 SEEDS = [0, 1, 2]
+# Synthetic difficulty. The default +-5% is nearly solved before training (a
+# training-free FFT classifier reaches 0.784), so the whole 2x2 sits in a regime
+# where slow-kept saturates at 0.99 for every cell. GAP=0.01 drops the classical
+# baseline to 0.459 and is the setting the mechanism claim should also survive.
+GAP = float(os.environ.get("HGLP_GAP", 0.05))
 # (loss, target, gate, xcov, blocknorm). 2x2 for both stems + the two loss ablations.
 CELLS = ([(lk, "ema", g, x, True) for lk in ("l1", "nce")
           for g, x in ((False, False), (True, False), (False, True), (True, True))]
@@ -114,8 +119,8 @@ def run(which, cells_spec=CELLS):
             if which == "synth":
                 from train import train
                 r = train(loss_kind=lk, target_enc=te_, seed=s, gate=gate, xcov=xcov,
-                          blocknorm=bn, log_every=10 ** 9)
-                f = synth_feats(r["enc"])
+                          blocknorm=bn, gap=GAP, log_every=10 ** 9)
+                f = synth_feats(r["enc"], gap=GAP)
             else:
                 from train_real import train_real
                 npz, n_ax, kw, static = DATASETS[which]
@@ -187,9 +192,10 @@ if __name__ == "__main__":
         _selfcheck(); sys.exit()
     os.makedirs("../../runs_v2", exist_ok=True)
     mode = sys.argv[2] if len(sys.argv) > 2 else ""
-    spec, tag = {"bn": (BN_CELLS, f"twosided_bn_{which}"),
-                 "bn22": (BN22_CELLS, f"twosided_bn22_{which}")}.get(
-                     mode, (CELLS, f"twosided_{which}"))
+    suf = "" if GAP == 0.05 else f"_gap{GAP:g}"
+    spec, tag = {"bn": (BN_CELLS, f"twosided_bn_{which}{suf}"),
+                 "bn22": (BN22_CELLS, f"twosided_bn22_{which}{suf}")}.get(
+                     mode, (CELLS, f"twosided_{which}{suf}"))
     print(f"=== block x factor + random null: {which}, {len(spec)} cells x {len(SEEDS)} seeds ===")
     res = run(which, spec)
     json.dump(res, open(f"../../runs_v2/{tag}.json", "w"), indent=2)
