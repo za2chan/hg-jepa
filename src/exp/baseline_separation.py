@@ -46,12 +46,24 @@ SEEDS_DEFAULT = 3
 
 def halves(Z, tr, d=D_SLOW):
     """Label-free splits of one embedding into a d-dim 'slow' half + complement.
-    PCA/ICA/SFA all fit on TRAIN rows only; `random` is the null."""
+    PCA/ICA/SFA all fit on TRAIN rows only; `random` is the null.
+
+    `unmixings` needs a full-rank basis, but at the last position there is one row
+    per window, so on HAPT (1402 train windows) PatchTST's D=1536 exceeds the
+    sample count and PCA cannot return D components. Pre-project onto the top
+    min(D, n_train-1) principal directions -- rank the data does not have carries
+    no information, and every method then works in the same reduced space."""
     n = Z.shape[1]
+    k = min(n, len(tr) - 1)
+    if k < n:
+        pre = PCA(n_components=k).fit(Z[tr])
+        Zr, back = pre.transform(Z), pre.components_.T          # (N,k), (n,k)
+        print(f"    rank-limited: {n} -> {k} (train rows {len(tr)})", flush=True)
+    else:
+        Zr, back = Z, np.eye(n)
     pairs = np.stack([np.arange(len(tr) - 1), np.arange(1, len(tr))], 1)  # adjacent records
-    out = {}
-    for m, (a, b) in unmixings(Z[tr], pairs, d).items():
-        out[m] = (a, b)
+    out = {m: (back @ a, back @ b)
+           for m, (a, b) in unmixings(Zr[tr], pairs, d).items()}
     Q = rand_subspace(n, n, 0)
     out["random"] = (Q[:, :d], Q[:, d:])
     return out
