@@ -1,0 +1,19 @@
+\begin{table}[!tbp]
+\caption{A step gate against the smooth one. The smooth gate is
+$g(\Delta)=\sigma((\tau-\Delta)/\kappa)$; the step version replaces it with
+$\mathbf{1}[\Delta<\tau]$, which zeroes $\zmix$'s gradient outright beyond $\tau$
+instead of passing a partial one. Cells are SEP on synthetic, $n=5$ seeds, all else
+held fixed. The step form is worse on both stems, which is why $\tau$'s width
+$\kappa$ is part of the method rather than a smoothing convenience.}
+\label{tab:gatehard}
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+Stem & Smooth gate (ours) & Step gate & Difference \\
+\hline
+HGLP-Reg & \textbf{0.408} & 0.353 & $-0.056$ \\
+HGLP-NCE & \textbf{0.749} & 0.684 & $-0.066$ \\
+\hline
+\end{tabular}
+\end{table}

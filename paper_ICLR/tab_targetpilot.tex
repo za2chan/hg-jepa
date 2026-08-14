@@ -1,0 +1,29 @@
+\begin{table}[!tbp]
+\caption{Is withholding the transient block harmless at long range? Cells are
+$R^2(s,u\!\to\!\bar z_{t+\Delta}) - R^2(s\!\to\!\bar z_{t+\Delta})$: how much the
+transient factor adds, \emph{beyond} what the persistent factor already explains, to a
+linear reading of the target embedding $\Delta$ ahead. \textbf{Zero means the transient
+factor is redundant there}, so gating it away costs nothing. Synthetic, HGLP-Reg, 2{,}500
+steps, one seed, ground-truth factors. The bounded target reaches zero at
+$\Delta=16$ --- the value of $\tau$ used on this data --- and stays there; the cumulative
+target never does, because its receptive field runs back to the start of the window and so
+re-contains the anchor's own transient state. This is the measurement behind the
+receptive-field bound of Eq.~\ref{eq:target}. It reads the target embedding rather than
+downstream error, and it is one seed on one dataset.}
+\label{tab:targetpilot}
+\centering
+\small
+\begin{tabular}{lccccccccc}
+\hline
+Target $\Delta$ & 8 & 12 & 16 & 24 & 32 & 48 & 64 & 96 & 128 \\
+\hline
+Bounded (ours) & +0.103 & +0.025 & +0.003 & -0.001 & -0.000 & +0.000 & -0.001 & -0.000 & -0.000 \\
+Cumulative & +0.024 & +0.022 & +0.024 & +0.020 & +0.017 & +0.013 & +0.011 & +0.008 & +0.008 \\
+\hline
+\end{tabular}
+
+\medskip
+\small On the same two runs, the bounded target also leaves less of the transient factor
+in $\zslow$ ($R^2$ 0.041 against 0.660) and does not partially
+collapse (target RankMe 12.9 against 5.3).
+\end{table}

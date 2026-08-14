@@ -1,12 +1,11 @@
 \section{Experiments}
 
-\medskip
-\noindent\textit{Part 1: Does the separation happen, and what creates it?}
+Every setting below is one of six: three datasets crossed with the two loss stems, at $n=5$ seeds unless stated. We ask four questions in order --- what produces the separation, whether its one free coefficient can be set without labels, how it compares against label-free post-hoc rotation, and what it costs. Design choices that could have been made differently are tested in Appendix~\ref{app:design}, and the analyses that support Section~\ref{sec:rotation} without being needed to read it are in Appendices~\ref{app:coincidence} and~\ref{app:probe}.
 
 \subsection{What creates the separation}
 \label{sec:ablation}
 
-We decompose the contribution of the two devices we add --- the horizon gate and the cross-covariance penalty --- by switching each on and off. The mechanism-free cell (Section~\ref{sec:xcov}) is also the baseline in which only the coordinate split remains.
+We switch each of the two devices we add --- the horizon gate and the cross-covariance penalty --- on and off. The mechanism-free cell (Section~\ref{sec:xcov}) is the baseline in which only the coordinate split remains.
 
 \begin{table}[!tbp]
 \caption{Separation index by mechanism. Cells are SEP (higher is better), $n=5$ seeds, $\lambda=4$. Bold marks the best cell in each row. The gate and the penalty are complementary: neither alone reaches what the two reach together.}
@@ -31,30 +30,34 @@ In Table~\ref{tab:ablation} the model with both devices ranks first in all six s
 
 The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agrees in all six settings to within 0.015 with the SEP of 16 dimensions drawn at random from the same embedding. Without our devices, any part of the embedding holds the two factors to a similar degree, so coordinate position carries no meaning by itself; our contribution is to give those coordinates structure.
 
-\subsection{Separation requires a latent target}
-
-This section ablates a third design axis, the \emph{target space}, testing the premise of the latent-prediction family: that prediction should be made in a latent space rather than on the raw signal. We hold the gate, the anchor, the horizon and the loss form fixed and change only what is predicted. The latent target is the 64-dimensional output the target encoder reads from the future interval; the raw target is the patch itself at that time (with one extra linear head). Both models carry the cross-covariance penalty, so $\lambda$ has the same meaning for each, and we compare each at its own best value over the swept curve.
-
-\begin{table}[!tbp]
-\caption{Latent target against raw target. Cells are SEP on synthetic, $n=5$ seeds, each stem at its own best $\lambda$. Bold marks the latent target. Everything but the prediction target is held fixed.}
-\label{tab:latentraw}
+\begin{figure}[!tbp]
 \centering
-\small
-\begin{tabular}{lccc}
-\hline
-Stem & Latent (best) & Raw (best) & Difference \\
-\hline
-HGLP-Reg & \textbf{0.809} ($\lambda=1$) & 0.415 ($\lambda=4$) & $+0.394$ ($1.95\times$) \\
-HGLP-NCE & \textbf{0.844} ($\lambda=16$) & 0.432 ($\lambda=16$) & $+0.411$ ($1.95\times$) \\
-\hline
-\end{tabular}
-\end{table}
+\includegraphics[width=0.82\textwidth]{figs/fig_embed_nce_lam4.png}
+\caption{The three SEP terms, seen directly. A t-SNE of each block of one trained embedding (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$), coloured by each factor; the four panels are the three terms of Eq.~\ref{eq:sep} plus the one quantity we do not constrain. \textbf{Top left, inclusion}: the three regimes are separated in $\zslow$. \textbf{Top right, exclusion}: the transient factor is not organized there. \textbf{Bottom right, allocation}: it is organized in $\zmix$ instead. \textbf{Bottom left} is the panel to read carefully --- the regimes are visible in $\zmix$ as well, which is expected rather than a failure: the gate restricts when $\zmix$ may be read, never what it may contain (Section~\ref{sec:asymmetry}). A mechanism-free model shows the same panel (Fig.~\ref{fig:embed_nomech}), so it is not something our devices act on.}
+\label{fig:embed}
+\end{figure}
 
+Three further design choices could each have gone the other way, and none of them is left to argument. Replacing the smooth gate with a step at $\tau$, gating $\zslow$ symmetrically as well, and predicting the raw signal instead of a latent target are each tested in Appendix~\ref{app:design}; all three are worse, and the latent target by a factor of two.
 
+\subsection{Setting the penalty weight without labels}
+\label{sec:lambdafree}
 
-Replacing the latent target with raw patches halves SEP on both stems (Table~\ref{tab:latentraw}); since both carry the same penalty and are compared at their own optimal $\lambda$, neither side gains from the knob. The allocation term is the same for the two targets, at 0.86 to 0.89, and the gap opens in the inclusion term: the raw target loses the persistent factor as the penalty grows, falling from 0.807 to 0.401, whereas the latent target stays above 0.97 throughout. The raw signal still contains the transient component, and the pressure to predict it too pushes out the persistent factor. The gate and the penalty of Section~\ref{sec:ablation} are thus not enough on their own; the latent target has to be present as well.
+$\lambda$ was chosen by looking at downstream performance, which makes ``our best $\lambda$ separates well'' partly circular. We therefore define a criterion that uses no task label at all,
+\begin{equation}
+J = \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{exclusion}} \cdot
+    \underbrace{s_{\text{self}}(z^{\mathrm{per}};\,\Delta>\tau)}_{\text{long-horizon self-prediction}},
+\label{eq:J}
+\end{equation}
+where the first factor is read from the transient proxy, which is computed from the signal, and the second asks how well $\zslow$ predicts \emph{its own} value more than $\tau$ ahead --- neither the labels nor the target encoder enters. The product is required because each factor alone has a degenerate maximum: an empty block scores perfect exclusion, a constant block scores perfect self-prediction, and multiplying kills both.
 
-\subsection{Can post-hoc processing take its place?}
+\input{tab_lambdafree}
+
+Selecting $\lambda$ by $J$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: exclusion alone would have chosen $\lambda=\numJexclOnlyLam$, close to the worst choice by the oracle (SEP \numJexclOnlySep{} against \numJbestSep{} at $\lambda=\numJbestLam$), and it is the self-prediction factor, collapsing from \numJlongBest{} to \numJlongCollapse{} once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
+
+The agreement should not be over-read. The margin between the top two $J$ values is \numJmarginSynthLo--\numJmarginSynthHi{} on synthetic but only \numJmarginRealLo--\numJmarginRealHi{} on the real sets, and we did not store the seed-level spread of $J$, so the four real-data agreements are not distinguishable from chance at this sample size. The honest reading is that the criterion is verified on synthetic data, consistent on real data, and cheap to run wherever the transient proxy exists.
+
+\subsection{Against label-free post-hoc rotation}
+\label{sec:rotation}
 
 If an embedding trained without the gate is rotated post-hoc without labels --- by principal component analysis, by slowness-ordered independent component analysis, or by slow feature analysis (SFA) --- does it reach the same separation? These methods need no horizon gate at all, so they are the sharpest objection to our method.
 
@@ -77,6 +80,8 @@ HAPT & NCE & \textbf{0.626} ($\lambda=64$) & 0.527 & win \\
 \end{tabular}
 \end{table}
 
+We have one knob and the post-hoc rotations have none, so we report the whole curve rather than a single point (Table~\ref{tab:rotation}, Fig.~\ref{fig:rotation}); hiding that asymmetry would not make the comparison fair. On the synthetic data the curve passes above every post-hoc rotation point, and principal component analysis fails completely (SEP \numSynthPca) --- direct evidence that a ranking by variance is not a ranking by persistence, since the transient factor crowds into the leading components and nothing is left in the complement. On the real data we do not lead. The verdict over all six settings is three wins to three losses, but split apart it is two of two on synthetic and three losses of four on real data, with losing margins of \numRealLossLo--\numRealLossHi{} against a winning margin of 0.099.
+
 \begin{figure}[!tbp]
 \centering
 \includegraphics[width=\textwidth]{figs/fig_rotation_sep.png}
@@ -84,71 +89,19 @@ HAPT & NCE & \textbf{0.626} ($\lambda=64$) & 0.527 & win \\
 \label{fig:rotation}
 \end{figure}
 
-We have one knob and the post-hoc rotations have none, so we report the whole curve rather than a single point (Table~\ref{tab:rotation}, Fig.~\ref{fig:rotation}); only our method has a knob that can be swept, and hiding that asymmetry would not make the comparison fair. On the synthetic data the curve passes above every post-hoc rotation point, and principal component analysis fails completely (SEP 0.000) --- direct evidence that a ranking by variance is not a ranking by persistence, since the transient factor crowds into the leading components and nothing is left in the complement. On the real data we do not lead: SFA reaches the same inclusion at a higher exclusion. The verdict over all six settings is three wins to three losses, but split apart it is two of two on synthetic and three losses of four on real data, with losing margins of 0.032 to 0.072 against a winning margin of 0.099.
+\paragraph{Where the shortfall sits.}
+SEP is a product of three factors, so a single number cannot say which one is losing. Splitting it and pairing by seed gives an unusually clean answer (Appendix~\ref{app:probe}, Table~\ref{tab:terms}): inclusion is a draw in all six settings ($\numInclDiffLo$ to $\numInclDiffHi$), \textbf{every real-data loss is a loss on exclusion alone}, and every win is a win on allocation. The method does not degrade diffusely; it degrades on the one term the objective was never able to enforce (Section~\ref{sec:gate}).
 
-This shortfall is expected. Persistence and spectral slowness coincide only under particular assumptions, and our synthetic data deliberately breaks that coincidence: the persistent factor hides inside the oscillation frequency and cannot be reached by low-pass filtering. On PTB-XL and HAPT the persistent factor largely coincides with the slow component, so SFA, which optimizes slowness directly, does the same job by a more direct route --- Section~\ref{sec:coincidence} measures in what sense that coincidence holds, and finds it is not the same sense on the two datasets. Our advantage appears where the two axes come apart; where they coincide, post-hoc rotation already suffices. What remains ours is that the coordinates are fixed during training, so no second fitting stage is needed at deployment --- an operational difference, not a difference in the quality of the separation.
+\paragraph{The exclusion we do achieve is a linear-level one.}
+Every probe so far has been linear, and an unreadable direction is not the same as an absent one. Holding the features, the splits and the blocks fixed and replacing only the reading head with a one-hidden-layer MLP --- given equally to SFA, PCA and ICA, since a harder test applied to us alone would not be a comparison --- exactly one term collapses, and it is exclusion: averaged over four methods and four real settings, inclusion moves $\numMlpIncl$ and allocation $\numMlpAlloc$, while exclusion falls $\numMlpExcl$ and as much as $\numMlpExclWorst$ in the worst row. The transient information is still present in $\zslow$; the linear probe could not reach it. Our claim therefore narrows to a linear-level one --- and the diagnosis above is not an artifact of weak probing, since SFA's lead on exclusion survives the stronger head and in places widens, while PCA and ICA degrade sharply. Appendix~\ref{app:probe} gives the per-setting values and the caveats.
 
-\subsection{Where does that coincidence actually hold?}
-\label{sec:coincidence}
-
-The paragraph above is an explanation, and until now it was an unmeasured one. Turning it into a measurement first requires separating two things the word ``slow'' was carrying at once: \textbf{(a)} the factor is legible in the low-frequency \emph{band of the signal}, and \textbf{(b)} some direction of the \emph{representation} changes little over time. SFA optimizes (b) --- under a unit-variance constraint it minimizes the time derivative of its output, which says nothing about where in the spectrum the factor lives. We therefore measure the two separately.
-
-For (a) we filter the raw signal to one band at a time and fit the same linear probe on that band alone (Table~\ref{tab:bandaccess}). Only HAPT clears chance by a real margin, at $\numHaptBandRatio\times$; posture is the DC distribution of gravity across three accelerometer axes, so this is expected. On PTB-XL the low band is \emph{at} chance (\numPtbLowBand{} against \numPtbChance) and the diagnosis lives instead in the 2--5\,Hz QRS morphology. Yet SFA wins on PTB-XL. Sense (a) is therefore not what is happening there, and the single-sentence explanation was incomplete.
-
-\input{tab_bandaccess}
-
-For (b) we ask whether ordering the directions of an ungated embedding by slowness \emph{finds} the persistent factor, and by how much:
-\begin{equation}
-C=\frac{s_{\text{per}}(\text{SFA's slow half}) - s_{\text{per}}(\text{random 16})}
-       {s_{\text{per}}(\text{full 64}) - s_{\text{per}}(\text{random 16})}.
-\label{eq:metricC}
-\end{equation}
-All three terms are read off one mechanism-free embedding --- gate, penalty and per-block LayerNorm all absent --- re-based three ways, so they are already stored in the runs of Table~\ref{tab:rotation} and need no retraining. The full 64 dimensions are a genuine ceiling: fitting a probe inside a 16-dimensional subspace is the same optimization restricted to that subspace, and a restricted optimum cannot beat an unrestricted one. A random 16 is \emph{not} a floor; it is the null reference for ``no ordering at all,'' and subspaces below it certainly exist --- producing one is the point of our method.
-
-\input{tab_metricC}
-
-$C$ is positive in all four real settings and negative in both synthetic ones, with no overlap (Table~\ref{tab:metricC}). The negative sign is the stronger statement: on synthetic data, ordering by slowness is \emph{worse than picking at random}, so slowness does not merely fail to find the persistent factor, it points away from it --- exactly what designing the factor to hide inside the oscillation frequency was meant to produce. Two caveats. The denominator is small, because inclusion is high everywhere, so the ratio is unstable; $C$ should be read as a signed indicator and not as a continuous degree of alignment. And $C$ shares machinery with SFA, since slowness ordering is what SFA does --- it isolates the mechanism by which SFA succeeds rather than testing SFA from outside. It is still not circular: our method appears nowhere in Eq.~\ref{eq:metricC}, and defining alignment as SFA's own SEP would have made the claim ``SFA wins because SFA wins.''
-
-Putting the two metrics together, the one sentence covered two different routes. On HAPT the factor genuinely sits in the slow band. On PTB-XL it does not, but the diagnosis is constant over an entire record, so its time derivative is zero --- the limiting solution of exactly what SFA maximizes. HAPT wins by route (a) and PTB-XL by route (b), and only the synthetic data, where the persistent factor is neither band-slow nor window-constant, is closed to both.
-
-\subsection{Following the exclusion clause through}
-\label{sec:exclusion}
-
-Section~\ref{sec:handpicked} states that our objective enforces availability but not exclusion. This section asks what that admission costs in practice, in four steps: where the shortfall against SFA actually sits, whether a structural change removes it, whether it survives a stronger probe, and whether the knob that governs it can be set without labels.
-
-\textbf{The shortfall is entirely on the exclusion term.} SEP is a product of three factors, so a single number cannot say which one is losing. Splitting it and pairing by seed (Table~\ref{tab:terms}) gives an unusually clean answer: inclusion is a draw in all six settings ($\numInclDiffLo$ to $\numInclDiffHi$), every real-data loss is a loss on exclusion alone, and every win is a win on allocation. The method does not degrade diffusely; it degrades on the one term the objective was never able to enforce.
-
-\input{tab_terms}
-
-\textbf{The asymmetry of the gate is a design choice, not an oversight.} If exclusion is the weak term, the obvious repair is structural: also switch $\zslow$ \emph{off} below $\tau$, by multiplying it by $1-g(\Delta)$, so that no horizon is ever in a position to push transient information into it. We retrained all six settings that way, five values of $\lambda$ and five seeds each. The symmetric variant is better in \numSymBetter{} of six settings and worse in \numSymWorse{} (Table~\ref{tab:gatesym}); on the synthetic regression stem it costs $\numSymWorstDrop$ SEP. Removing $\zslow$ from the near horizons removes its training signal there as well, and the block loses more from being untrained than it gains from being protected. Exclusion cannot be bought by symmetry.
-
-\input{tab_gatesym}
-
-\textbf{The exclusion we do achieve holds only at the linear level.} Every probe so far has been linear, and an unreadable direction is not the same as an absent one. Holding the features, the splits and the blocks fixed, we replace only the reading head with a one-hidden-layer MLP --- and give the same head to SFA, PCA and ICA, since a harder test applied to us alone would not be a comparison. Exactly one term collapses, and it is exclusion: averaged over four methods and four real settings, inclusion moves $\numMlpIncl$ and allocation $\numMlpAlloc$, while exclusion falls $\numMlpExcl$ and as much as $\numMlpExclWorst$ in the worst row (Table~\ref{tab:mlpprobe}a). The transient information is still present in $\zslow$; the linear probe simply could not reach it. Two consequences follow. Our own claim narrows to a linear-level one, which is where the paper had already placed it in words. And the diagnosis of Table~\ref{tab:terms} is not an artifact of weak probing: SFA's lead on exclusion survives the stronger head and in two settings widens (Table~\ref{tab:mlpprobe}b), while PCA and ICA degrade sharply --- the baseline we trail is a robust one. Because exclusion falls monotonically as the head grows, only comparisons made under a fixed head are meaningful; the absolute value is a property of the probe as much as of the embedding. This experiment fixes $\lambda=4$ and one seed, so its cells should not be read against Table~\ref{tab:terms}, which takes each setting at its own best $\lambda$.
-
-\input{tab_mlpprobe}
-
-\textbf{The knob that governs exclusion can be set without labels.} $\lambda$ was chosen by looking at downstream performance, which makes ``our best $\lambda$ separates well'' partly circular. We therefore define a criterion using no task label at all,
-\begin{equation}
-J = \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{exclusion}} \cdot
-    \underbrace{s_{\text{self}}(z^{\mathrm{per}};\,\Delta>\tau)}_{\text{long-horizon self-prediction}},
-\label{eq:J}
-\end{equation}
-where the first factor uses the transient proxy, computed from the signal, and the second asks how well $\zslow$ predicts \emph{its own} value more than $\tau$ ahead --- neither the labels nor the target encoder enters. The product is required because each factor alone has a degenerate maximum: an empty block scores perfect exclusion, a constant block scores perfect self-prediction, and multiplying kills both. Selecting $\lambda$ by $J$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: exclusion alone would have chosen $\lambda=\numJexclOnlyLam$, which is close to the worst choice by the oracle (SEP \numJexclOnlySep{} against \numJbestSep{} at $\lambda=\numJbestLam$), and it is the self-prediction factor, collapsing from \numJlongBest{} to \numJlongCollapse{} once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
-
-\input{tab_lambdafree}
-
-The agreement should not be over-read. The margin between the top two $J$ values is \numJmarginSynthLo--\numJmarginSynthHi{} on synthetic but only \numJmarginRealLo--\numJmarginRealHi{} on the real sets, and we did not store the seed-level spread of $J$, so the four real-data agreements are not distinguishable from chance at this sample size. The honest reading is that the criterion is verified on synthetic data, consistent on real data, and cheap enough to run wherever the transient proxy exists.
-
-\medskip
-\noindent\textit{Part 2: Practical effect and cost}
+\paragraph{Why SFA leads where it leads.}
+The explanation is that persistence and slowness mostly coincide on real data, and Appendix~\ref{app:coincidence} measures in what sense. Two senses have to be told apart: whether the factor is legible in the low-frequency band of the \emph{signal}, and whether some direction of the \emph{representation} changes little over time --- SFA optimizes the second. On HAPT the first holds, at $\numHaptBandRatio\times$ chance, because posture is the DC distribution of gravity across three axes. On PTB-XL it does not: the low band is at chance (\numPtbLowBand{} against \numPtbChance) and the diagnosis lives in the QRS morphology --- but the diagnosis is constant over a record, so its time derivative is zero, which is the limiting solution of what SFA maximizes. HAPT and PTB-XL are won by different routes, and the synthetic data, where the factor is neither band-slow nor window-constant, is closed to both. What remains ours is that the coordinates are fixed during training, so no second fitting stage is needed at deployment --- an operational difference, not a difference in the quality of the separation.
 
 \subsection{The cost of separation, and stability under domain shift}
 \label{sec:cost}
 
-We measure two things: the downstream cost that accompanies the separation, and how far performance falls when a probe fitted with few labels is carried to a domain in which the transient factor has been perturbed. What we measure is not the difference in absolute performance between the two blocks but the difference in the drop each block suffers; a smaller drop for the gated block means the separation translates into stability under domain shift.
-
-
+We measure two things: the downstream cost that accompanies the separation, and how far performance falls when a probe fitted with few labels is carried to a domain in which the transient factor has been perturbed. What we measure in the second case is not the difference in absolute performance between the two blocks but the difference in the drop each block suffers.
 
 We measure the cost against the full embedding of a model trained with no mechanism at all rather than against our own $z_{\mathrm{full}}$, since the latter mixes in the effect of block width. Read that way, the cost is effectively zero on synthetic data and PTB-XL, and only HAPT shows a substantial value ($-0.111$ on the regression stem, $-0.072$ on the contrastive stem). HAPT is the only dataset in which the persistent factor is not constant within the window: 57\% of its windows straddle an activity transition.
 
@@ -173,7 +126,6 @@ Synthetic / NCE & $-0.044$$\pm$0.069 & $-0.055$$\pm$0.054 & $-0.045$$\pm$0.055 \
 \end{tabular}
 \end{table}
 
-The downstream cost of the gated block is effectively zero on synthetic and PTB-XL and at most 0.11 macro-F1 on HAPT. On that same HAPT the gated block has the smallest drop under shift: at 25 labels its drop is 0.113 smaller than that of the width-matched mechanism-free block (Table~\ref{tab:shift}), five times the seed standard deviation. This is only a difference of drops. At no perturbation strength we tested does absolute performance overtake that model, and the effect exceeds the error bars in only one of the six settings, the HAPT regression stem; in the remaining five it lies within the noise, though by sign alone 17 of the 24 cells are negative.
+On that same HAPT the gated block has the smallest drop under shift: at 25 labels its drop is 0.113 smaller than that of the width-matched mechanism-free block (Table~\ref{tab:shift}), five times the seed standard deviation. This is only a difference of drops. At no perturbation strength we tested does absolute performance overtake that model, and the effect exceeds the error bars in only one of the six settings, the HAPT regression stem; in the remaining five it lies within the noise, though by sign alone 17 of the 24 cells are negative.
 
-The two results interlock: HAPT is both the dataset with the largest downstream cost and the only one with clear stability under domain shift, two sides of one phenomenon. The gate trades absolute performance for stability under domain shift; the two cannot be had together.
-
+The two results interlock: HAPT is both the dataset with the largest downstream cost and the only one with clear stability under domain shift, two sides of one phenomenon. The gate trades absolute performance for stability under domain shift; the two cannot be had together. A use that does not go through a classifier at all --- reading the trajectory of $\zslow$ over time as a state indicator --- is shown in Appendix~\ref{app:traj}, and is the direction in which we think the separated block earns its cost.

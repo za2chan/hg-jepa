@@ -398,6 +398,83 @@ Dataset & Stem & $\\lambda$ by $J$ (no labels) & $\\lambda$ by SEP (oracle) & Ag
 """)
 
 
+# --------------------------------------------------------------- appendix A.1
+def gatehard():
+    """Step gate against the smooth one. Backs the claim in Method that a step
+    lowers separation on both stems, which until now had no table behind it."""
+    soft = load("twosided_main22_synth_gap0.03.json")
+    hard = load("twosided_gatehard_synth_gap0.03.json")
+    bf = lambda d, k: (min(max(d[k]["z_slow"]["slow"], 0), 1)
+                       * min(max(d[k]["z_fast"]["fast"], 0), 1)
+                       * min(max(1 - d[k]["z_slow"]["fast"], 0), 1))
+    rows = []
+    for stem_label, stem, _ in STEMS:
+        s, h = bf(soft, f"{stem}/g1_x1"), bf(hard, f"{stem}/g1_x1")
+        rows.append(f"{stem_label} & \\textbf{{{s:.3f}}} & {h:.3f} & ${h - s:+.3f}$ \\\\")
+        print(f"  {stem_label}: smooth {s:.3f} -> hard {h:.3f} ({h - s:+.3f})")
+    write("tab_gatehard", f"""\\begin{{table}}[!tbp]
+\\caption{{A step gate against the smooth one. The smooth gate is
+$g(\\Delta)=\\sigma((\\tau-\\Delta)/\\kappa)$; the step version replaces it with
+$\\mathbf{{1}}[\\Delta<\\tau]$, which zeroes $\\zmix$'s gradient outright beyond $\\tau$
+instead of passing a partial one. Cells are SEP on synthetic, $n=5$ seeds, all else
+held fixed. The step form is worse on both stems, which is why $\\tau$'s width
+$\\kappa$ is part of the method rather than a smoothing convenience.}}
+\\label{{tab:gatehard}}
+\\centering
+\\small
+\\begin{{tabular}}{{lccc}}
+\\hline
+Stem & Smooth gate (ours) & Step gate & Difference \\\\
+\\hline
+{chr(10).join(rows)}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+""")
+
+
+def targetpilot():
+    """The harmlessness curve: does withholding the transient block cost anything
+    at long range? Measured on the two target designs, v1 cumulative and v2 bounded."""
+    d = load("pilot_b5.json")
+    deltas = sorted((int(k) for k in d["bounded"]["harmlessness"]), key=int)
+    head = " & ".join(str(x) for x in deltas)
+    row = lambda m: " & ".join(f"{d[m]['harmlessness'][str(x)]:+.3f}" for x in deltas)
+    b, c = d["bounded"]["stability"], d["cumulative"]["stability"]
+    print(f"  bounded reaches {d['bounded']['harmlessness']['16']:+.3f} at D=16; "
+          f"cumulative still {d['cumulative']['harmlessness']['128']:+.3f} at D=128")
+    write("tab_targetpilot", f"""\\begin{{table}}[!tbp]
+\\caption{{Is withholding the transient block harmless at long range? Cells are
+$R^2(s,u\\!\\to\\!\\bar z_{{t+\\Delta}}) - R^2(s\\!\\to\\!\\bar z_{{t+\\Delta}})$: how much the
+transient factor adds, \\emph{{beyond}} what the persistent factor already explains, to a
+linear reading of the target embedding $\\Delta$ ahead. \\textbf{{Zero means the transient
+factor is redundant there}}, so gating it away costs nothing. Synthetic, HGLP-Reg, 2{{,}}500
+steps, one seed, ground-truth factors. The bounded target reaches zero at
+$\\Delta=16$ --- the value of $\\tau$ used on this data --- and stays there; the cumulative
+target never does, because its receptive field runs back to the start of the window and so
+re-contains the anchor's own transient state. This is the measurement behind the
+receptive-field bound of Eq.~\\ref{{eq:target}}. It reads the target embedding rather than
+downstream error, and it is one seed on one dataset.}}
+\\label{{tab:targetpilot}}
+\\centering
+\\small
+\\begin{{tabular}}{{l{'c' * len(deltas)}}}
+\\hline
+Target $\\Delta$ & {head} \\\\
+\\hline
+Bounded (ours) & {row('bounded')} \\\\
+Cumulative & {row('cumulative')} \\\\
+\\hline
+\\end{{tabular}}
+
+\\medskip
+\\small On the same two runs, the bounded target also leaves less of the transient factor
+in $\\zslow$ ($R^2$ {b['leak_u']:.3f} against {c['leak_u']:.3f}) and does not partially
+collapse (target RankMe {b['rankme']:.1f} against {c['rankme']:.1f}).
+\\end{{table}}
+""")
+
+
 # ------------------------------------------------- numbers quoted in the prose
 def macros():
     """Every figure the IV-C / IV-D prose states in running text.
@@ -499,6 +576,7 @@ def macros():
 
 
 if __name__ == "__main__":
-    for fn in (bandaccess, metricC, terms, gatesym, mlpprobe, lambdafree, macros):
+    for fn in (bandaccess, metricC, terms, gatesym, gatehard, targetpilot,
+               mlpprobe, lambdafree, macros):
         print(f"[{fn.__name__}]")
         fn()

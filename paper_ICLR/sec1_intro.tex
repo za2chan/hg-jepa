@@ -9,7 +9,7 @@ An embedding can always be rotated afterwards, and unsupervised unmixings --- pr
 
 A second difference is structural. A rotation conserves --- it can move information between coordinates but cannot change how much of it the encoder represents at all --- whereas training can. Our complement block recovers the transient factor better than SFA's complement in \numAllocLead{} of six settings, by as much as \numAllocMax, which no rebasing of SFA's own embedding could produce. Practically, a fitted unmixing is also a second artifact that travels with the model and is refitted whenever the deployment distribution moves, while a block index costs nothing at inference.
 
-The counterweight belongs here rather than in a footnote. Where the surrogate and persistence do agree, post-hoc rotation is as good or better, and on both of our real datasets they agree --- which is why SFA leads us there. Section~\ref{sec:coincidence} measures in what sense that agreement holds, and finds it is not even the same sense on the two datasets.
+The counterweight belongs here rather than in a footnote. Where the surrogate and persistence do agree, post-hoc rotation is as good or better, and on both of our real datasets they agree --- which is why SFA leads us there. Appendix~\ref{app:coincidence} measures in what sense that agreement holds, and finds it is not even the same sense on the two datasets.
 
 \begin{figure}[!tbp]
 \centering
