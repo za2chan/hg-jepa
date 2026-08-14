@@ -5,6 +5,18 @@
 \usepackage{graphicx}
 \usepackage{wrapfig}
 \usepackage{float}
+
+% Float placement. The defaults reserve a fifth of every page for text and cap a
+% top float at 0.7 of the page, which with one float per section pushes them into
+% a queue and leaves each page opening with one. Loosening the fractions lets a
+% float land on the page where it is declared.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{hyperref}

@@ -9,7 +9,7 @@
 
 The attention operation is unmodified: the gate sits between encoder output and predictor input, the penalty in the loss, the per-block LayerNorm in the encoder's last line. This is a change of training procedure, not of architecture, so it attaches to any causal sequence encoder.
 
-\begin{figure}[!tb]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.78\textwidth]{figs/fig_main.png}
 \caption{Horizon-gated latent prediction. \textbf{(a)} A causal encoder maps a window to $z_t$, split into $\zslow$ (16 of 64 dimensions) and $\zmix$; a predictor conditioned on $\Delta$ matches a target read at one position inside $(t,\,t+\Delta]$. \textbf{(b, c)} The same pipeline at a short and a long horizon. \textbf{(d)} The gate, with the axis in units of $\tau$.}

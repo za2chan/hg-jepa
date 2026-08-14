@@ -255,7 +255,7 @@ def lambdafree():
               f"{'match' if p['J'] == p['oracle'] else 'MISS'}")
     print(f"  label-free lambda agrees in {agree} of {len(rows)} reported settings")
 
-    write("tab_lambdafree", f"""\\begin{{table}}[!tb]
+    write("tab_lambdafree", f"""\\begin{{table}}[!htb]
 \\caption{{Choosing $\\lambda$ without labels: the two columns agree in every setting.
 The oracle is the $\\lambda$ maximizing SEP, which does use labels. $n=3$ seeds; the margin
 is the gap between the top two $\\mathrm{{PPS}}$ values, and a small margin is not confident

@@ -7,7 +7,7 @@ Every setting below is one of six: three datasets crossed with the two loss stem
 
 We use the synthetic generator of Section~\ref{sec:synthetic} and two public sets, PTB-XL \citep{wagner2020} and HAPT \citep{reyesortiz2016, hapt2015}; Table~\ref{tab:datasets} gives their sizes and their two factors.
 
-\begin{table}[!tb]
+\begin{table}[!htb]
 \caption{The three datasets. The transient proxy is computed from the signal, never from labels. Channels are 1, 1 (lead II) and 3 (acceleration axes); the grouping unit for splits is 4,812 patients for PTB-XL and 30 subjects for HAPT.}
 \label{tab:datasets}
 \centering
@@ -31,7 +31,7 @@ Splits follow the protocol of Section~\ref{sec:method_model}, with the patient a
 
 We switch each of the two devices we add --- the horizon gate and the cross-covariance penalty --- on and off. The mechanism-free cell (Section~\ref{sec:xcov}) is the baseline in which only the coordinate split remains.
 
-\begin{table}[!tb]
+\begin{table}[!htb]
 \caption{Separation index by mechanism. Cells are SEP, $n=5$ seeds, $\lambda=4$; bold marks the best cell in each row.}
 \label{tab:ablation}
 \centering
@@ -54,7 +54,7 @@ In Table~\ref{tab:ablation} the model with both devices ranks first in all six s
 
 The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agrees in all six settings to within 0.015 with the SEP of 16 dimensions drawn at random from the same embedding. Without our devices, any part of the embedding holds the two factors to a similar degree, so coordinate position carries no meaning by itself; our contribution is to give those coordinates structure. Fig.~\ref{fig:embed} shows the same contrast qualitatively.
 
-\begin{figure}[!tb]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.86\textwidth]{figs/fig_embed_exclusion.png}
 \caption{The exclusion term, seen directly: a t-SNE of $\zslow$ coloured by the transient factor, with the mechanism and without it (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$, one seed). This is the only one of the three terms that differs between the two models --- inclusion is \numFigInclusion{} against \numFigNoInclusion{} and allocation \numFigAllocation{} against \numFigNoAllocation. All six panels are in Fig.~\ref{fig:embed_full}.}
@@ -87,7 +87,7 @@ If an embedding trained without the gate is rotated post-hoc without labels --- 
 
 We have one knob and the post-hoc rotations have none, so we report the whole curve rather than a single point (Fig.~\ref{fig:rotation}). On the synthetic data the curve passes above every post-hoc rotation point, and principal component analysis fails completely (SEP \numSynthPca) --- direct evidence that a ranking by variance is not a ranking by persistence, since the transient factor crowds into the leading components and nothing is left in the complement. On the real data we do not lead. The verdict over all six settings is three wins to three losses, but split apart it is two of two on synthetic and three losses of four on real data, with losing margins of \numRealLossLo--\numRealLossHi{} against a winning margin of 0.099.
 
-\begin{figure}[!tb]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.92\textwidth]{figs/fig_rotation_sep.png}
 \caption{SEP against the penalty weight $\lambda$, $n=5$ seeds. Our method traces a curve with its best point ringed; each post-hoc unmixing has no knob and is a horizontal line. A win is our curve rising above the SFA line.}
@@ -110,7 +110,7 @@ Measured against the full embedding of a mechanism-free model --- not against ou
 
 We then carry a probe fitted on clean data with few labels into a domain where the transient factor has been perturbed by a gain, $x \mapsto x\cdot(1+s)$ up to $s=2$ --- a bijection that leaves the persistent labels legible (HAPT activities survive at macro-F1 0.696, chance 0.167). The effect is small and mostly inside the noise. At 25 labels on HAPT/Reg the gated block's drop is 0.113 smaller than a width-matched mechanism-free block's, five times the seed standard deviation; in the other five settings the effect lies inside the noise, and 17 of 24 cells are negative by sign alone (Table~\ref{tab:shift}). Nowhere does absolute performance overtake the mechanism-free model. HAPT is at once the dataset with the largest cost and the only one with a visible shift effect: the gate buys a smaller drop and pays for it in absolute performance.
 
-\begin{table}[!tb]
+\begin{table}[!htb]
 \caption{Degradation under domain shift. Each cell is the gated block's drop in macro-F1 from the clean domain to the most perturbed one, minus the same drop for a width-matched mechanism-free block; paired by seed, $n=5$. Negative means it degrades less --- \textbf{it never overtakes in absolute terms}.}
 \label{tab:shift}
 \centering
