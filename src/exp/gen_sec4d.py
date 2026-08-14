@@ -11,7 +11,6 @@ to the console under "[held out]" so the Limitations sentence about a fourth dat
 stays honest.
 
 Tables produced
-  tab_bandaccess  IV-C  is the persistent factor readable from the slow BAND of x?
   tab_terms       IV-D  our score minus SFA's, split into inclusion/allocation/exclusion
   tab_gatesym     IV-D  does gating z_slow symmetrically fix the exclusion term?
   tab_mlpprobe    IV-D  how far each term moves when the probe head stops being linear
@@ -62,67 +61,6 @@ def best_lam(d):
     return max(vals)
 
 
-# ----------------------------------------------------------------- IV-C table 1
-def bandaccess():
-    """Is the persistent factor readable from the slow band of the raw signal?
-
-    Scores are macro-F1 for the real sets (chance = 1/k) and R^2 for synthetic.
-    The 'full signal' column is deliberately absent: the two scripts build a
-    different comparison view (HAPT all-band, PTB-XL beat-averaged 5-40 Hz), so
-    the columns would not mean the same thing.
-    """
-    rows = []
-
-    s = load("fig_persistence.json")
-    low = s["r2"]["low-pass ($f<0.02$)"]["persistent factor $s$"]
-    car = s["r2"]["carrier frequency"]["persistent factor $s$"]
-    mant, expo = f"{low:.1e}".split("e")
-    rows.append(("Synthetic", f"${mant}\\times 10^{{{int(expo)}}}$",
-                 "0", "---", f"carrier freq.\\ ({car:.3f})", "$R^2$"))
-
-    p = load("fig_persistence_ptbxl.json")
-    b = max(p["band_f1"].items(), key=lambda kv: kv[1])
-    rows.append(("PTB-XL", f"{p['lowpass_view_f1']:.3f}", f"{p['config']['chance']:.3f}",
-                 f"{p['lowpass_view_f1'] / p['config']['chance']:.2f}",
-                 f"{b[0]}\\,Hz ({b[1]:.3f})", "macro-F1"))
-
-    h = load("fig_persistence_hapt.json")
-    b = max(h["band_f1"].items(), key=lambda kv: kv[1])
-    rows.append(("HAPT", f"\\textbf{{{h['lowpass_view_f1']:.3f}}}",
-                 f"{h['config']['chance']:.3f}",
-                 f"\\textbf{{{h['lowpass_view_f1'] / h['config']['chance']:.2f}}}",
-                 f"{b[0]}\\,Hz ({b[1]:.3f})", "macro-F1"))
-
-    sl = load("fig_persistence_sleepedf.json")
-    b = max(sl["band_f1"].items(), key=lambda kv: kv[1])
-    print(f"  [held out] {HELD_OUT} band access: low {sl['lowpass_view_f1']:.3f} "
-          f"chance {sl['config']['chance']:.3f} "
-          f"ratio {sl['lowpass_view_f1'] / sl['config']['chance']:.2f} "
-          f"best {b[0]} Hz ({b[1]:.3f})")
-
-    body = "\n".join(
-        f"{d} & {sc} & {lo} & {ch} & {ra} & {be} \\\\" for d, lo, ch, ra, be, sc in rows)
-    write("tab_bandaccess", f"""\\begin{{table}}[!tbp]
-\\caption{{Is the persistent factor readable from the \\emph{{slow band of the signal}}?
-Each row filters the raw signal to one band at a time and fits the same linear probe on
-that band alone. Cells are the score named in the second column; ``low band'' is
-$0$--$0.5$\\,Hz for HAPT (a true low-pass, keeping DC), $0.05$--$0.5$\\,Hz for PTB-XL
-(band-pass: the ECG baseline is arbitrary), $f<0.02$ for the synthetic carrier. The
-ratio column is low band over chance. Only HAPT clears chance by a real margin.}}
-\\label{{tab:bandaccess}}
-\\centering
-\\small
-\\begin{{tabular}}{{llcccc}}
-\\hline
-Dataset & Score & Low band & Chance & Low/chance & Best band (score) \\\\
-\\hline
-{body}
-\\hline
-\\end{{tabular}}
-\\end{{table}}
-""")
-
-
 # ----------------------------------------------------------------- IV-D table 1
 def terms():
     """Where do we actually lose to SFA? Split the product into its three factors."""
@@ -143,7 +81,7 @@ def terms():
               f"alloc {g['d_allocation']:+.3f} excl {g['d_exclusion']:+.3f} "
               f"sep {g['d_sep']:+.3f}")
 
-    write("tab_terms", """\\begin{table}[!tbp]
+    write("tab_terms", """\\begin{table}[!tb]
 \\caption{Where the shortfall against SFA sits. Every cell is \\emph{ours minus SFA} on
 one term of SEP, paired by seed and then averaged, $n=5$; positive means we lead. Our
 column is taken at the $\\lambda$ that maximizes our SEP, which is why $\\lambda$ is
@@ -180,7 +118,7 @@ def gatesym():
     better, worse, tied = tally["\\textbf{sym}"], tally["asym"], tally["tie"]
     print(f"  symmetric gate: better {better}, worse {worse}, tied {tied} of {len(rows)}")
 
-    write("tab_gatesym", f"""\\begin{{table}}[!tbp]
+    write("tab_gatesym", f"""\\begin{{table}}[!tb]
 \\caption{{Can exclusion be bought structurally? The symmetric variant multiplies
 $\\zslow$ by $1-g(\\Delta)$, switching it off below $\\tau$ so that no horizon can push
 transient information into it. Cells are SEP at each model's own best $\\lambda$ over
@@ -243,7 +181,7 @@ def mlpprobe():
                   f"{e['SFA/linear']['exclusion'] - e['linear']['exclusion']:+.3f} "
                   f"-> mlp {e['SFA/mlp']['exclusion'] - e['mlp']['exclusion']:+.3f}")
 
-    write("tab_mlpprobe", f"""\\begin{{table}}[!tbp]
+    write("tab_mlpprobe", f"""\\begin{{table}}[!tb]
 \\caption{{What survives a non-linear reader. The features, the splits and the blocks are
 held fixed and only the probe head changes, from a linear model to a one-hidden-layer
 MLP (256 units); the \\emph{{same}} head is given to SFA, PCA and ICA, so no method is
@@ -320,7 +258,7 @@ def lambdafree():
               f"{'match' if p['J'] == p['oracle'] else 'MISS'}")
     print(f"  label-free lambda agrees in {agree} of {len(rows)} reported settings")
 
-    write("tab_lambdafree", f"""\\begin{{table}}[!tbp]
+    write("tab_lambdafree", f"""\\begin{{table}}[!tb]
 \\caption{{Choosing $\\lambda$ without labels. $J=\\text{{exclusion}}\\times\\text{{long-horizon
 self-prediction}}$: the first factor is read from the transient proxy, which is computed
 from the signal, and the second asks how well $\\zslow$ predicts \\emph{{its own}} value
@@ -357,7 +295,7 @@ def gatehard():
         s, h = bf(soft, f"{stem}/g1_x1"), bf(hard, f"{stem}/g1_x1")
         rows.append(f"{stem_label} & \\textbf{{{s:.3f}}} & {h:.3f} & ${h - s:+.3f}$ \\\\")
         print(f"  {stem_label}: smooth {s:.3f} -> hard {h:.3f} ({h - s:+.3f})")
-    write("tab_gatehard", f"""\\begin{{table}}[!tbp]
+    write("tab_gatehard", f"""\\begin{{table}}[!tb]
 \\caption{{A step gate against the smooth one. The smooth gate is
 $g(\\Delta)=\\sigma((\\tau-\\Delta)/\\kappa)$; the step version replaces it with
 $\\mathbf{{1}}[\\Delta<\\tau]$, which zeroes $\\zmix$'s gradient outright beyond $\\tau$
@@ -388,7 +326,7 @@ def targetpilot():
     b, c = d["bounded"]["stability"], d["cumulative"]["stability"]
     print(f"  bounded reaches {d['bounded']['harmlessness']['16']:+.3f} at D=16; "
           f"cumulative still {d['cumulative']['harmlessness']['128']:+.3f} at D=128")
-    write("tab_targetpilot", f"""\\begin{{table}}[!tbp]
+    write("tab_targetpilot", f"""\\begin{{table}}[!tb]
 \\caption{{Is withholding the transient block harmless at long range? Cells are
 $R^2(s,u\\!\\to\\!\\bar z_{{t+\\Delta}}) - R^2(s\\!\\to\\!\\bar z_{{t+\\Delta}})$: how much the
 transient factor adds, \\emph{{beyond}} what the persistent factor already explains, to a
@@ -430,12 +368,6 @@ def macros():
     """
     m = {}
     fmt = lambda v, n=3: f"{v:.{n}f}"
-
-    h = load("fig_persistence_hapt.json")
-    m["HaptBandRatio"] = fmt(h["lowpass_view_f1"] / h["config"]["chance"], 2)
-    p = load("fig_persistence_ptbxl.json")
-    m["PtbLowBand"] = fmt(p["lowpass_view_f1"])
-    m["PtbChance"] = fmt(p["config"]["chance"])
 
     tb = load("term_breakdown.json")
     incl = [tb[f"{k}/{s}"]["_diagnosis"]["d_inclusion"] for _, _, k, _ in DSETS
@@ -530,7 +462,7 @@ def macros():
 
 
 if __name__ == "__main__":
-    for fn in (bandaccess, terms, gatesym, gatehard, targetpilot,
+    for fn in (terms, gatesym, gatehard, targetpilot,
                mlpprobe, lambdafree, macros):
         print(f"[{fn.__name__}]")
         fn()

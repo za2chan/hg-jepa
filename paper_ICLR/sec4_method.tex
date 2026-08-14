@@ -7,9 +7,9 @@
 
 \textbf{No modification is made to the attention operation}: the gate sits between encoder output and predictor input, the penalty in the loss, the per-block LayerNorm in the encoder's last line. This is a change of training procedure, not of architecture, so it attaches to any causal sequence encoder.
 
-\begin{figure}[!tbp]
+\begin{figure}[!tb]
 \centering
-\includegraphics[width=0.9\textwidth]{figs/fig_main.png}
+\includegraphics[width=0.86\textwidth]{figs/fig_main.png}
 \caption{Horizon-gated latent prediction. \textbf{(a)} A causal encoder maps a window to an embedding $z_t$, split into a persistent block $\zslow$ (16 of 64 dimensions) and the rest $\zmix$. A predictor conditioned on the horizon $\Delta$ must match a target read at one position inside $(t,\,t+\Delta]$, produced by an EMA copy of the encoder. A cross-covariance penalty is applied to $z_t$ before the gate. \textbf{(b, c)} The same pipeline at a short and a long horizon. $\zslow$ is never gated; only $\zmix$ is, and only past $\tau$, so at long horizons the only route to lowering the loss runs through $\zslow$. \textbf{(d)} The gate is a sigmoid of width $\kappa$, not a switch. $\tau$ is set from the transient factor's lifetime and $\Delta_{max}$ is set separately, so the axis is drawn in units of $\tau$ rather than absolute horizons.}
 \label{fig:arch}
 \end{figure}

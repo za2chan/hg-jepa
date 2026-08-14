@@ -21,7 +21,7 @@ The gate rests on a premise: withholding $\zmix$ at long range should cost nothi
 
 \input{tab_targetpilot}
 
-\begin{figure}[!tbp]
+\begin{figure}[!tb]
 \centering
 \includegraphics[width=0.72\textwidth]{figs/fig_target_pilot.png}
 \caption{The same measurement as Table~\ref{tab:targetpilot}, as a curve. The bounded target falls to zero by $\Delta=\tau$ and stays there, so beyond the threshold the transient factor explains nothing about the target that the persistent factor does not already explain --- which is what makes gating it away harmless. The cumulative target of the earlier design stays above zero at every horizon, including the longest: its receptive field reaches back to the start of the window and so re-contains the anchor's own transient state, and no horizon is far enough to escape that.}
@@ -36,7 +36,7 @@ Two limits on how far this may be read. It measures what explains the \emph{targ
 
 This ablates the premise of the latent-prediction family: that prediction should be made in a latent space rather than on the raw signal. Gate, anchor, horizon and loss form are held fixed and only the prediction target changes. The latent target is the 64-dimensional output the target encoder reads from the future interval; the raw target is the patch itself at that time, with one extra linear head. Both models carry the cross-covariance penalty, so $\lambda$ means the same for each, and each is compared at its own best value.
 
-\begin{table}[!tbp]
+\begin{table}[!tb]
 \caption{Latent target against raw target. Cells are SEP on synthetic, $n=5$ seeds, each stem at its own best $\lambda$. Bold marks the latent target. Everything but the prediction target is held fixed.}
 \label{tab:latentraw}
 \centering
@@ -52,26 +52,6 @@ HGLP-NCE & \textbf{0.844} ($\lambda=16$) & 0.432 ($\lambda=16$) & $+0.411$ ($1.9
 \end{table}
 
 Predicting raw patches halves SEP on both stems (Table~\ref{tab:latentraw}). The allocation term is the same for the two targets, at 0.86 to 0.89, and the gap opens in inclusion: the raw target loses the persistent factor as the penalty grows, falling from 0.807 to 0.401, whereas the latent target stays above 0.97 throughout. The raw signal still contains the transient component, and the pressure to predict that too pushes the persistent factor out. The gate and the penalty are thus not sufficient on their own; the latent target has to be present as well.
-
-\section{Is the persistent factor in the slow band of the signal?}
-\label{app:coincidence}
-
-Section~\ref{sec:rotation} attributes SFA's lead on real data to persistence and slowness
-mostly coinciding there. One half of that can be checked directly on the raw signal: we
-filter it to one band at a time and fit the same linear probe on that band alone
-(Table~\ref{tab:bandaccess}).
-
-\input{tab_bandaccess}
-
-Only HAPT clears chance by a real margin, at $\numHaptBandRatio\times$, which is
-unsurprising --- posture is the DC distribution of gravity across three accelerometer
-axes. On PTB-XL the low band is \emph{at} chance (\numPtbLowBand{} against
-\numPtbChance) and the diagnosis lives instead in the 2--5\,Hz QRS morphology, yet SFA
-still leads there. So on PTB-XL the coincidence is not one of signal band, and what SFA
-exploits instead is that the diagnosis is constant within a record, which makes its time
-derivative zero --- the limiting solution of the quantity SFA maximizes. The two real
-datasets are therefore won by two different routes, and the synthetic data, where the
-factor is neither band-slow nor window-constant, is closed to both.
 
 \section{Term decomposition and the non-linear probe}
 \label{app:probe}
@@ -89,7 +69,7 @@ Three cautions. Because exclusion falls monotonically as the reading head grows,
 \section{Reading $\zslow$ as a trajectory}
 \label{app:traj}
 
-\begin{figure}[!tbp]
+\begin{figure}[!tb]
 \centering
 \includegraphics[width=0.9\textwidth]{figs/fig_traj_hapt.png}
 \caption{$\zslow$ read as a trajectory rather than as classifier input (HAPT). Using the separated block this way needs no labels at evaluation time and no probe, which is the use the downstream cost of Section~\ref{sec:cost} is paid for; we report the figure and do not claim a quantitative result from it.}
