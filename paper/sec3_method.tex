@@ -1,0 +1,132 @@
+\section{Data and Methods}
+
+\subsection{Data and Factors}
+
+We use one synthetic dataset of our own design and two public real-world sets (Table~\ref{tab:datasets}). In each, the \emph{persistent factor} is the quantity we try to separate and the \emph{transient proxy} is a fast-varying quantity computed directly from the signal, not from labels.
+
+\begin{table*}[!tbp]
+\caption{The three datasets. Persistent factor = the factor we try to separate; transient proxy = a fast-varying quantity computed directly from the signal, not from labels. Chance level is $1/k$ for balanced macro-F1.}
+\label{tab:datasets}
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\hline
+ & Synthetic & PTB-XL & HAPT \\
+\hline
+Samples & $10^6$ steps & 5,000 records & 2,104 windows \\
+ & & (4,812 patients) & (30 subjects) \\
+Sampling rate & --- & 100 Hz & 50 Hz \\
+Channels & 1 & 1 (lead II) & 3 (accel.\ $x,y,z$) \\
+Patch & 8 steps & 10 samples (0.1 s) & 4 samples (0.08 s) \\
+Window length $L$ & 256 patches & 100 patches (10 s) & 256 patches (20.5 s) \\
+ & (2,048 steps) & & \\
+Persistent factor & oscillation regime $s$ & ECG diagnosis (normal/ & physical activity \\
+ & (3 classes) & abnormal, \textbf{2 classes}, & (6 classes) \\
+ & & constant per record) & \\
+Transient proxy & OU factor $u$ & instantaneous voltage & accel.\ magnitude $\lVert a\rVert$ \\
+Chance level & 0.333 & 0.500 & 0.167 \\
+\hline
+\end{tabular}
+\end{table*}
+
+\subsubsection{Synthetic data}
+A three-state Markov persistent factor $s$ (mean dwell 3{,}000 steps) sets the carrier frequency of an oscillation, spaced $\pm$3\% around 0.100; a transient Ornstein--Uhlenbeck factor $u$ (autocorrelation time 50 steps) modulates that instantaneous frequency and adds to the signal. Amplitude is identical across regimes, so a regime change alters only how fast the signal oscillates. Consequently the persistent factor does not appear in the slow component: a low-pass reading ($f<0.02$) recovers the transient factor ($R^2=0.90$) and essentially not the persistent one ($R^2<10^{-5}$; Fig.~\ref{fig:persistence}).
+
+Difficulty is set by the spacing between regime frequencies, calibrated by a training-free FFT reader. At $\pm$3\% it reaches accuracy 0.660 (chance 0.333); at $\pm$5\% it is already 0.784 before any training, and at $\pm$1\% it falls to 0.459, near chance. We therefore use $\pm$3\% throughout.
+
+\subsubsection{PTB-XL}
+
+PTB-XL holds clinical 12-lead electrocardiograms, each 10 seconds long; we use \textbf{lead II}. Our subset is \textbf{5,000 records} at 100 Hz from \textbf{4,812 patients}, classified as normal or abnormal with balanced classes, so chance is 0.500. The persistent factor is the \textbf{diagnosis}, constant within a record; the transient proxy is the \textbf{instantaneous voltage}. We cut into 100 patches of 10 samples (0.1 s), normalize with per-channel statistics from the training split alone, and split \textbf{per patient}. This is the simplest form of our setting, a label constant over the whole record, but it strains the assumption our threshold rule relies on --- that the transient factor has a decaying autocorrelation from which a lifetime can be read. The heartbeat is a regularly repeating component, so its autocorrelation oscillates instead of decaying, and the threshold has to be set by hand (Section~\ref{sec:handpicked}).
+
+\subsubsection{HAPT}
+
+In HAPT (Human Activities and Postural Transitions), \textbf{thirty subjects} wearing a waist-mounted smartphone performed six activities --- walking, walking upstairs, walking downstairs, sitting, standing, lying --- with postural transitions as separate classes. We use the \textbf{three acceleration axes at 50 Hz} and not the gyroscope. The persistent factor is the \textbf{activity being performed}, scored only over the six basic activities; the transient proxy is the \textbf{acceleration magnitude} $\lVert a\rVert$. Transition and unlabeled segments (24.7\% of the total) are excluded from scoring but \textbf{not removed from the pre-training input}, since selecting training data by labels would undermine the claim that training uses no labels. Windows are 256 patches of 4 samples (0.08 s), i.e.\ 20.5 s, giving \textbf{2,104} windows; activity boundaries are not consulted when cutting, so labels are read \textbf{per position}. Normalization and splitting follow PTB-XL, with the \textbf{subject} as unit. Unlike the fixed diagnosis in PTB-XL the activity \emph{changes} within a record, so 57\% of windows cross a transition and the persistent factor is not constant within a window (see Results).
+
+\subsection{Model}
+
+\textbf{Encoder.} One patch becomes one token (Fig.~\ref{fig:arch}(a)) through a \emph{single} linear projection; there is no codebook and no quantization. Channels are mixed at this first layer by design, since the factor of interest is sometimes defined by the relation between channels --- HAPT posture is determined by how gravity distributes over the three axes. Tokens then pass through a stack of \textbf{causal transformer layers} with rotary position encoding, and a final linear layer produces the embedding, whose leading coordinates form $\zslow$ and the remainder $\zmix$. The last operation is a \textbf{per-block LayerNorm}, applied to the two blocks separately rather than to the embedding as a whole, for the reason given in Section~\ref{sec:xcov}. The \textbf{predictor} is a small MLP that sees only the embedding at one time point together with the horizon, which enters as a learned expansion of $\log_2\Delta$; one predictor is conditioned on the horizon rather than one head per horizon, consistent with treating the horizon as a continuous axis.
+
+\textbf{No modification is made to the attention operation}: the gate sits between encoder output and predictor input, the penalty in the loss, the per-block LayerNorm in the encoder's last line. This is a change of training procedure, not of architecture, so it attaches to any causal sequence encoder.
+
+\begin{figure*}[!tbp]
+\centering
+\includegraphics[width=0.62\textwidth]{figs/fig_main.png}
+\caption{Horizon-gated latent prediction. \textbf{(a)} A causal encoder maps a window to an embedding $z_t$, split into a persistent block $z_{slow}$ (16 of 64 dimensions) and the rest $z_{mix}$. A predictor conditioned on the horizon $\Delta$ must match a target read at one position inside $(t,\,t+\Delta]$, produced by an EMA copy of the encoder. A cross-covariance penalty is applied to $z_t$ before the gate. \textbf{(b, c)} The same pipeline at a short and a long horizon. $z_{slow}$ is never gated; only $z_{mix}$ is, and only past $\tau$, so at long horizons the only route to lowering the loss runs through $z_{slow}$. \textbf{(d)} The gate is a sigmoid of width $\kappa$, not a switch. $\tau$ is set from the transient factor's lifetime and $\Delta_{max}$ is set separately, so the axis is drawn in units of $\tau$ rather than absolute horizons.}
+\label{fig:arch}
+\end{figure*}
+
+\textbf{Target.}
+\begin{equation}
+z^{*} = \mathrm{sg}\big[\,f_{\bar\theta}\big(x_{[t+\Delta-w,\;t+\Delta]}\big)_{-1}\big], \qquad \bar\theta \leftarrow m\bar\theta + (1-m)\theta
+\label{eq:target}
+\end{equation}
+
+The prediction target is not the raw signal but the representation an EMA copy of the encoder reads from a short window inside the future interval, with the gradient stopped. Bounding that window keeps the target's receptive field inside $(t,\,t+\Delta]$, so it never re-contains the anchor's own past and the shortcut of matching the target from what is already known at the anchor is closed by construction. \textbf{The target never passes the gate and is always the full embedding}: at far horizons the model is asked to match the whole future embedding from the persistent block alone, and this asymmetry is the core of the mechanism.
+
+\textbf{Loss.}
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\text{pred}} + \lambda\,\mathcal{L}_{\text{xcov}}, \qquad \mathcal{L}_{\text{pred}} \in \{\mathcal{L}_{1},\ \mathcal{L}_{\text{NCE}}\}
+\label{eq:loss}
+\end{equation}
+
+The two forms share backbone, gate and penalty and differ only in the loss layer. \textbf{HGLP-Reg} uses the $L_1$ distance; $L_2$'s squared-error gradient is dominated by large residuals and buries a weak persistent signal, which made results swing across seeds. \textbf{HGLP-NCE} uses InfoNCE over cosine similarity with temperature 0.1, with one departure from the standard form: \textbf{samples from the same window are excluded from the negative pairs}, since they share the persistent factor and pushing them apart would teach the model to discard it.
+
+
+\subsection{The Horizon Gate}
+
+\begin{equation}
+g(\Delta) = \sigma\!\Big(\frac{\tau-\Delta}{\kappa}\Big), \qquad \tilde z_t(\Delta) = \big[\,z_t^{\mathrm{slow}}\,;\ g(\Delta)\,z_t^{\mathrm{mix}}\,\big]
+\label{eq:gate}
+\end{equation}
+
+Immediately before the predictor, the rear block is multiplied by $g(\Delta)\in(0,1)$ (Fig.~\ref{fig:arch}(b)--(d)): for $\Delta\ll\tau$ the embedding passes unchanged, for $\Delta\gg\tau$ the rear block is suppressed. \emph{Dimensions are multiplied, not truncated}, so the predictor input is always $D$-dimensional; \emph{$\zslow$ is never blocked}; and the gate is \emph{a smooth curve, not a step}. A step gate would flip horizons near $\tau$ between fully passed and fully blocked under the smallest movement of the threshold, whereas width $\kappa$ gives them intermediate values. Since $\tau$ cannot be chosen accurately without labels (Section~\ref{sec:handpicked}), this buffer is necessary rather than convenient, and in our runs a step gate lowered the separation metric on both loss forms.
+
+\textbf{Gradient split.}
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial z_t^{\mathrm{slow}}} = \frac{\partial\mathcal{L}}{\partial \tilde z_t^{\mathrm{slow}}}, \qquad \frac{\partial\mathcal{L}}{\partial z_t^{\mathrm{mix}}} = g(\Delta)\,\frac{\partial\mathcal{L}}{\partial \tilde z_t^{\mathrm{mix}}}
+\label{eq:grad}
+\end{equation}
+
+Because the encoder is shared across horizons, this one line splits the training signal the two blocks receive: $\zslow$ is updated at every horizon, whereas $\zmix$ is updated in proportion to $g(\Delta)$ and so effectively only at near horizons. Two consequences follow, and only one of them is guaranteed. \textbf{Availability is enforced}: a predictor cannot foresee when the persistent factor will next switch, so at long horizons it can lower the loss only by recording the current state, and the gate leaves $\zslow$ as the sole route for doing so; so whatever still contributes to prediction that far ahead must be readable there, and no predictor however large can restore information the gate has suppressed to zero. \textbf{Exclusion is not enforced}: $\zslow$ is still used at near horizons, where transient information lowers the loss, and no term of the objective pushes that information \emph{out of} $\zslow$ --- exclusion has to come from the penalty of Section~\ref{sec:xcov}. We therefore measure exclusion rather than assume it, and the claim is that the transient factor is emptied out of $\zslow$, not that the persistent factor gathers there: with all mechanisms absent, the first 16 dimensions and a random 16 agree to within 0.015.
+
+\subsection{Pulling the Two Blocks Apart}
+\label{sec:xcov}
+
+\textbf{Cross-covariance penalty.}
+\begin{equation}
+\begin{split}
+C &= \tfrac{1}{N-1}\,\bar Z^{\top}_{(1:\dslow)}\,\bar Z_{(\dslow+1:D)},\\[2pt]
+\mathcal{L}_{\text{xcov}} &= \tfrac{1}{\dslow (D-\dslow)}\textstyle\sum_{a,b} C_{ab}^{2}
+\end{split}
+\label{eq:xcov}
+\end{equation}
+
+The penalty pushes the two blocks to be linearly unpredictable from each other and \textbf{acts on the embedding before the gate}. It travels with the \textbf{per-block LayerNorm}: a single LayerNorm over the whole embedding gives the two blocks one shared mean and variance, recreating exactly the coupling the penalty is trying to remove. \textbf{``Mechanism-free'' therefore means all three devices absent} --- gate, penalty and per-block LayerNorm.
+
+\subsection{What We Measure}
+
+Reading the persistent factor from $\zslow$ is not by itself evidence of separation, since rotational symmetry means it is read about as well from any 16 dimensions. We therefore report a \textbf{block $\times$ factor matrix} scoring both blocks on both factors, plus a single-number summary \textbf{SEP}, which asks three questions.
+
+\begin{enumerate}
+\item \textbf{Inclusion --- is the persistent factor in $\zslow$?} We score how well the persistent factor is predicted from $\zslow$ alone.
+\item \textbf{Allocation --- is the transient factor in $\zmix$?} We score how well the transient proxy is recovered from $\zmix$ alone.
+\item \textbf{Exclusion --- is the transient factor absent from $\zslow$?} We measure how well the transient proxy can be recovered from $\zslow$, and subtract that value from 1.
+\end{enumerate}
+
+\begin{equation}
+\mathrm{SEP} = \underbrace{\big[s_{\text{per}}(z^{\mathrm{slow}})\big]_0^1}_{\text{inclusion}} \cdot \underbrace{\big[s_{\text{tra}}(z^{\mathrm{mix}})\big]_0^1}_{\text{allocation}} \cdot \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{slow}})\big]_0^1}_{\text{exclusion}}
+\label{eq:sep}
+\end{equation}
+
+$s_{\text{per}}(\cdot)$ scores reading the \emph{persistent factor} from a subspace and $s_{\text{tra}}(\cdot)$ the \emph{transient proxy}; $[\cdot]_0^1$ clips into $[0,1]$. Classification scores already lie in this range, but $R^2$ goes negative when a prediction is worse than the mean, and the clipping acts only there, preventing a negative value from flipping the sign of the product. There is no normalization by any denominator anywhere.
+
+
+\textbf{Exclusion is the term that carries the claim.} Unlike the other two it measures \emph{what is absent}, and the objective enforces inclusion but not exclusion, so it is precisely the quantity we have to measure rather than assume.
+
+
+\textbf{Probe protocol.} With the encoder frozen we fit only a linear classifier or regressor. Splits are \textbf{per group} (subject for HAPT, patient for PTB-XL, a front/back time split for the synthetic data), evaluation windows are \textbf{non-overlapping} to prevent leakage (asserted in the code), and only positions after the \textbf{minimum context length (64 patches)} are scored, since with less context the encoder lacks the evidence to read the persistent state. A \textbf{random subspace} of the same width is scored as a control.
+
+\subsection{Hand-Picked Values}
+\label{sec:handpicked}
+
+\textbf{Most knobs of this method cannot be chosen without labels.} The cross-covariance weight, the block width, the target window, the patch size and the range of training horizons have no derivation, and we set them by looking at downstream performance; model selection without labels is a known difficulty in this literature \cite{locatello2019}. \textbf{Only $\tau$ is a partial exception}: it can be initialized from the transient factor's measured autocorrelation time, but that rule fails on signals with a regularly repeating component --- on PTB-XL the per-record estimates spread over a factor of 499 and the rule's output falls outside the training horizon range, so the value we use is an arbitrary choice rather than the rule's output. One necessary condition we can state is that horizons must straddle the threshold, $\Delta_{\min}<\tau<\Delta_{\max}$, or the gate never opens or never closes. \textbf{One quantity does not depend on labels}: the exclusion term is measured from the transient proxy, which is computed directly from the signal, so a failed separation is detectable without task labels.

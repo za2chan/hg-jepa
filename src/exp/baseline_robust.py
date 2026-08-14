@@ -45,14 +45,37 @@ DSET = {"ptbxl": ("../../data/ptbxl_v2.npz", 1,
         "sleepedf": ("../../data/sleepedf_v2.npz", 3,
                      dict(tau=24.0, w=12, dmin=12, dmax=128, min_context=16)),
         "hapt": ("../../data/hapt_v2.npz", 3,
-                 dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16))}
+                 dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16)),
+        # synthetic in the same container so the SSL baselines can run on it too
+        # (built by src/prep/make_synth_npz.py; hyperparameters are train.py's own
+        # synthetic defaults, so the model is unchanged -- only the data path is)
+        "synth": ("../../data/synth_v2.npz", 1,
+                  dict(tau=16.0, w=8, dmin=8, dmax=128, min_context=16))}
 
 
-def perturb(W, kind, s, g):
+def perturb(W, kind, s, g, n_ax=None):
     if kind == "noise":
         return W + s * torch.randn(W.shape, generator=g, device=W.device)
     if kind == "scale":
         return W * (1.0 + s)
+    if kind == "rotate":
+        # Rotate the sensor frame. This is the physically real shift for a
+        # body-worn accelerometer -- the device sits at a different angle -- and it
+        # is the right control for our claim: a rotation is norm-preserving, so the
+        # transient proxy ||a|| is INVARIANT under it. The gain perturbation we used
+        # before rescales ||a|| directly, which means it moves the very quantity the
+        # exclusion term is measured against; the shift and the measurement were
+        # entangled. Here they are not.
+        #
+        # `s` is the rotation angle in radians about a fixed axis (0.5*s*pi keeps
+        # s=2 at a right angle, matching the old sweep's endpoint in spirit).
+        assert n_ax == 3, "rotate is defined for 3-axis accelerometer data only"
+        th = 0.5 * s * np.pi
+        c, sn = float(np.cos(th)), float(np.sin(th))
+        R = torch.tensor([[c, -sn, 0.0], [sn, c, 0.0], [0.0, 0.0, 1.0]],
+                         dtype=W.dtype, device=W.device)
+        n, L_, D = W.shape                       # D = patch_len * n_ax, axis fastest
+        return (W.reshape(n, L_, D // n_ax, n_ax) @ R.T).reshape(n, L_, D)
     ph = torch.linspace(0, 2 * np.pi, W.shape[1], device=W.device)[None, :, None]
     return W + s * torch.sin(ph)                 # baseline wander: ~1 cycle per record
 
@@ -95,6 +118,11 @@ def build(dataset, seed, steps, stem="nce+ema", baselines=True):
 
 def run(dataset, seed, steps, stem="nce+ema", baselines=True):
     arms, Wt, lab, tr, te = build(dataset, seed, steps, stem, baselines)
+    n_ax = DSET[dataset][1]
+    # A sensor-axis rotation is only defined for 3-axis accelerometry, and it is the
+    # one perturbation here that leaves ||a|| untouched -- `scale` at s=1.0 doubles
+    # the norm, i.e. it moves the very quantity the transient proxy is built from.
+    kinds = KINDS + (("rotate",) if n_ax == 3 else ())
     y = lab[:, -1] if dataset == "ptbxl" else lab[:, -1]
     g = torch.Generator(device=Wt.device).manual_seed(seed)
     clf, out = {}, {}
@@ -104,9 +132,9 @@ def run(dataset, seed, steps, stem="nce+ema", baselines=True):
         clf[a] = make_pipeline(StandardScaler(),
                                LogisticRegression(max_iter=1000,
                                                   class_weight="balanced")).fit(F[tr], y[tr])
-    for kind in KINDS:
+    for kind in kinds:
         for s in STRENGTHS:
-            Wp = perturb(Wt[te], kind, s, g)
+            Wp = perturb(Wt[te], kind, s, g, n_ax=n_ax)
             for a, (embed, P_) in arms.items():
                 Z = last(embed, Wp)
                 F = Z if P_ is None else Z @ P_
@@ -133,7 +161,7 @@ if __name__ == "__main__":
     json.dump(dict(agg=agg, cells=cells,
                    config=dict(dataset=ds, steps=steps, n_seed=n_seed, stem=stem,
                                baselines=baselines,
-                               strengths=list(STRENGTHS), kinds=list(KINDS),
+                               strengths=list(STRENGTHS), kinds=sorted({k.split("@")[0] for k in keys}),
                                scored_at="last position", pca="fit on clean train")),
               open(f"../../runs_v2/robust_{ds}_{stem}"
                    f"{'_wb' if baselines else ''}.json", "w"), indent=2)

@@ -34,7 +34,7 @@ import torch
 from probes import block_factor, sep_index, encode_all, C_MIN
 from model import D_SLOW, D_Z, P, L
 
-SEEDS = [0, 1, 2]
+SEEDS = list(range(int(os.environ.get("HGLP_NSEED", 3))))
 # Synthetic difficulty. The default +-5% is nearly solved before training (a
 # training-free FFT classifier reaches 0.784), so the whole 2x2 sits in a regime
 # where slow-kept saturates at 0.99 for every cell. GAP=0.01 drops the classical
@@ -58,6 +58,39 @@ BN_CELLS = [(lk, "ema", g, x, bn) for lk in ("l1", "nce")
 # per-block LN -- LN privileges the coordinate split on its own.
 BN22_CELLS = [(lk, "ema", g, x, False) for lk in ("l1", "nce")
               for g, x in ((True, False), (False, True))]
+
+# The 2x2 the paper actually reports, with per-block LN treated as part of the
+# xcov arm (it exists to stop block coupling from fighting xcov):
+#     g0_x0_noLN | g1_x0_noLN
+#     g0_x1_LN   | g1_x1_LN
+# The two LN cells already exist in the main file, so only these are missing.
+LN2X2_CELLS = [(lk, "ema", g, x, False) for lk in ("l1", "nce")
+               for g, x in ((False, False), (True, False), (True, True))]
+
+# Just the reported cell, for one-knob variants of the method itself. The knob is
+# passed as extra train() kwargs so no new cell-tuple field is needed:
+#   HGLP_VARIANT='{"gate_hard": true}'          hard cutoff instead of the sigmoid
+#   HGLP_VARIANT='{"target_mode": "cumulative"}'  v1's cumulative target (see CLAUDE.md 5)
+# Synthetic only -- train_real does not take these.
+G1X1_CELLS = [(lk, "ema", True, True, True) for lk in ("l1", "nce")]
+
+# THE 2x2 the paper reports. Per-block LayerNorm exists to stop block coupling from
+# fighting xcov, so it travels WITH the xcov arm -- hence `bn = x`, giving
+#     g0_x0_noBN | g1_x0_noBN
+#     g0_x1      | g1_x1        (the latter two carry per-block LN)
+# A control that keeps per-block LN is not mechanism-free: normalising the two
+# blocks separately privileges the coordinate split on its own.
+MAIN22_CELLS = [(lk, "ema", g, x, x) for lk in ("l1", "nce")
+                for g, x in ((False, False), (True, False), (False, True), (True, True))]
+VARIANT = json.loads(os.environ.get("HGLP_VARIANT", "{}"))
+VARIANT_TAG = os.environ.get("HGLP_VARIANT_TAG", "")
+# xcov weight per LOSS KIND. The +-3% sweep showed one shared lam cannot serve both
+# stems: at lam=4 (the old shared default) L1's inclusion collapses 0.964 -> 0.524
+# while NCE still wants lam=16. CLAUDE.md 6 already states lam is label-tuned, so a
+# per-stem value is inside the declared honesty envelope -- but it must be reported
+# with the sweep, never as a bare default.
+#   HGLP_LAM='{"l1": 1.0, "nce": 16.0}'
+LAM = json.loads(os.environ.get("HGLP_LAM", "{}"))
 
 
 def synth_feats(enc, seed=99, n_win=400, positions=tuple(range(64, 240, 12)), gap=0.05):
@@ -102,8 +135,16 @@ DATASETS = {
     "synth": None,
     "hapt": ("../../data/hapt_v2.npz", 3,
              dict(tau=40.0, w=12, dmin=12, dmax=128, min_context=16), False),
-    "sleepedf": ("../../data/sleepedf_v2.npz", 3,
-                 dict(tau=24.0, w=12, dmin=12, dmax=128, min_context=16, steps=5000), False),
+    # Env-overridable so the patch-10 re-run needs no code edit. The defaults
+    # reproduce the original patch-50 setting, whose tau=24 had to be hand-set
+    # because the D1 rule returned a value below dmin there.
+    "sleepedf": (os.environ.get("HGLP_NPZ", "../../data/sleepedf_v2.npz"), 3,
+                 dict(tau=float(os.environ.get("HGLP_TAU", 24.0)),
+                      w=int(os.environ.get("HGLP_W", 12)),
+                      dmin=int(os.environ.get("HGLP_DMIN", 12)),
+                      dmax=int(os.environ.get("HGLP_DMAX", 128)),
+                      min_context=16,
+                      steps=int(os.environ.get("HGLP_STEPS", 5000))), False),
     "ptbxl": ("../../data/ptbxl_v2.npz", 1,
               dict(tau=16.0, w=8, dmin=8, dmax=48, min_context=8), True),
 }
@@ -118,22 +159,29 @@ def run(which, cells_spec=CELLS):
         for s in SEEDS:
             if which == "synth":
                 from train import train
+                kw_lam = {"lam": LAM[lk]} if lk in LAM else {}
                 r = train(loss_kind=lk, target_enc=te_, seed=s, gate=gate, xcov=xcov,
-                          blocknorm=bn, gap=GAP, log_every=10 ** 9)
+                          blocknorm=bn, gap=GAP, log_every=10 ** 9, **kw_lam, **VARIANT)
                 f = synth_feats(r["enc"], gap=GAP)
             else:
                 from train_real import train_real
                 npz, n_ax, kw, static = DATASETS[which]
+                kw_lam = {"lam": LAM[lk]} if lk in LAM else {}
                 r = train_real(npz, n_ax=n_ax, seed=s, gate=gate, xcov=xcov,
                                blocknorm=bn, loss_kind=lk, target_enc=te_,
-                               log_every=10 ** 9, **kw)
+                               log_every=10 ** 9, **kw_lam, **kw)
                 f = real_feats(r, static)
             cells.append(block_factor(*f, seed=s))
         keys = cells[0].keys()
+        # per-seed values kept so a variant can be compared to its baseline PAIRED
+        # by seed -- same seed means same synthetic data and same init, so the
+        # paired sd is much tighter than the across-seed sd
         out[tag] = {k: dict(slow=float(np.mean([c[k][0] for c in cells])),
                             slow_sd=float(np.std([c[k][0] for c in cells])),
                             fast=float(np.mean([c[k][1] for c in cells])),
-                            fast_sd=float(np.std([c[k][1] for c in cells]))) for k in keys}
+                            fast_sd=float(np.std([c[k][1] for c in cells])),
+                            slow_per_seed=[float(c[k][0]) for c in cells],
+                            fast_per_seed=[float(c[k][1]) for c in cells]) for k in keys}
         b = out[tag]
         print(f"  {tag:16s} z_slow {b['z_slow']['slow']:.3f}/{b['z_slow']['fast']:+.3f} "
               f"| z_fast {b['z_fast']['slow']:.3f}/{b['z_fast']['fast']:+.3f} "
@@ -143,11 +191,13 @@ def run(which, cells_spec=CELLS):
 
 
 def report(out):
-    ceil = max(v["z_full"]["fast"] for v in out.values())    # comparison-set ceiling
+    ceil = max(v["z_full"]["fast"] for k, v in out.items() if not k.startswith("_"))    # comparison-set ceiling
     print(f"\n{'cell':16s} {'z_slow s/f':>15} {'z_fast s/f':>15} {'rand16 s/f':>15} "
           f"{'incl':>6} {'alloc':>6} {'excl':>6} {'SEP':>6}")
     rank = []
     for tag, b in out.items():
+        if tag.startswith("_"):
+            continue
         m = {k: (v["slow"], v["fast"]) for k, v in b.items()}
         stem = tag.split("/")[0]
         base = out.get(f"{stem}/g0_x0")
@@ -192,12 +242,17 @@ if __name__ == "__main__":
         _selfcheck(); sys.exit()
     os.makedirs("../../runs_v2", exist_ok=True)
     mode = sys.argv[2] if len(sys.argv) > 2 else ""
-    suf = "" if GAP == 0.05 else f"_gap{GAP:g}"
+    suf = ("" if GAP == 0.05 else f"_gap{GAP:g}") + (os.environ.get("HGLP_LAM_TAG", ""))
     spec, tag = {"bn": (BN_CELLS, f"twosided_bn_{which}{suf}"),
-                 "bn22": (BN22_CELLS, f"twosided_bn22_{which}{suf}")}.get(
+                 "bn22": (BN22_CELLS, f"twosided_bn22_{which}{suf}"),
+                 "ln2x2": (LN2X2_CELLS, f"twosided_ln2x2_{which}{suf}"),
+                 "main22": (MAIN22_CELLS, f"twosided_main22_{which}{suf}"),
+                 "variant": (G1X1_CELLS, f"twosided_{VARIANT_TAG}_{which}{suf}")}.get(
                      mode, (CELLS, f"twosided_{which}{suf}"))
     print(f"=== block x factor + random null: {which}, {len(spec)} cells x {len(SEEDS)} seeds ===")
     res = run(which, spec)
+    res["_config"] = dict(dataset=which, mode=mode, seeds=SEEDS, n_seed=len(SEEDS),
+                          gap=GAP, lam_override=LAM, variant=VARIANT)
     json.dump(res, open(f"../../runs_v2/{tag}.json", "w"), indent=2)
     report(res)
     print(f"\nsaved runs_v2/{tag}.json")

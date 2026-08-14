@@ -1,0 +1,142 @@
+{
+ "config": {
+  "gap": 0.03,
+  "stem": "nce",
+  "target": "ema",
+  "d_slow": 16,
+  "d_z": 64,
+  "lam_gated": 4.0,
+  "n_seeds": 5,
+  "note": "ungated control matches rotation.py (gate=False, xcov=False, blocknorm=False)"
+ },
+ "per_seed": [
+  {
+   "seed": 0,
+   "effective_rank": 62,
+   "sfa_asis": {
+    "inclusion": 0.9845967033443438,
+    "allocation": 0.6443769242785495,
+    "exclusion": 0.75997883048857,
+    "sep": 0.48216962944436326
+   },
+   "sfa_ranked": {
+    "inclusion": 0.9847696631876298,
+    "allocation": 0.6312063487042294,
+    "exclusion": 0.7585786975882923,
+    "sep": 0.47152710475979925
+   },
+   "gate": {
+    "inclusion": 0.9814670801739767,
+    "allocation": 0.8909004654839828,
+    "exclusion": 0.8708160213208556,
+    "sep": 0.7614323668255116
+   }
+  },
+  {
+   "seed": 1,
+   "effective_rank": 62,
+   "sfa_asis": {
+    "inclusion": 0.9879721491589025,
+    "allocation": 0.5611404080838014,
+    "exclusion": 0.6892672599055252,
+    "sep": 0.3821236309352823
+   },
+   "sfa_ranked": {
+    "inclusion": 0.9878972464642163,
+    "allocation": 0.5591705778195067,
+    "exclusion": 0.690765809044518,
+    "sep": 0.3815811564212595
+   },
+   "gate": {
+    "inclusion": 0.9889866893060658,
+    "allocation": 0.8855350316534816,
+    "exclusion": 0.6677773198860155,
+    "sep": 0.584827596643062
+   }
+  },
+  {
+   "seed": 2,
+   "effective_rank": 62,
+   "sfa_asis": {
+    "inclusion": 0.9879416416146034,
+    "allocation": 0.5205781432687586,
+    "exclusion": 0.6731714512552639,
+    "sep": 0.3462126330497006
+   },
+   "sfa_ranked": {
+    "inclusion": 0.9873453699856659,
+    "allocation": 0.5029300053706092,
+    "exclusion": 0.6591298079226701,
+    "sep": 0.3273011966098578
+   },
+   "gate": {
+    "inclusion": 0.9844482218759444,
+    "allocation": 0.8828236416860852,
+    "exclusion": 0.9517819255235458,
+    "sep": 0.8271881171472262
+   }
+  },
+  {
+   "seed": 3,
+   "effective_rank": 62,
+   "sfa_asis": {
+    "inclusion": 0.9859353125347886,
+    "allocation": 0.5080349766885738,
+    "exclusion": 0.6449848248237269,
+    "sep": 0.32306620608210396
+   },
+   "sfa_ranked": {
+    "inclusion": 0.9859353125347886,
+    "allocation": 0.47991235579019687,
+    "exclusion": 0.6267940743912954,
+    "sep": 0.2965754753528063
+   },
+   "gate": {
+    "inclusion": 0.9848394827885736,
+    "allocation": 0.8872517922607852,
+    "exclusion": 1.0,
+    "sep": 0.8738005961933466
+   }
+  },
+  {
+   "seed": 4,
+   "effective_rank": 62,
+   "sfa_asis": {
+    "inclusion": 0.9864572052808201,
+    "allocation": 0.6227116345695012,
+    "exclusion": 0.7984415142189608,
+    "sep": 0.4904653588677696
+   },
+   "sfa_ranked": {
+    "inclusion": 0.9866137656526686,
+    "allocation": 0.5988804702005426,
+    "exclusion": 0.7933734350221027,
+    "sep": 0.46877557589795515
+   },
+   "gate": {
+    "inclusion": 0.9820174135711638,
+    "allocation": 0.8747663986216816,
+    "exclusion": 0.8069720489612684,
+    "sep": 0.6932179089125833
+   }
+  }
+ ],
+ "summary": {
+  "sfa_asis": {
+   "mean": 0.40480749167584396,
+   "sd": 0.07738172157883477,
+   "n": 5
+  },
+  "sfa_ranked": {
+   "mean": 0.3891521018083356,
+   "sd": 0.07996690595359705,
+   "n": 5
+  },
+  "gate": {
+   "mean": 0.7480933171443459,
+   "sd": 0.11391141685450312,
+   "n": 5
+  }
+ },
+ "delta_sep_from_rank_fix": -0.015655389867508362
+}

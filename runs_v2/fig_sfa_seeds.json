@@ -1,0 +1,73 @@
+{
+ "config": {
+  "gap": 0.03,
+  "steps": 2500,
+  "stem": "nce",
+  "lam_gated": 4.0,
+  "n_seeds": 5
+ },
+ "per_seed": [
+  {
+   "seed": 0,
+   "best_component": 3,
+   "eta2_best": 0.9405389411840503,
+   "eta2_slowest": 0.03183271291943391,
+   "acc_ours": 0.9570909090909091,
+   "eta2_ours": 0.9222589796786789,
+   "acc_sub_ours": 0.9825454545454545,
+   "acc_sub_sfa": 0.9803636363636363
+  },
+  {
+   "seed": 1,
+   "best_component": 3,
+   "eta2_best": 0.8920568110411072,
+   "eta2_slowest": 0.022600747062943644,
+   "acc_ours": 0.9767272727272728,
+   "eta2_ours": 0.9581956933767426,
+   "acc_sub_ours": 0.9810909090909091,
+   "acc_sub_sfa": 0.984
+  },
+  {
+   "seed": 2,
+   "best_component": 2,
+   "eta2_best": 0.905738217563492,
+   "eta2_slowest": 0.01840774884481573,
+   "acc_ours": 0.9592727272727273,
+   "eta2_ours": 0.948287104424266,
+   "acc_sub_ours": 0.9854545454545455,
+   "acc_sub_sfa": 0.984
+  },
+  {
+   "seed": 3,
+   "best_component": 2,
+   "eta2_best": 0.9339056561308924,
+   "eta2_slowest": 0.02753422473430253,
+   "acc_ours": 0.9716363636363636,
+   "eta2_ours": 0.9600421333243412,
+   "acc_sub_ours": 0.978909090909091,
+   "acc_sub_sfa": 0.9861818181818182
+  },
+  {
+   "seed": 4,
+   "best_component": 3,
+   "eta2_best": 0.913003440996776,
+   "eta2_slowest": 0.04438189428962403,
+   "acc_ours": 0.9701818181818181,
+   "eta2_ours": 0.9060917689440099,
+   "acc_sub_ours": 0.9796363636363636,
+   "acc_sub_sfa": 0.9832727272727273
+  }
+ ],
+ "best_components": [
+  3,
+  3,
+  2,
+  2,
+  3
+ ],
+ "best_component_distinct": [
+  2,
+  3
+ ],
+ "note": "ours is always PC1 of a block fixed before training; SFA's index varies, and its own slowness ordering does not point to it"
+}

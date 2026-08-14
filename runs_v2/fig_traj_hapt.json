@@ -1,0 +1,35 @@
+{
+ "nce": {
+  "macro_f1_from_z_slow": 0.5247546337832812,
+  "macro_f1_from_pc1_pc2": 0.4048313159101126,
+  "pc1_var": 0.3650531470775604,
+  "pc2_var": 0.14259475469589233
+ },
+ "n_switches": 60,
+ "duration_s": 686.0,
+ "unlabelled_frac": 0.31518190298507465,
+ "l1": {
+  "macro_f1_from_z_slow": 0.5773332200933518,
+  "macro_f1_from_pc1_pc2": 0.6085068350974444,
+  "pc1_var": 0.320715069770813,
+  "pc2_var": 0.2323070466518402
+ },
+ "config": {
+  "dataset": "HAPT v2",
+  "subject": 22,
+  "stems": [
+   "nce",
+   "l1"
+  ],
+  "target": "ema",
+  "gate": true,
+  "xcov": true,
+  "lam": 4.0,
+  "tau": 40.0,
+  "seed": 0,
+  "stride_patches": 128,
+  "hz": 50.0,
+  "patch": 4,
+  "note": "subject is in the held-out group split"
+ }
+}

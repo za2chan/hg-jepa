@@ -56,6 +56,24 @@ Everything else in the paper is a footnote to one of these five.
       just separates worse.
 - Penalty: **`L_xcov`** (squared cross-covariance between blocks). The old
   name `dcor` collides with Székely's distance correlation — do not reuse it.
+- **Blocks: `z_slow` / `z_mix` (paper text only, adopted 2026-08-06).** The
+  complement block is **`z_mix`** in prose, figures and tables. **Code and every
+  stored JSON key stay `z_fast`** — the rename is post-deadline backlog per
+  §4-6, so during the sprint do NOT touch `probes.BLOCKS`, `block_factor`, or
+  any run file. Reason: the gate exposes that block only for Δ < τ, and
+  near-horizon prediction needs the current slow state as much as the fast one,
+  so it holds **both** factors (measured slow score 0.36–0.87 across the three
+  datasets). Its content is unconstrained; only its horizon availability is
+  constrained. Calling it "fast" promises a symmetric split the method never
+  claims — cf. §5 "Separation is one-directional by design".
+- **Prose terms: persistent / transient, not slow / fast (adopted 2026-08-07).**
+  The axis we cut on is PERSISTENCE (predictable beyond tau), not spectral
+  slowness; the two coincide only under the mixing assumption, and the synthetic
+  generator deliberately breaks it -- the persistent factor sets the carrier
+  FREQUENCY, so a low-pass reading cannot recover it. This matters because we
+  compare against Slow Feature Analysis: writing "slow factor" invites the reader
+  to assume we are doing SFA's job with another algorithm. Keep `z_slow` / `z_mix`
+  as the symbols; introduce them once as "the persistent block" / "the rest".
 - Theory sections: **Gating / Exclusion** (informal arguments). Never
   "Prop. 1 / Prop. 2" — these are not theorems.
 - Old CLI names (`nepa`, `cpc`, `dcor=`) survive one commit as deprecated
@@ -101,8 +119,11 @@ Everything else in the paper is a footnote to one of these five.
   latent target**, the loss form is secondary. No real-data NCE re-runs.
 - **D5** Cut order (approved): NCE d_slow → coherence sweep (keep reject
   demo) → HI → HSIC → TS2Vec (only if the classical baseline is answered).
-- **D6** Near-term deliverable: **Aug 7, 23:59 — IEEE 8pp course paper
+- **D6** Near-term deliverable: **Aug 8, 23:59 EASTERN — IEEE 8pp course paper
   (Responsible-AI course).** Workshop version extends afterwards.
+  **Amended 2026-08-07 by the user: Aug 7 -> Aug 8.** The user's clock is
+  `America/Toronto`; this box runs UTC, 4h ahead. Run `TZ=America/Toronto date`
+  before quoting any time or computing time-to-deadline.
 - **D7** vfloor rule: RankMe collapse at `vfloor=0` → the term enters the
   paper's loss equation; no collapse → default off and remove.
   **RESOLVED 2026-08-03 → removed.** No collapse at vfloor=0 (RankMe rises
@@ -207,7 +228,17 @@ Everything else in the paper is a footnote to one of these five.
   thresholds (Δ_max/fast, Δ_max/dwell) are post-hoc observations, NOT design
   criteria — never present a ratio as a hypothesis. The Δ SET itself is
   underived (synthetic {1,4,16,64,128} vs real {1,2,4,8,16,32}, no recorded
-  justification) — same gap class as the old hardcoded τ. Draft rule (not
+  justification) — same gap class as the old hardcoded τ. **Δ_max, however, DID have
+  a de facto rule (found 2026-08-13): three of four datasets put it at half the window
+  — 128/256 synthetic, 128/256 HAPT, 48/100 PTB-XL. Sleep-EDF's 64 (a quarter) was the
+  lone exception with nothing recorded to justify it. Re-running τ=16 at dmax=128
+  (`run_sleepedf_p10_dmax.sh`) left every term inside the seed spread with the optimal
+  λ still 0 on both stems, so it changes no conclusion — but NEW Sleep-EDF work uses
+  dmax=128.** The p10A/p10C results and everything derived from them (term_breakdown,
+  mlp_probe_rotation, label_free_lambda) were produced at 64 and stay at 64; that
+  re-run is now their sensitivity check. Switching the stored default means re-running
+  config A, whose τ=9 is the only rule-derived threshold on real data — post-deadline
+  backlog. Draft rule for the Δ SET (not
   implemented): log-span T_ac(min)→T_ac(max) with ≥2 horizons each side of τ;
   HAPT cannot satisfy it (segments shorter than the required window — a real
   applicability limit). Detail + numbers in `docs/tau.md`.

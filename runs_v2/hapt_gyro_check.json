@@ -1,0 +1,212 @@
+{
+ "config": {
+  "datasets": {
+   "acc3": "hapt_v2.npz",
+   "acc3+gyro3": "hapt_v2_gyro.npz"
+  },
+  "stems": [
+   "nce",
+   "l1"
+  ],
+  "gate": true,
+  "xcov": true,
+  "lam": 4.0,
+  "tau": 40.0,
+  "seed": 0,
+  "note": "same windows/labels/proxy; only input channels differ. Scored on the held-out subject split."
+ },
+ "results": {
+  "acc3/nce": {
+   "macro": 0.8824725534666009,
+   "per_class": {
+    "walking": 0.8945732993008545,
+    "walking upstairs": 0.8393812627687518,
+    "walking downstairs": 0.8849140974346905,
+    "sitting": 0.8372949898899124,
+    "standing": 0.8445042888489926,
+    "lying": 0.9941673825564046
+   },
+   "n_test": 60000,
+   "block_factor": {
+    "z_slow": {
+     "persistent": 0.8824725534666009,
+     "transient": 0.007040858268737793
+    },
+    "z_fast": {
+     "persistent": 0.9001478884750328,
+     "transient": 0.7202190160751343
+    },
+    "z_full": {
+     "persistent": 0.923224063844231,
+     "transient": 0.7634541988372803
+    },
+    "rand16": {
+     "persistent": 0.8806032434209553,
+     "transient": 0.0950664231425458
+    },
+    "rand48": {
+     "persistent": 0.925639080482747,
+     "transient": 0.6202937870243397
+    },
+    "randsplit_slow": {
+     "persistent": 0.8831854273782692,
+     "transient": 0.11332508093854621
+    },
+    "randsplit_fast": {
+     "persistent": 0.9283933717673488,
+     "transient": 0.5880095893706483
+    }
+   },
+   "sep": {
+    "inclusion": 0.8824725534666009,
+    "allocation": 0.7202190160751343,
+    "exclusion": 0.9929591417312622,
+    "sep": 0.6310985311383848
+   }
+  },
+  "acc3/l1": {
+   "macro": 0.8055162845119478,
+   "per_class": {
+    "walking": 0.727499480357514,
+    "walking upstairs": 0.6750990162258848,
+    "walking downstairs": 0.7614356087262492,
+    "sitting": 0.8515215345314391,
+    "standing": 0.8191308819748008,
+    "lying": 0.9984111852557992
+   },
+   "n_test": 60000,
+   "block_factor": {
+    "z_slow": {
+     "persistent": 0.8055162845119478,
+     "transient": 0.015326142311096191
+    },
+    "z_fast": {
+     "persistent": 0.8660911074974509,
+     "transient": 0.8341878056526184
+    },
+    "z_full": {
+     "persistent": 0.8833648823303458,
+     "transient": 0.8912435173988342
+    },
+    "rand16": {
+     "persistent": 0.8118508868425304,
+     "transient": 0.1316729511918037
+    },
+    "rand48": {
+     "persistent": 0.8673611168773342,
+     "transient": 0.8260196591280344
+    },
+    "randsplit_slow": {
+     "persistent": 0.8132820163074705,
+     "transient": 0.18197660318506234
+    },
+    "randsplit_fast": {
+     "persistent": 0.8751837975695417,
+     "transient": 0.8143513855889952
+    }
+   },
+   "sep": {
+    "inclusion": 0.8055162845119478,
+    "allocation": 0.8341878056526184,
+    "exclusion": 0.9846738576889038,
+    "sep": 0.6616534319344038
+   }
+  },
+  "acc3+gyro3/nce": {
+   "macro": 0.8899616225322257,
+   "per_class": {
+    "walking": 0.9180657036086787,
+    "walking upstairs": 0.8404118404118404,
+    "walking downstairs": 0.8099793455810415,
+    "sitting": 0.893615058128806,
+    "standing": 0.8800567059895702,
+    "lying": 0.9976410814734168
+   },
+   "n_test": 60000,
+   "block_factor": {
+    "z_slow": {
+     "persistent": 0.8899616225322257,
+     "transient": 0.008026957511901855
+    },
+    "z_fast": {
+     "persistent": 0.90347945508578,
+     "transient": 0.5429295301437378
+    },
+    "z_full": {
+     "persistent": 0.9459512031338284,
+     "transient": 0.6234822273254395
+    },
+    "rand16": {
+     "persistent": 0.899920813779196,
+     "transient": 0.0607472240765344
+    },
+    "rand48": {
+     "persistent": 0.9445846445632821,
+     "transient": 0.48785578566760507
+    },
+    "randsplit_slow": {
+     "persistent": 0.8908473167068373,
+     "transient": 0.05763647045132118
+    },
+    "randsplit_fast": {
+     "persistent": 0.9444503203349311,
+     "transient": 0.49242691289439283
+    }
+   },
+   "sep": {
+    "inclusion": 0.8899616225322257,
+    "allocation": 0.5429295301437378,
+    "exclusion": 0.9919730424880981,
+    "sep": 0.4793079284984836
+   }
+  },
+  "acc3+gyro3/l1": {
+   "macro": 0.8870758186851329,
+   "per_class": {
+    "walking": 0.8205207848009525,
+    "walking upstairs": 0.831293417135296,
+    "walking downstairs": 0.8549925800296799,
+    "sitting": 0.9110107015457788,
+    "standing": 0.9046374285990899,
+    "lying": 1.0
+   },
+   "n_test": 60000,
+   "block_factor": {
+    "z_slow": {
+     "persistent": 0.8870758186851329,
+     "transient": 0.018644392490386963
+    },
+    "z_fast": {
+     "persistent": 0.8555845891940056,
+     "transient": 0.6206992864608765
+    },
+    "z_full": {
+     "persistent": 0.9226235867460896,
+     "transient": 0.7363108396530151
+    },
+    "rand16": {
+     "persistent": 0.8722444737031362,
+     "transient": 0.12773162711832908
+    },
+    "rand48": {
+     "persistent": 0.9196925416556935,
+     "transient": 0.6121379424136247
+    },
+    "randsplit_slow": {
+     "persistent": 0.8741048326549397,
+     "transient": 0.09341753638523091
+    },
+    "randsplit_fast": {
+     "persistent": 0.9224260694356747,
+     "transient": 0.6107934190520954
+    }
+   },
+   "sep": {
+    "inclusion": 0.8870758186851329,
+    "allocation": 0.6206992864608765,
+    "exclusion": 0.981355607509613,
+    "sep": 0.5403415885689393
+   }
+  }
+ }
+}

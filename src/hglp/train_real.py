@@ -7,6 +7,7 @@ split. C1 multi-position probe (labeled positions only). B4/B5/B6 as in train.py
 """
 import contextlib
 
+import hashlib, json, os, pathlib
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -41,17 +42,32 @@ def _apply_norm(W, mu, sd, per, n_ax):
     return W
 
 
+_NPZ_MEMO = {}
+
+
+def _load_npz(npz):
+    """Memoise the raw arrays. rotation.py calls train_real six times per seed on
+    the same file, and the read alone is ~35 s on the 3 GB Sleep-EDF set. Keyed on
+    (path, size, mtime) so a regenerated file is never served from the memo."""
+    st = os.stat(npz)
+    k = (str(npz), st.st_size, int(st.st_mtime))
+    if k not in _NPZ_MEMO:
+        _NPZ_MEMO.clear()                    # one file at a time; these are GB-sized
+        d = np.load(npz)
+        _NPZ_MEMO[k] = (d["W"], d["lab"], d["fast"], d["subj"])
+    return _NPZ_MEMO[k]
+
+
 def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
                w=12, dmin=12, dmax=128, batch=64, n_anchor=16, n_delta=4, lr=3e-4,
                ema=0.996, min_context=16, gate=True, xcov=True, blocknorm=True,
-               d_slow=D_SLOW,
+               gate_sym=False, d_slow=D_SLOW,
                loss_kind="reg", target_enc="ema", temp=0.1, mask_same_window=True,
-               log_every=500, train_idx=None):
+               log_every=500, train_idx=None, cache=True):
     assert dmin >= w
     use_ema = target_enc == "ema"
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
-    d = np.load(npz)
-    Wall, lab, fast, grp = d["W"], d["lab"], d["fast"], d["subj"]
+    Wall, lab, fast, grp = _load_npz(npz)
     in_dim = Wall.shape[-1]
     Lw = Wall.shape[1]                                   # actual window length (HAPT 256, PTB-XL 100)
 
@@ -68,12 +84,51 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
     Wn = _apply_norm(Wall, mu, sd, per, n_ax)
     Wt = torch.from_numpy(Wn).to(DEV)
 
+    # --- checkpoint cache -------------------------------------------------
+    # Keyed on EVERY argument that changes the trained weights, plus the data
+    # file's size+mtime. A config that differs anywhere gets a different key, so
+    # a stale checkpoint can never be silently reused. Only the encoder/target
+    # weights are stored; splits and normalisation are recomputed deterministically
+    # from `seed`, which is cheap.
+    ck_path = None
+    if cache:
+        st = os.stat(npz)
+        key = dict(npz=os.path.basename(str(npz)), bytes=st.st_size, mtime=int(st.st_mtime),
+                   n_ax=n_ax, seed=seed, steps=steps, tau=tau, W_gate=W_gate, lam=lam,
+                   w=w, dmin=dmin, dmax=dmax, batch=batch, n_anchor=n_anchor,
+                   n_delta=n_delta, lr=lr, ema=ema, min_context=min_context,
+                   gate=bool(gate), xcov=bool(xcov), blocknorm=bool(blocknorm),
+                   d_slow=d_slow, loss_kind=loss_kind, target_enc=target_enc,
+                   # only recorded when set, so every existing checkpoint keeps its
+                   # hash and the 36 runs already on disk stay reusable
+                   **({"gate_sym": True} if (gate and gate_sym) else {}),
+                   temp=temp, mask_same_window=bool(mask_same_window),
+                   train_idx=(None if train_idx is None else
+                              hashlib.sha1(np.asarray(train_idx).tobytes()).hexdigest()[:12]))
+        # gate=False makes tau/W_gate inert; drop them so the ungated control is
+        # shared across tau settings instead of retrained per config.
+        if not gate:
+            key.pop("tau"); key.pop("W_gate")
+        h = hashlib.sha1(json.dumps(key, sort_keys=True).encode()).hexdigest()[:16]
+        cdir = pathlib.Path(__file__).resolve().parents[2] / "runs_v2" / "ckpt"
+        cdir.mkdir(parents=True, exist_ok=True)
+        ck_path = cdir / f"tr_{h}.pt"
+
     mk = lambda: Encoder(in_dim, blocknorm, d_slow).to(DEV)
     enc, pred = mk(), Predictor().to(DEV)
     tgt = mk(); tgt.load_state_dict(enc.state_dict())
     for p_ in tgt.parameters():
         p_.requires_grad_(False)
     opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)
+
+    if ck_path is not None and ck_path.exists():
+        sd_ = torch.load(ck_path, map_location=DEV)
+        enc.load_state_dict(sd_["enc"]); tgt.load_state_dict(sd_["tgt"])
+        print(f"  [cache hit] {ck_path.name}", flush=True)
+        return dict(enc=enc, tgt=(tgt if use_ema else enc), Wt=Wt, lab=lab, fast=fast,
+                    is_test=is_test, tr=tr, te=np.flatnonzero(is_test),
+                    losses=sd_.get("losses", []), norm=(mu, sd, per, n_ax), in_dim=in_dim)
+
 
     ar_w = torch.arange(w, device=DEV)
     bi_const = np.broadcast_to(np.arange(batch)[:, None, None],
@@ -101,7 +156,12 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
         dT = torch.from_numpy(di).to(DEV).float()
 
         g = torch.sigmoid((tau - dT) / W_gate).unsqueeze(-1) if gate else 1.0
-        za_in = torch.cat([za[:, :d_slow], za[:, d_slow:] * g], -1)
+        # See train.py for the argument. Short version: with the default one-sided
+        # gate, z_slow is always on, so transient content in it is free profit at
+        # short Delta -- which is precisely why the Exclusion clause cannot be argued
+        # from the objective. gate_sym mutes z_slow below tau so it pays nowhere.
+        gs = (1.0 - g) if (gate and gate_sym) else 1.0
+        za_in = torch.cat([za[:, :d_slow] * gs, za[:, d_slow:] * g], -1)
         zhat = pred(za_in, torch.log2(dT).unsqueeze(-1))
         tenc = tgt if use_ema else enc          # online (D2): both-sided grads
         with (torch.no_grad() if use_ema else contextlib.nullcontext()):
@@ -129,6 +189,12 @@ def train_real(npz, n_ax=3, seed=0, steps=2500, tau=40.0, W_gate=4.0, lam=4.0,
         losses.append(loss.item())
         if step % log_every == 0:
             print(f"  step {step} loss {loss.item():.4f}", flush=True)
+
+    if ck_path is not None:
+        tmp = ck_path.with_suffix(".pt.tmp")          # atomic: never leave a half file
+        torch.save({"enc": enc.state_dict(), "tgt": tgt.state_dict(),
+                    "losses": losses, "key": key}, tmp)
+        tmp.replace(ck_path)
 
     return dict(enc=enc, tgt=(tgt if use_ema else enc), Wt=Wt, lab=lab, fast=fast, is_test=is_test,
                 tr=tr, te=np.flatnonzero(is_test), losses=losses,

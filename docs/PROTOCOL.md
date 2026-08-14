@@ -485,11 +485,49 @@ numbers. Every row is scored on **both** factors:
 - **leak** — *fast*-factor score from `z_slow` (u R² / accmag R² / phase R²);
   lower is better **only when read against `rand<d_slow>`**. Report **linear probe
   and MLP probe and MINE**, because linear probes overstate exclusion (v1 finding).
-- **SEP** = inclusion × allocation × exclusion, each clipped to [0,1]:
-  `z_slow`'s slow score over `z_full`'s; `z_fast`'s fast score over the
-  **comparison set's** ceiling; and `1 − leak / rand<d_slow>`. Allocation must
-  NOT be normalised by the model's own `z_full` — a model that encodes the fast
-  factor nowhere then scores a perfect ratio against itself.
+- **SEP** = inclusion × allocation × exclusion, each a RAW score clipped to
+  [0,1]. **No denominators anywhere** (revised 2026-08-07):
+  1. **inclusion** — is the slow factor in `z_slow`? Its slow score.
+  2. **allocation** — is the fast factor recoverable from `z_mix`? Its fast score.
+  3. **exclusion** — is `z_slow` free of the fast factor? `1 − z_slow_fast`.
+- **Why no denominator.** Inclusion and allocation never had one: SEP is a product,
+  so a denominator shared by every cell in a table is a constant factor that cannot
+  change the ranking and only adds a "do not compare across tables" caveat.
+  Exclusion kept one until 2026-08-07, justified as stopping a model that encoded
+  the fast factor NOWHERE from collecting a perfect exclusion for free. **That job
+  belongs to allocation, which does it alone**: the vacuous `nce+online` cell on
+  HAPT carries the fast proxy at 0.164 in its complement against 0.625 for
+  `nce+ema`, and the product collapses on that term by itself (SEP 0.129 vs 0.525).
+  Keeping the denominator as well made **two of the three terms move with the same
+  property** — how much fast information the model represents at all — so a model
+  was rewarded for it twice. Measured across the six post-hoc-rotation tables,
+  dropping it **changes no winner and no top-3**, and shifts values by 0.001–0.037.
+- **Two things fall out of this.** (a) `sep_index` no longer reads `z_full`, so
+  "which model's `z_full`" stops being a question — it was answered wrong once,
+  from a different training run. (b) The index applies **across architectures**:
+  TS2Vec's 320 dims and PatchTST's `C*128` need no shared reference encoder.
+- **The random-subspace row stays.** Exclusion is not normalised by
+  `rand<d_slow>` either — over 30 draws its CV is 0.2–0.7% (synthetic) but 18–19%
+  (PTB-XL) and 45–49% (HAPT, range [0.013, 0.222], a factor of 17), so dividing by
+  it would inject that noise everywhere. It is reported as a **row**, where its
+  spread is visible. On datasets where 16 dims naturally carry little of the fast
+  factor, exclusion is high for everything (HAPT's random 16-dim readout already
+  scores 0.042–0.109); **only the random row makes that readable.**
+- **SEP is a summary, not a verdict.** Report the raw four numbers — (`z_slow`
+  slow, `z_slow` fast, `z_mix` slow, `z_mix` fast) — beside it, and never settle a
+  comparison on the scalar alone. In particular **always show the inclusion
+  column**: SEP is a product, so a high exclusion can buy back lost inclusion, and
+  exclusion is capped at 1.0 while inclusion is bounded by what the task allows.
+  Measured: a representation holding 0.518 of the slow factor with a near-perfect
+  exclusion ties one holding 0.754 with a partial exclusion.
+- **Naming (`z_mix`, adopted 2026-08-06; code rename deferred to post-deadline
+  per §4-6).** The complement block is called **`z_mix`** in the paper; the code
+  keeps `z_fast` and every stored JSON key is `z_fast`. `z_fast` is a misnomer:
+  the gate exposes that block only for Δ < τ, and near-horizon prediction needs
+  the current slow state as well as the fast one, so it holds **both** factors
+  (measured slow score 0.36–0.87). Nothing constrains its content; only its
+  horizon availability is constrained. Naming it "fast" invites the reader to
+  expect a symmetric split that the method never claims.
 - **chance stated explicitly per metric**: balanced macro-F1 chance = 1/k;
   R² chance = 0. Never implied.
 - **RankMe** effective rank as the collapse monitor (it replaces the removed
@@ -536,11 +574,27 @@ ungated block and the null measures per-block LN's own contribution.
 
 ## D. Sweeps
 
-**Held fixed** (decided above, not swept): loss form (L2 + xcov, no vfloor);
-RF-bounded point target with `w_eff = min(w,Δ)` (**pending the B5 pilot**);
-continuous Δ conditioning; dataset-global normalization; Δ-then-anchor sampling
-over `[min_context, L−Δ)`; per-block LayerNorm; group-split leak-free
-evaluation; per-position multi-position probing.
+**Held fixed** (decided above, not swept): the two stems (`l1+ema`, `nce+ema`;
+L2 and `nce+online` are ablation cells, not the loss form — amended 2026-08-04);
+xcov, no vfloor; RF-bounded point target with `w_eff = min(w,Δ)`; continuous Δ
+conditioning; dataset-global normalization; Δ-then-anchor sampling over
+`[min_context, L−Δ)`; per-block LayerNorm **wherever λ > 0**; group-split
+leak-free evaluation; per-position multi-position probing.
+
+**The mechanism-free control is `g0_x0_noBlockLN`** (added 2026-08-07). Per-block
+LayerNorm normalises the two blocks separately, which privileges the coordinate
+split on its own — a control that keeps it is not mechanism-free. Since the LN
+exists to stop block coupling from fighting xcov, it travels with the xcov arm,
+which fixes the reported 2×2 as
+
+```
+g0_x0_noBlockLN | g1_x0_noBlockLN
+g0_x1_LN        | g1_x1_LN
+```
+
+Corollary: the λ sweep's domain is **λ > 0** ({1, 4, 16, 64}). The λ = 0 point
+would need LN off to be consistent, and that cell is already the ablation's
+`g1_x0_noBlockLN`.
 
 **Swept:**
 
@@ -557,8 +611,14 @@ evaluation; per-position multi-position probing.
 | D_MODEL / D_Z | around 96/64 | never justified; the current ratio is atypical |
 | train overlap, anchor count, Δ density | TBD | throughput vs variance |
 
-Seeds: **3 per reported cell** (data-resampling, D3). Every run JSON records
-the full config, the data content hash, and library versions (A5).
+Seeds: **5 per reported cell** (data-resampling, D3) — raised from 3 on
+2026-08-07 because HGLP-NCE's across-seed sd is ~2.4× HGLP-Reg's (±0.079 vs
+±0.033 on SEP), so 3 seeds could not separate the stems. Tables that still carry
+3 seeds (τ and d_slow sweeps on real data) **state n in the caption**; mixing n
+inside one table is not allowed. Every run JSON records the full config, the
+data content hash, and library versions (A5) — **including `n_seed`**, and where
+practical the per-seed values, since a paired test needs them and averaging them
+away made one run unusable.
 
 ---
 

@@ -1,0 +1,120 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+
+% --- shorthands for the two embedding blocks (paper-wide notation) ---
+\newcommand{\zslow}{z_{\mathrm{slow}}}
+\newcommand{\zmix}{z_{\mathrm{mix}}}
+\newcommand{\dslow}{d_{\mathrm{slow}}}
+
+% --- float placement: allow more floats per page, less forced text ---
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.75}
+\renewcommand{\dbltopfraction}{0.92}
+\renewcommand{\dblfloatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+\setcounter{dbltopnumber}{3}
+
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+
+\makeatletter
+\long\def\@makecaption#1#2{\vskip\abovecaptionskip
+  \footnotesize #1.\ #2\par\vskip\belowcaptionskip}
+\makeatother
+
+\setlength{\tabcolsep}{3.5pt}
+
+\begin{document}
+
+\title{Horizon-Gated Latent Prediction: Disentangling Persistent Factors in Time Series}
+
+\author{\IEEEauthorblockN{Jaechan Lee}
+\IEEEauthorblockA{\textit{University of Waterloo} \\
+Waterloo, Canada \\
+j2342lee@uwaterloo.ca}
+}
+
+\maketitle
+
+\begin{abstract}
+Time-series representation learning has advanced considerably, but a single series mixes factors acting on different timescales, which makes the embedding hard to interpret and use. Work that separates them at the embedding level has mostly addressed static factors, those that do not change over an entire sequence, because invariance by definition supplies a training signal. Persistent factors that vary slowly without being constant get no such free constraint, and they need an axis that fixes where the boundary between slow and fast lies. That axis is already present in prediction-based representation learning: the horizon sets how far into the future the model must predict, and therefore how long information must persist in order to be useful. We propose Horizon-Gated Latent Prediction (HGLP), which places a single threshold on that axis. Beyond it the gate forces the predictor to use only a designated subspace, $\zslow$, while a cross-covariance penalty between the blocks holds the two apart. A predictor cannot foresee upcoming transitions, so the only way to lower error at long horizons is to record the current state. We also propose a separation index (SEP) that scores how far apart the two blocks are. On synthetic and real data in which persistent and transient factors coexist, we confirm that the transient factor can be separated out of $\zslow$. Against post-hoc rotations of an ungated embedding, we lead on the synthetic data but trail Slow Feature Analysis on the real ones. We further quantify the downstream trade-off that the separated embedding incurs, and report that it gives up downstream accuracy while degrading less in a new domain when labels are scarce.
+\end{abstract}
+
+\begin{IEEEkeywords}
+time-series representation learning, self-supervised learning, disentanglement, joint-embedding predictive architecture, interpretability
+\end{IEEEkeywords}
+
+\input{sec1_intro}
+\input{sec2_related}
+\input{sec3_method}
+\input{sec4_results}
+\input{sec5_conclusion}
+
+\scriptsize
+\begin{thebibliography}{00}
+\setlength{\itemsep}{0pt}
+
+\bibitem{oord2018} A. van den Oord, Y. Li, and O. Vinyals, ``Representation learning with contrastive predictive coding,'' \emph{arXiv:1807.03748}, 2018.
+
+\bibitem{lecun2022} Y. LeCun, ``A path towards autonomous machine intelligence,'' v0.9.2, OpenReview, 2022.
+
+\bibitem{assran2023} M. Assran et al., ``Self-supervised learning from images with a joint-embedding predictive architecture,'' in \emph{CVPR}, 2023, pp. 15619--15629.
+
+\bibitem{hsu2017} W.-N. Hsu, Y. Zhang, and J. Glass, ``Unsupervised learning of disentangled and interpretable representations from sequential data,'' in \emph{NeurIPS}, 2017.
+
+\bibitem{li2018} Y. Li and S. Mandt, ``Disentangled sequential autoencoder,'' in \emph{ICML}, 2018.
+
+\bibitem{cleveland1990} R. B. Cleveland et al., ``STL: A seasonal-trend decomposition procedure based on Loess,'' \emph{J. Official Statistics}, vol. 6, no. 1, pp. 3--73, 1990.
+
+\bibitem{huang1998} N. E. Huang et al., ``The empirical mode decomposition and the Hilbert spectrum for nonlinear and non-stationary time series analysis,'' \emph{Proc. R. Soc. Lond. A}, vol. 454, pp. 903--995, 1998.
+
+\bibitem{hyvarinen2016} A. Hyv\"{a}rinen and H. Morioka, ``Unsupervised feature extraction by time-contrastive learning and nonlinear ICA,'' in \emph{NeurIPS}, 2016.
+
+\bibitem{khinchin1934} A. Khinchin, ``Korrelationstheorie der station\"{a}ren stochastischen Prozesse,'' \emph{Math. Annalen}, vol. 109, pp. 604--615, 1934.
+
+\bibitem{bialek2001} W. Bialek, I. Nemenman, and N. Tishby, ``Predictability, complexity, and learning,'' \emph{Neural Comput.}, vol. 13, no. 11, pp. 2409--2463, 2001.
+
+\bibitem{creutzig2008} F. Creutzig and H. Sprekeler, ``Predictive coding and the slowness principle: An information-theoretic approach,'' \emph{Neural Comput.}, vol. 20, no. 4, pp. 1026--1041, 2008.
+
+\bibitem{wiskott2002} L. Wiskott and T. J. Sejnowski, ``Slow feature analysis: Unsupervised learning of invariances,'' \emph{Neural Comput.}, vol. 14, no. 4, pp. 715--770, 2002.
+
+\bibitem{blaschke2007} T. Blaschke, T. Zito, and L. Wiskott, ``Independent slow feature analysis and nonlinear blind source separation,'' \emph{Neural Comput.}, vol. 19, no. 4, pp. 994--1021, 2007.
+
+\bibitem{richthofer2013} S. Richthofer and L. Wiskott, ``Predictable feature analysis,'' \emph{arXiv:1311.2503}, 2013.
+
+\bibitem{randall2011} R. B. Randall and J. Antoni, ``Rolling element bearing diagnostics --- A tutorial,'' \emph{Mech. Syst. Signal Process.}, vol. 25, no. 2, pp. 485--520, 2011.
+
+\bibitem{higgins2017} I. Higgins et al., ``$\beta$-VAE: Learning basic visual concepts with a constrained variational framework,'' in \emph{ICLR}, 2017.
+
+\bibitem{nie2023} Y. Nie et al., ``A time series is worth 64 words: Long-term forecasting with transformers,'' in \emph{ICLR}, 2023.
+
+\bibitem{yue2022} Z. Yue et al., ``TS2Vec: Towards universal representation of time series,'' in \emph{AAAI}, vol. 36, 2022, pp. 8980--8987.
+
+\bibitem{tonekaboni2021} S. Tonekaboni, D. Eytan, and A. Goldenberg, ``Unsupervised representation learning for time series with temporal neighborhood coding,'' in \emph{ICLR}, 2021.
+
+\bibitem{ennadir2025} S. Ennadir, S. Golkar, and A. Sarra, ``Joint embeddings go temporal,'' \emph{arXiv:2509.25449}, 2025.
+
+\bibitem{chemeris2026} A. Chemeris, M. Jin, and R. Balestriero, ``LeNEPA: No-augmentation next-latent prediction for time-series representation learning,'' \emph{arXiv:2607.00958}, 2026.
+
+\bibitem{petersen2026} J. Petersen et al., ``HEPA: A self-supervised horizon-conditioned event predictive architecture for time series,'' \emph{arXiv:2605.11130}, 2026.
+
+\bibitem{klindt2021} D. A. Klindt et al., ``Towards nonlinear disentanglement in natural data with temporal sparse coding,'' in \emph{ICLR}, 2021.
+
+\bibitem{locatello2019} F. Locatello et al., ``Challenging common assumptions in the unsupervised learning of disentangled representations,'' in \emph{ICML}, 2019.
+
+\end{thebibliography}
+
+\end{document}

@@ -53,6 +53,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
           steps=2500, tau=16.0, W=4.0, lam=4.0, w=8, dmin=8, dmax=128, batch=64,
           n_anchor=16, n_delta=4, lr=3e-4, ema=0.996, min_context=16, temp=0.1,
           gate=True, xcov=True, gap=0.05, blocknorm=True, d_slow=D_SLOW,
+          gate_hard=False, gate_sym=False, target_space="latent",
           mask_same_window=True, log_every=500):
     assert dmin >= w, "pilot expects Δ_min>=w so w_eff==w (see module docstring)"
     use_ema = target_enc == "ema"
@@ -63,10 +64,13 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
 
     mk = lambda: Encoder(blocknorm=blocknorm, d_slow=d_slow).to(DEV)
     enc, pred = mk(), Predictor().to(DEV)
+    # raw-target ablation only: D_Z -> P readout, trained jointly
+    raw_head = torch.nn.Linear(D_Z, P).to(DEV) if target_space == "raw" else None
     tgt = mk(); tgt.load_state_dict(enc.state_dict())
     for p_ in tgt.parameters():
         p_.requires_grad_(False)
-    opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters()), lr=lr)
+    opt = torch.optim.AdamW(list(enc.parameters()) + list(pred.parameters())
+                            + (list(raw_head.parameters()) if raw_head else []), lr=lr)
 
     ar_w = torch.arange(w, device=DEV)
     # window index of each (anchor, Δ) pair is fixed across steps -> precompute
@@ -96,15 +100,43 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
         za = z[biT, torch.from_numpy(ai).to(DEV)]          # (N, D_Z)
         dT = torch.from_numpy(di).to(DEV).float()
 
-        g = torch.sigmoid((tau - dT) / W).unsqueeze(-1) if gate else 1.0
-        za_in = torch.cat([za[:, :d_slow], za[:, d_slow:] * g], -1)
+        # hard gate: a step at tau. It zeroes z_fast's gradient outright for
+        # Delta > tau, where the smooth form still passes a partial gradient
+        # through the transition band -- that is what the smoothness is for.
+        if not gate:
+            g = 1.0
+        elif gate_hard:
+            g = (dT < tau).float().unsqueeze(-1)
+        else:
+            g = torch.sigmoid((tau - dT) / W).unsqueeze(-1)
+        # gate_sym: mute z_slow for Delta < tau as well, with the complementary
+        # weight 1-g = sigmoid((Delta-tau)/W). The default one-sided form leaves
+        # z_slow always on, which is exactly why the Exclusion clause cannot be
+        # argued from the objective -- transient content in z_slow is FREE PROFIT at
+        # short Delta. Under the symmetric form it pays nowhere: at short Delta
+        # z_slow is muted, and at long Delta the transient factor is already
+        # decorrelated. This does not push transient content out, it only stops
+        # rewarding it, so the clause moves from "not guaranteed" to "not rewarded".
+        # Cost: short-Delta prediction runs on z_mix alone, so z_mix must carry the
+        # persistent factor too -- allowed, since separation is one-directional by
+        # design (CLAUDE.md section 5) and SEP does not score persistent content in z_mix.
+        gs = (1.0 - g) if (gate and gate_sym) else 1.0
+        za_in = torch.cat([za[:, :d_slow] * gs, za[:, d_slow:] * g], -1)
         zhat = pred(za_in, torch.log2(dT).unsqueeze(-1))
+        if raw_head is not None:
+            zhat = raw_head(zhat)
 
         # B5 target: receptive field (cumulative|bounded) x encoder (ema|online).
         # online (D2) = the SAME encoder, gradients on both sides, no stop-grad.
         tenc = tgt if use_ema else enc
         with (torch.no_grad() if use_ema else contextlib.nullcontext()):
-            if target_mode == "cumulative":
+            if target_space == "raw":
+                # JEPA-vs-autoencoding ablation: predict the RAW patch at t+Delta
+                # instead of its latent. Same gate, same anchors, same horizons --
+                # only the target space changes. A linear head maps D_Z -> P so the
+                # predictor itself is untouched.
+                ztgt = xb[biT, torch.from_numpy(tp).to(DEV)]         # (N, P)
+            elif target_mode == "cumulative":
                 ztgt = tenc(xb)[biT, torch.from_numpy(tp).to(DEV)]
             elif target_mode == "bounded":
                 starts = torch.from_numpy(tp - w).to(DEV)[:, None] + ar_w   # (N, w)
@@ -144,7 +176,7 @@ def train(target_mode="bounded", loss_kind="reg", target_enc="ema", seed=0,
     return dict(enc=enc, tgt=(tgt if use_ema else enc), pred=pred, losses=losses,
                 data=data,
                 cfg=dict(target_mode=target_mode, loss_kind=loss_kind, gate=gate, xcov=xcov,
-                         blocknorm=blocknorm, d_slow=d_slow,
+                         blocknorm=blocknorm, d_slow=d_slow, gate_hard=gate_hard, target_space=target_space,
                          target_enc=target_enc, seed=seed, tau=tau, W=W, lam=lam,
                          gap=gap, data_sha256=data["sha256"],
                          w=w, dmin=dmin, dmax=dmax, steps=steps, temp=temp,

@@ -18,6 +18,12 @@ from sklearn.preprocessing import StandardScaler
 from model import D_Z, D_SLOW
 
 C_MIN = 64          # context floor in patches (protocol C1; swept in the appendix)
+# NOTE the paper calls "z_fast" **z_mix** (decided 2026-08-06): the gate exposes
+# that block only for dT < tau, and near-horizon prediction needs the current
+# slow state as much as the fast one, so it holds BOTH factors (slow score
+# 0.36-0.87 measured). Only its horizon availability is constrained, not its
+# content. The code key stays `z_fast` -- every stored run JSON uses it and
+# CLAUDE.md 4-6 bans repo-wide renames during the sprint. Rename post-deadline.
 BLOCKS = {"z_slow": slice(0, D_SLOW), "z_fast": slice(D_SLOW, D_Z),
           "z_full": slice(0, D_Z)}
 
@@ -124,41 +130,70 @@ def block_factor(Ftr, ytr, ztr, Fte, yte, zte, d_slow=D_SLOW, n_rand=3, seed=0,
                  for Q in (rand_subspace(D, d, seed + 1000 * i) for i in range(n_rand))]
         out[f"rand{d}"] = (float(np.mean([c[0] for c in cells])),
                            float(np.mean([c[1] for c in cells])))
+
+    # `rand<d>` above are INDEPENDENT draws at each width, not a split -- pairing
+    # them would mix two unrelated subspaces, so they cannot form a SEP. This is a
+    # real random SPLIT: one full rotation cut into d and D-d, i.e. the same
+    # coordinate-split operation applied to an arbitrary basis. It is the null SEP
+    # every cell must beat, and on HAPT it is high enough (~0.34-0.54) that a table
+    # without it reads far too favourably.
+    pairs = []
+    for i in range(n_rand):
+        Q = rand_subspace(D, D, seed + 7919 * i)       # full-rank rotation
+        pairs.append((score(Ftr @ Q[:, :d_slow], ytr, ztr, Fte @ Q[:, :d_slow], yte, zte,
+                            classification),
+                      score(Ftr @ Q[:, d_slow:], ytr, ztr, Fte @ Q[:, d_slow:], yte, zte,
+                            classification)))
+    mean = lambda f: (float(np.mean([f(p)[0] for p in pairs])),
+                      float(np.mean([f(p)[1] for p in pairs])))
+    out["randsplit_slow"] = mean(lambda p: p[0])       # the "z_slow" half of the split
+    out["randsplit_fast"] = mean(lambda p: p[1])       # its complement
     return out
 
 
-def sep_index(bf, fast_ceiling, fast_null=None):
+def sep_index(bf, fast_ceiling=None, fast_null=None):
     """One scalar summarising the block x factor matrix. In [0, 1], higher better.
-    SUPPORTING value only -- the matrix is the result; this just sorts cells.
+    All three terms are RAW scores clipped to [0,1] -- no denominators anywhere.
 
-        inclusion  z_slow keeps the slow factor, relative to the whole embedding
-        allocation z_fast actually HOLDS the fast factor -- normalised by the
-                   ceiling ACROSS the comparison set, because a model that
-                   encodes the fast factor nowhere has a low ceiling of its own
-                   and would otherwise score a perfect ratio against itself
-        exclusion  z_slow holds LESS fast information than a random block of the
-                   same width; 0 if it holds as much (i.e. the gate did nothing)
+        inclusion  z_slow's slow-factor score   -- is the slow factor IN z_slow?
+        allocation z_fast's fast-factor score   -- is the fast factor recoverable
+                   from the complement? (`z_mix` in the paper -- see BLOCKS above)
+        exclusion  1 - z_slow's fast-factor score -- is z_slow free of it?
 
-    `fast_null` is the random-subspace reference. Default (None) uses the cell's
-    OWN rand<d_slow>, which answers "is the slow block special inside THIS
-    embedding". Passing the UNGATED cell's null instead fixes one yardstick for
-    the whole comparison, which is the reported default: a same-model null moves
-    with the model being judged. Measured, the two agree on ordering everywhere
-    and the ungated one is uniformly the more conservative (synth .947/.938,
-    PTB-XL .622/.553, HAPT .900/.788), so nothing rests on the choice.
+    Why no denominator on exclusion (revised 2026-08-07). Exclusion used to divide
+    by the model's own z_full, to stop a model that encoded the fast factor NOWHERE
+    from collecting a perfect exclusion for free. That job actually belongs to
+    ALLOCATION, which does it entirely on its own: the vacuous nce+online cell on
+    HAPT carries the fast proxy at 0.164 in its complement against 0.625 for
+    nce+ema, and the product collapses on that term alone (SEP 0.129 vs 0.525).
+    Keeping the denominator as well made two of the three terms move with the same
+    property -- how much fast information the model represents at all -- so a model
+    was rewarded twice for it. Measured across the six rotation tables, dropping it
+    changes no winner and no top-3, and shifts values by 0.001-0.037.
 
-    The exclusion term cannot be dropped: inclusion and allocation both saturate
-    (any embedding keeps the slow factor, any 48-dim block holds the fast one),
-    so without it the no-mechanism control scores 0.993 against our 0.997.
+    Two things fall out of having no denominator:
+      * sep_index no longer needs z_full, so "which model's z_full" stops being a
+        question (it was answered wrong once, from a different training run)
+      * the index applies across architectures -- TS2Vec's 320 dims and PatchTST's
+        C*128 need no shared reference encoder
+
+    Consequence to state in the paper: on datasets where 16 dims naturally carry
+    little of the fast factor, exclusion is high for everything (HAPT's random
+    16-dim readout already scores 0.042-0.109 on the fast proxy). The random-subspace
+    ROW is what makes that readable; the index alone cannot.
+
+    SEP is a SUMMARY of the block x factor matrix, not a substitute for it. Report
+    the raw four numbers -- (z_slow slow, z_slow fast, z_mix slow, z_mix fast) --
+    beside it, and never settle a comparison on the scalar alone.
+
+    `fast_ceiling` / `fast_null` are accepted and ignored; kept so older callers
+    do not break.
     """
-    (Ss, Fs), (_, Ff), (Sfull, _) = bf["z_slow"], bf["z_fast"], bf["z_full"]
-    Fr = bf[f"rand{D_SLOW}"][1] if fast_null is None else fast_null
-    incl = Ss / max(Sfull, 1e-6)
-    alloc = Ff / max(fast_ceiling, 1e-6)
-    excl = 1.0 - Fs / Fr if Fr > 1e-3 else float(Fs <= 1e-3)
+    (Ss, Fs), (_, Ff) = bf["z_slow"], bf["z_fast"]
     c = lambda v: float(min(max(v, 0.0), 1.0))
-    return dict(inclusion=c(incl), allocation=c(alloc), exclusion=c(excl),
-                sep=c(incl) * c(alloc) * c(excl))
+    incl, alloc, excl = c(Ss), c(Ff), c(1.0 - Fs)
+    return dict(inclusion=incl, allocation=alloc, exclusion=excl,
+                sep=incl * alloc * excl)
 
 
 def context_curve(Z, lab, fast, tr, te, block="z_slow", positions=None,

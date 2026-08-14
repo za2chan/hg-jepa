@@ -1,0 +1,22 @@
+{
+ "config": {
+  "gap": 0.03,
+  "n": 400000,
+  "seed": 0,
+  "steps": 2500,
+  "n_win": 256,
+  "smooth": 1001,
+  "dwell": 3000,
+  "u_tau": 50,
+  "patch": 8
+ },
+ "halflife_steps": {
+  "raw signal $x$": 2.0,
+  "low-pass of $x$": 56.0,
+  "carrier frequency (1001 steps)": 623.0,
+  "$z_{slow}$ (16 dims)": 104.0,
+  "$z_{mix}$ (48 dims)": 8.0,
+  "z_slow_meandim": 56.0,
+  "z_mix_meandim": 16.0
+ }
+}

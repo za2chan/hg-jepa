@@ -34,6 +34,15 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "hglp"))
 
 import numpy as np
 
+# Synthetic difficulty; 0.05 default keeps existing files byte-identical.
+GAP = float(os.environ.get("HGLP_GAP", 0.05))
+# extra train() kwargs, so a sweep can be re-run for a VARIANT of the method and
+# compared curve-to-curve. Both arms carry xcov, so lambda means the same thing in
+# each and neither side is flattered by the choice.
+#   HGLP_VARIANT='{"target_space": "raw"}'   HGLP_VARIANT_TAG=_raw
+VARIANT = json.loads(os.environ.get("HGLP_VARIANT", "{}"))
+VARIANT_TAG = os.environ.get("HGLP_VARIANT_TAG", "")
+
 from model import D_SLOW, D_Z
 from probes import block_factor, sep_index
 from twosided import synth_feats, real_feats, DATASETS
@@ -54,8 +63,8 @@ def one(dataset, stem, seed, axis, value):
     ds = value if axis == "dslow" else D_SLOW
     if dataset == "synth":
         from train import train
-        r = train(**kw)
-        f = synth_feats(r["enc"])
+        r = train(gap=GAP, **kw, **VARIANT)
+        f = synth_feats(r["enc"], gap=GAP)
     else:
         npz, n_ax, base, static = DATASETS[dataset]
         r = train_real_(npz, n_ax, base, kw)
@@ -118,6 +127,8 @@ if __name__ == "__main__":
     json.dump(dict(result=res, config=dict(axis=axis, dataset=dataset, n_seed=n_seed,
                                            grid=GRIDS[axis][1],
                                            tau_default=TAU_DEFAULT[dataset])),
-              open(f"../../runs_v2/sweep_{axis}_{dataset}.json", "w"), indent=2)
+              open(f"../../runs_v2/sweep_{axis}_{dataset}"
+                   f"{'' if GAP == 0.05 or dataset != 'synth' else f'_gap{GAP:g}'}"
+                   f"{VARIANT_TAG}.json", "w"), indent=2)
     report(res, axis, dataset)
     print(f"\nsaved runs_v2/sweep_{axis}_{dataset}.json")
