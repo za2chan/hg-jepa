@@ -163,7 +163,7 @@ def main():
     axes[0].legend(handles=[Patch(fc="#e9ecef", ec="none",
                                   label="unlabelled or postural transition")],
                    fontsize=8, frameon=False, loc="upper right")
-    fig.suptitle(f"$z_{{slow}}$ on held-out HAPT subject {best}: it steps where the "
+    fig.suptitle(f"$z_{{per}}$ on held-out HAPT subject {best}: it steps where the "
                  f"activity changes (dotted lines)", fontsize=10.5, y=.995)
     fig.savefig(OUT / "fig_traj_hapt.png", dpi=220, bbox_inches="tight")
     plt.close(fig)

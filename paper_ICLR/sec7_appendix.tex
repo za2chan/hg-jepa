@@ -46,26 +46,25 @@ HGLP-NCE & \textbf{0.844} ($\lambda=16$) & 0.432 ($\lambda=16$) & $+0.411$ ($1.9
 
 Predicting raw patches halves SEP on both stems (Table~\ref{tab:latentraw}). The allocation term is the same for the two targets, at 0.86 to 0.89, and the gap opens in inclusion: the raw target loses the persistent factor as the penalty grows, falling from 0.807 to 0.401, whereas the latent target stays above 0.97 throughout. The raw signal still contains the transient component, and the pressure to predict that too pushes the persistent factor out. The gate and the penalty are thus not sufficient on their own; the latent target has to be present as well.
 
-\section{Where the persistence--slowness coincidence holds}
+\section{Is the persistent factor in the slow band of the signal?}
 \label{app:coincidence}
 
-Section~\ref{sec:rotation} attributes SFA's lead on real data to persistence and slowness coinciding there. That is an explanation, and this appendix turns it into two measurements, because the word ``slow'' was carrying two meanings at once: \textbf{(a)} the factor is legible in the low-frequency band of the signal, and \textbf{(b)} some direction of the representation changes little over time. SFA optimizes (b) --- under a unit-variance constraint it minimizes the time derivative of its output, which says nothing about where in the spectrum the factor lives.
-
-For (a) we filter the raw signal to one band at a time and fit the same linear probe on that band alone (Table~\ref{tab:bandaccess}). Only HAPT clears chance by a real margin. On PTB-XL the low band is \emph{at} chance and the diagnosis lives instead in the 2--5\,Hz QRS morphology --- yet SFA wins on PTB-XL, so sense (a) is not what is happening there.
+Section~\ref{sec:rotation} attributes SFA's lead on real data to persistence and slowness
+mostly coinciding there. One half of that can be checked directly on the raw signal: we
+filter it to one band at a time and fit the same linear probe on that band alone
+(Table~\ref{tab:bandaccess}).
 
 \input{tab_bandaccess}
 
-For (b) we ask whether ordering the directions of an ungated embedding by slowness \emph{finds} the persistent factor, and by how much:
-\begin{equation}
-C=\frac{s_{\text{per}}(\text{SFA's slow half}) - s_{\text{per}}(\text{random 16})}
-       {s_{\text{per}}(\text{full 64}) - s_{\text{per}}(\text{random 16})}.
-\label{eq:metricC}
-\end{equation}
-All three terms are read off one mechanism-free embedding --- gate, penalty and per-block LayerNorm all absent --- re-based three ways, so they are already stored in the runs of Table~\ref{tab:rotation} and need no retraining. The full 64 dimensions are a genuine ceiling: fitting a probe inside a 16-dimensional subspace is the same optimization restricted to that subspace, and a restricted optimum cannot beat an unrestricted one. A random 16 is \emph{not} a floor; it is the null reference for ``no ordering at all,'' and subspaces below it certainly exist --- producing one is the point of our method.
-
-\input{tab_metricC}
-
-$C$ is positive in all four real settings and negative in both synthetic ones, with no overlap (Table~\ref{tab:metricC}). The negative sign is the stronger statement: on synthetic data, ordering by slowness is \emph{worse than picking at random}, so slowness does not merely fail to find the persistent factor, it points away from it --- exactly what placing the factor inside the oscillation frequency was meant to produce. Two caveats. The denominator is small, because inclusion is high everywhere, so the ratio is unstable and $C$ should be read as a signed indicator rather than a continuous degree of alignment. And $C$ shares machinery with SFA, since slowness ordering is what SFA does; it isolates the mechanism by which SFA succeeds rather than testing SFA from outside. It is still not circular: our method appears nowhere in Eq.~\ref{eq:metricC}, and defining alignment as SFA's own SEP would have made the claim ``SFA wins because SFA wins.''
+Only HAPT clears chance by a real margin, at $\numHaptBandRatio\times$, which is
+unsurprising --- posture is the DC distribution of gravity across three accelerometer
+axes. On PTB-XL the low band is \emph{at} chance (\numPtbLowBand{} against
+\numPtbChance) and the diagnosis lives instead in the 2--5\,Hz QRS morphology, yet SFA
+still leads there. So on PTB-XL the coincidence is not one of signal band, and what SFA
+exploits instead is that the diagnosis is constant within a record, which makes its time
+derivative zero --- the limiting solution of the quantity SFA maximizes. The two real
+datasets are therefore won by two different routes, and the synthetic data, where the
+factor is neither band-slow nor window-constant, is closed to both.
 
 \section{Term decomposition and the non-linear probe}
 \label{app:probe}
@@ -80,15 +79,8 @@ Table~\ref{tab:mlpprobe} replaces the linear reading head with a one-hidden-laye
 
 Three cautions. Because exclusion falls monotonically as the reading head grows, only comparisons made under a fixed head are meaningful; the absolute value is a property of the probe as much as of the embedding. We tried one hidden width, 256, and did not trace the curve. And this experiment fixes $\lambda=4$ with one seed, whereas Table~\ref{tab:terms} takes each setting at its own best $\lambda$, so cells of the two tables must not be read against each other.
 
-\section{Additional figures}
+\section{Reading $\zslow$ as a trajectory}
 \label{app:traj}
-
-\begin{figure}[!tbp]
-\centering
-\includegraphics[width=0.82\textwidth]{figs/fig_embed_nomech_nce.png}
-\caption{The same view as Fig.~\ref{fig:embed} for a model trained with no mechanism at all --- no gate, no penalty, no per-block LayerNorm. The persistent factor is visible in the rear block here too, which is why its visibility in Fig.~\ref{fig:embed} is not evidence that our devices failed to remove it: they never act on it.}
-\label{fig:embed_nomech}
-\end{figure}
 
 \begin{figure}[!tbp]
 \centering

@@ -12,7 +12,6 @@ stays honest.
 
 Tables produced
   tab_bandaccess  IV-C  is the persistent factor readable from the slow BAND of x?
-  tab_metricC     IV-C  does ordering an ungated embedding by slowness FIND the factor?
   tab_terms       IV-D  our score minus SFA's, split into inclusion/allocation/exclusion
   tab_gatesym     IV-D  does gating z_slow symmetrically fix the exclusion term?
   tab_mlpprobe    IV-D  how far each term moves when the probe head stops being linear
@@ -116,60 +115,6 @@ ratio column is low band over chance. Only HAPT clears chance by a real margin.}
 \\begin{{tabular}}{{llcccc}}
 \\hline
 Dataset & Score & Low band & Chance & Low/chance & Best band (score) \\\\
-\\hline
-{body}
-\\hline
-\\end{{tabular}}
-\\end{{table}}
-""")
-
-
-# ----------------------------------------------------------------- IV-C table 2
-def metricC():
-    """C = how much of the reachable persistent signal a slowness ordering recovers.
-
-    C = [s_per(SFA slow half) - s_per(random 16)] / [s_per(full 64) - s_per(random 16)]
-
-    All three terms come from ONE mechanism-free embedding (gate, penalty and per-block
-    LayerNorm all off), re-based three ways. Our method enters nowhere, so C is a
-    prediction about SFA rather than a restatement of its score.
-    """
-    rows, printed = [], []
-    for label, tag, _, suf in DSETS + [(HELD_OUT, "sleepedf", "Sleep-EDF", "_p10C")]:
-        for stem_label, stem, _ in STEMS:
-            try:
-                d = rot(tag, stem, suf)
-            except FileNotFoundError:
-                continue
-            sfa, rnd, full = (per_seed(d[k]) for k in ("SFA", "random", "ungated_full"))
-            cs = [(a - r) / (f - r) for a, r, f in zip(sfa, rnd, full) if abs(f - r) > 1e-9]
-            mean = sum(cs) / len(cs)
-            sd = (sum((c - mean) ** 2 for c in cs) / max(len(cs) - 1, 1)) ** .5
-            line = (label, stem_label, sum(sfa) / len(sfa), sum(rnd) / len(rnd),
-                    sum(full) / len(full), mean, sd)
-            (printed if label == HELD_OUT else rows).append(line)
-
-    for r in printed:
-        print(f"  [held out] {r[0]}/{r[1]} metric C = {r[5]:+.2f} +- {r[6]:.2f}")
-
-    body = "\n".join(
-        f"{d} & {s} & {a:.3f} & {r:.3f} & {f:.3f} & $\\mathbf{{{m:+.2f}}} \\pm {sd:.2f}$ \\\\"
-        for d, s, a, r, f, m, sd in rows)
-    write("tab_metricC", f"""\\begin{{table}}[!tbp]
-\\caption{{Does ordering by slowness \\emph{{find}} the persistent factor? All four score
-columns are the persistent factor read by a linear probe from a 16-dimensional subspace
-of the \\emph{{same mechanism-free}} embedding (macro-F1 on real data, accuracy on
-synthetic); only the choice of subspace differs. $C$ is the fraction of the reachable
-range $(\\text{{full}}-\\text{{random}})$ that the slowness ordering recovers; $n=5$ seeds,
-$\\pm$ is the seed standard deviation. \\textbf{{Read the sign, not the size}}: the
-denominator is small, so the ratio is noisy, but real data and synthetic data do not
-overlap.}}
-\\label{{tab:metricC}}
-\\centering
-\\small
-\\begin{{tabular}}{{llcccc}}
-\\hline
-Dataset & Stem & SFA slow half & Random 16 & Full 64 & $C$ \\\\
 \\hline
 {body}
 \\hline
@@ -576,7 +521,7 @@ def macros():
 
 
 if __name__ == "__main__":
-    for fn in (bandaccess, metricC, terms, gatesym, gatehard, targetpilot,
+    for fn in (bandaccess, terms, gatesym, gatehard, targetpilot,
                mlpprobe, lambdafree, macros):
         print(f"[{fn.__name__}]")
         fn()
