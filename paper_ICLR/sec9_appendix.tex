@@ -21,6 +21,13 @@ The gate rests on a premise: withholding $\zmix$ at long range should cost nothi
 
 \input{tab_targetpilot}
 
+\begin{figure}[!tbp]
+\centering
+\includegraphics[width=0.72\textwidth]{figs/fig_target_pilot.png}
+\caption{The same measurement as Table~\ref{tab:targetpilot}, as a curve. The bounded target falls to zero by $\Delta=\tau$ and stays there, so beyond the threshold the transient factor explains nothing about the target that the persistent factor does not already explain --- which is what makes gating it away harmless. The cumulative target of the earlier design stays above zero at every horizon, including the longest: its receptive field reaches back to the start of the window and so re-contains the anchor's own transient state, and no horizon is far enough to escape that.}
+\label{fig:targetpilot}
+\end{figure}
+
 With the receptive-field bound of Eq.~\ref{eq:target} the difference reaches zero at $\Delta=16$ and stays there. With the cumulative target of the earlier design --- the causal encoder simply read at $t+\Delta$ --- it never reaches zero at any horizon, because that target's receptive field runs back to the start of the window and therefore re-contains the anchor's own transient state. The shortcut is closed by the bound, not by hope.
 
 Two limits on how far this may be read. It measures what explains the \emph{target embedding}, not downstream error, and it reports only the \emph{increment} the transient factor adds over the persistent one, so it does not by itself establish that the persistent factor explains the target well. And it is one seed on one dataset, with ground-truth factors that only synthetic data provides.
