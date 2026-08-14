@@ -466,7 +466,7 @@ def fig_arch(ax=None):
     ax.text(74, 13.2, "between the two blocks of $\\mathbf{z}_t$", fontsize=7.5,
             ha="center", color=MUTE)
 
-    ax.text(3, 54.0, "Horizon-Gated Latent Prediction", fontsize=13, weight="bold")
+    ax.text(3, 54.0, "(a)  Horizon-Gated Latent Prediction", fontsize=13, weight="bold")
     if not standalone:
         return
     fig.savefig(OUT / "fig_arch_B0.png", dpi=220, bbox_inches="tight")
