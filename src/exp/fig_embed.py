@@ -156,7 +156,7 @@ def fig_grid(F, ys, yu, sep, tag, lam, n_show=3000, seed=0):
     return {name: emb[name].shape for name in emb}
 
 
-def fig_compare(panels, n_show=3000, seed=0):
+def fig_compare(panels, only=None, n_show=3000, seed=0):
     """One figure, two rows x three columns: our model over the mechanism-free one,
     the columns being exactly the three terms SEP multiplies.
 
@@ -169,11 +169,24 @@ def fig_compare(panels, n_show=3000, seed=0):
     `panels` is [(row label, F, ys, yu, sep), ...] with the gated model first.
     """
     rng = np.random.default_rng(seed)
-    COLS = [("$z_{per}$ / persistent $s$", "per", "s", "inclusion", C_PERS),
-            ("$z_{per}$ / transient $u$", "per", "u", "exclusion", C_PERS),
-            ("$z_{mix}$ / transient $u$", "mix", "u", "allocation", C_TRAN)]
+    ALL = [("$z_{per}$ / persistent $s$", "per", "s", "inclusion", C_PERS),
+           ("$z_{per}$ / transient $u$", "per", "u", "exclusion", C_PERS),
+           ("$z_{mix}$ / transient $u$", "mix", "u", "allocation", C_TRAN)]
+    # The paper's main text shows only the column that differs between the rows;
+    # inclusion and allocation are the same with and without the mechanism, so
+    # three quarters of the full grid would be spent showing that nothing happened.
+    COLS = [c for c in ALL if not only or c[3] == only]
 
-    fig, axes = plt.subplots(len(panels), 3, figsize=(11.4, 7.2))
+    ncol = len(COLS)
+    # With one column the grid would be a tall stack, which is the wrong shape for a
+    # page; put the two models side by side instead and transpose the axes back.
+    side_by_side = ncol == 1
+    fig, axes = plt.subplots(1 if side_by_side else len(panels),
+                             len(panels) if side_by_side else ncol, squeeze=False,
+                             figsize=((4.2 * len(panels), 4.0) if side_by_side
+                                      else (3.9 * ncol, 3.6 * len(panels))))
+    if side_by_side:
+        axes = axes.T
     for i, (row_label, F, ys, yu, sep) in enumerate(panels):
         idx = rng.choice(len(F), min(n_show, len(F)), replace=False)
         Fi, si, ui = F[idx], ys[idx], yu[idx]
@@ -194,7 +207,7 @@ def fig_compare(panels, n_show=3000, seed=0):
             else:
                 sc = ax.scatter(E[:, 0], E[:, 1], s=3, c=ui, cmap="cividis",
                                 alpha=.65, linewidths=0)
-                if i == 0 and j == 2:
+                if i == 0 and j == ncol - 1:
                     cb = fig.colorbar(sc, ax=ax, fraction=.045, pad=.02)
                     cb.set_label("$u$", fontsize=8); cb.ax.tick_params(labelsize=7)
             ax.set_xticks([]); ax.set_yticks([])
@@ -211,12 +224,11 @@ def fig_compare(panels, n_show=3000, seed=0):
             ax.text(.02, .02, f"{term}  {sep[term]:.3f}", transform=ax.transAxes,
                     fontsize=9, weight="bold", color=(c if i == 0 else MUTE),
                     va="bottom")
-    fig.suptitle("The three terms of SEP, with and without the mechanism "
-                 "(synthetic $\\pm$3%, HGLP-NCE)", fontsize=11, y=.98)
-    fig.tight_layout(rect=[0, 0, 1, .96])
-    fig.savefig(OUT / "fig_embed_compare.png", dpi=220, bbox_inches="tight")
+    fig.tight_layout()
+    name = f"fig_embed_{only}" if only else "fig_embed_compare"
+    fig.savefig(OUT / f"{name}.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
-    print("  runs_v2/fig_embed_compare.png")
+    print(f"  runs_v2/{name}.png")
 
 
 def fig_traj(enc, tag, lam, n_samp=90_000, stride_patches=4, seed=7):
@@ -296,6 +308,7 @@ def main():
             rows.append((label, Fte, yte, ute, sp))
             print(f"  {label}: SEP {sp['sep']:.3f}")
         fig_compare(rows)
+        fig_compare(rows, only='exclusion')
         return
     OUT.mkdir(exist_ok=True)
     tag = f"nomech_{a.stem}" if a.nomech else f"{a.stem}_lam{a.lam:g}"

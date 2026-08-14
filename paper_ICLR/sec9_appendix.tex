@@ -3,75 +3,60 @@
 \section{Design choices, tested}
 \label{app:design}
 
-Four choices in Section~\ref{sec:method_model} could each have been made the other way. Each is ablated with everything else held fixed.
+Everything here holds the rest of the model fixed and changes one choice.
 
-\subsection{The gate is smooth, and one-sided}
+\paragraph{The gate is smooth.}
+A step gate, $\mathbf{1}[\Delta<\tau]$, zeroes $\zmix$'s gradient outright beyond the threshold rather than passing a partial one. On synthetic data it lowers SEP from \numSoftReg{} to \numHardReg{} on HGLP-Reg and from \numSoftNCE{} to \numHardNCE{} on HGLP-NCE ($n=5$ seeds). Since $\tau$ cannot be chosen accurately without labels, horizons near it should not flip between fully passed and fully blocked under the smallest movement of the threshold, and the width $\kappa$ is what gives them intermediate values.
 
-A step gate, $\mathbf{1}[\Delta<\tau]$, zeroes $\zmix$'s gradient outright beyond the threshold rather than passing a partial one. It is worse on both stems (Table~\ref{tab:gatehard}). Since $\tau$ cannot be chosen accurately without labels (Section~\ref{sec:handpicked}), horizons near it should not flip between fully passed and fully blocked under the smallest movement of the threshold; the width $\kappa$ is what gives them intermediate values, and it earns its place.
-
-\input{tab_gatehard}
-
-The symmetric variant multiplies $\zslow$ by $1-g(\Delta)$, switching it off below $\tau$ so that no horizon can deposit transient information in it. This is the obvious structural way to buy the exclusion the objective cannot enforce, and it does not work: it is better in \numSymBetter{} of six settings and worse in \numSymWorse{} (Table~\ref{tab:gatesym}), costing $\numSymWorstDrop$ SEP on the synthetic regression stem. Removing $\zslow$ from the near horizons removes its training signal there as well, and the block loses more from being untrained than it gains from being protected --- which is the argument of Section~\ref{sec:asymmetry}, now measured.
+\paragraph{The gate is one-sided.}
+The symmetric variant multiplies $\zslow$ by $1-g(\Delta)$, switching it off below $\tau$ so that no horizon can deposit transient information in it --- the obvious structural way to buy the exclusion the objective cannot enforce. It does not work (Table~\ref{tab:gatesym}): better in \numSymBetter{} of six settings and worse in \numSymWorse, costing $\numSymWorstDrop$ SEP on the synthetic regression stem. Removing $\zslow$ from the near horizons removes its training signal there as well.
 
 \input{tab_gatesym}
 
-\subsection{The target's receptive field is bounded}
-
-The gate rests on a premise: withholding $\zmix$ at long range should cost nothing, because the transient factor is already forgotten there. That premise is a property of the data \emph{and of how the target is defined}, so it can be measured directly. For each horizon we fit two linear readings of the target embedding, one from the persistent factor alone and one from both factors, and take the difference (Table~\ref{tab:targetpilot}).
-
-\input{tab_targetpilot}
+\paragraph{The target's receptive field is bounded.}
+The gate rests on a premise: withholding $\zmix$ at long range should cost nothing, because the transient factor is already forgotten there. That premise is a property of the data \emph{and of how the target is defined}, so it can be measured. For each horizon we fit two linear readings of the target embedding, one from the persistent factor alone and one from both, and take the difference (Fig.~\ref{fig:targetpilot}).
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=0.72\textwidth]{figs/fig_target_pilot.png}
-\caption{The same measurement as Table~\ref{tab:targetpilot}, as a curve. The bounded target falls to zero by $\Delta=\tau$ and stays there, so beyond the threshold the transient factor explains nothing about the target that the persistent factor does not already explain --- which is what makes gating it away harmless. The cumulative target of the earlier design stays above zero at every horizon, including the longest: its receptive field reaches back to the start of the window and so re-contains the anchor's own transient state, and no horizon is far enough to escape that.}
+\includegraphics[width=0.68\textwidth]{figs/fig_target_pilot.png}
+\caption{$R^2(s,u\!\to\!\bar z_{t+\Delta}) - R^2(s\!\to\!\bar z_{t+\Delta})$: what the transient factor adds, beyond the persistent one, to a linear reading of the target embedding $\Delta$ ahead. Zero means gating it away costs nothing. Synthetic, HGLP-Reg, 2{,}500 steps, one seed, ground-truth factors.}
 \label{fig:targetpilot}
 \end{figure}
 
-With the receptive-field bound of Eq.~\ref{eq:target} the difference reaches zero at $\Delta=16$ and stays there. With the cumulative target of the earlier design --- the causal encoder simply read at $t+\Delta$ --- it never reaches zero at any horizon, because that target's receptive field runs back to the start of the window and therefore re-contains the anchor's own transient state. The shortcut is closed by the bound, not by hope.
+With the receptive-field bound of Eq.~\ref{eq:target} the difference reaches zero at $\Delta=\tau$ and stays there. With the cumulative target of the earlier design --- the causal encoder read at $t+\Delta$ --- it never reaches zero at any horizon, because that target's receptive field runs back to the start of the window and therefore re-contains the anchor's own transient state. The bounded target also leaves less of the transient factor in $\zslow$ ($R^2$ \numPilotBdLeak{} against \numPilotCumLeak) and does not partially collapse (target RankMe \numPilotBdRank{} against \numPilotCumRank). Two limits: this measures what explains the target embedding rather than downstream error, and it reports only the \emph{increment} the transient factor adds, so it does not by itself establish that the persistent factor explains the target well.
 
-Two limits on how far this may be read. It measures what explains the \emph{target embedding}, not downstream error, and it reports only the \emph{increment} the transient factor adds over the persistent one, so it does not by itself establish that the persistent factor explains the target well. And it is one seed on one dataset, with ground-truth factors that only synthetic data provides.
-
-\subsection{The target is latent, not raw}
-
-This ablates the premise of the latent-prediction family: that prediction should be made in a latent space rather than on the raw signal. Gate, anchor, horizon and loss form are held fixed and only the prediction target changes. The latent target is the 64-dimensional output the target encoder reads from the future interval; the raw target is the patch itself at that time, with one extra linear head. Both models carry the cross-covariance penalty, so $\lambda$ means the same for each, and each is compared at its own best value.
-
-\begin{table}[!tb]
-\caption{Latent target against raw target. Cells are SEP on synthetic, $n=5$ seeds, each stem at its own best $\lambda$. Bold marks the latent target. Everything but the prediction target is held fixed.}
-\label{tab:latentraw}
-\centering
-\small
-\begin{tabular}{lccc}
-\hline
-Stem & Latent (best) & Raw (best) & Difference \\
-\hline
-HGLP-Reg & \textbf{0.809} ($\lambda=1$) & 0.415 ($\lambda=4$) & $+0.394$ ($1.95\times$) \\
-HGLP-NCE & \textbf{0.844} ($\lambda=16$) & 0.432 ($\lambda=16$) & $+0.411$ ($1.95\times$) \\
-\hline
-\end{tabular}
-\end{table}
-
-Predicting raw patches halves SEP on both stems (Table~\ref{tab:latentraw}). The allocation term is the same for the two targets, at 0.86 to 0.89, and the gap opens in inclusion: the raw target loses the persistent factor as the penalty grows, falling from 0.807 to 0.401, whereas the latent target stays above 0.97 throughout. The raw signal still contains the transient component, and the pressure to predict that too pushes the persistent factor out. The gate and the penalty are thus not sufficient on their own; the latent target has to be present as well.
+\paragraph{The target is latent, not raw.}
+Holding gate, anchor, horizon and loss form fixed and predicting the raw patch instead of the encoder's reading of it halves SEP on synthetic data: 0.809 against 0.415 on HGLP-Reg and 0.844 against 0.432 on HGLP-NCE, each at its own best $\lambda$, $n=5$ seeds. Allocation is the same for the two targets, at 0.86 to 0.89, and the gap opens in inclusion --- the raw target loses the persistent factor as the penalty grows, from 0.807 to 0.401, whereas the latent target stays above 0.97. The raw signal still contains the transient component, and the pressure to predict that too pushes the persistent factor out.
 
 \section{Term decomposition and the non-linear probe}
 \label{app:probe}
 
 \input{tab_terms}
 
-Table~\ref{tab:terms} splits SEP into its three factors and pairs by seed. Inclusion is a draw everywhere; every real-data loss against SFA is a loss on exclusion alone, and every win is a win on allocation. This matches the design rather than surprising it --- the objective enforces availability and cannot enforce absence (Section~\ref{sec:gate}), and it is on that term, and only that term, that the method falls behind.
+Table~\ref{tab:terms} splits SEP into its three factors and pairs by seed. Inclusion is a draw everywhere; every real-data loss against SFA is a loss on exclusion alone, and every win is a win on allocation.
 
 \input{tab_mlpprobe}
 
-Table~\ref{tab:mlpprobe} replaces the linear reading head with a one-hidden-layer MLP, giving the same head to every method. Part (a) reports the change in each SEP term: exactly one collapses, and it is exclusion. Part (b) reports SFA's exclusion lead under both heads: it survives, and in two settings widens, so the diagnosis of Table~\ref{tab:terms} was not an artifact of linear probing. PCA and ICA degrade sharply under the same head while SFA does not, which is worth noting on its own --- the baseline we trail is a robust one.
+Table~\ref{tab:mlpprobe} replaces the linear reading head with a one-hidden-layer MLP, giving the same head to every method. Part (a) reports the change in each SEP term: exactly one collapses, and it is exclusion. Part (b) reports SFA's exclusion lead under both heads: it survives and in two settings widens, so the diagnosis is not an artifact of linear probing. PCA and ICA degrade sharply under the same head while SFA does not.
 
-Three cautions. Because exclusion falls monotonically as the reading head grows, only comparisons made under a fixed head are meaningful; the absolute value is a property of the probe as much as of the embedding. We tried one hidden width, 256, and did not trace the curve. And this experiment fixes $\lambda=4$ with one seed, whereas Table~\ref{tab:terms} takes each setting at its own best $\lambda$, so cells of the two tables must not be read against each other.
+Three cautions. Because exclusion falls monotonically as the reading head grows, only comparisons made under a fixed head are meaningful. We tried one hidden width, 256, and did not trace the curve. And this experiment fixes $\lambda=4$ with one seed, whereas Table~\ref{tab:terms} takes each setting at its own best $\lambda$, so cells of the two tables must not be read against each other.
+
+\section{The block $\times$ factor matrix, all six panels}
+\label{app:embed}
+
+\begin{figure}[!tb]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_embed_compare.png}
+\caption{The two blocks against both factors, with and without the mechanism (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$, one seed). Fig.~\ref{fig:embed} shows the middle column of this figure, which is the only one that differs between the rows. The fourth combination, $\zmix$ against the persistent factor, is not a term of SEP and is unconstrained by design, so it is omitted here too.}
+\label{fig:embed_full}
+\end{figure}
 
 \section{Reading $\zslow$ as a trajectory}
 \label{app:traj}
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=0.9\textwidth]{figs/fig_traj_hapt.png}
-\caption{$\zslow$ read as a trajectory rather than as classifier input (HAPT). Using the separated block this way needs no labels at evaluation time and no probe, which is the use the downstream cost of Section~\ref{sec:cost} is paid for; we report the figure and do not claim a quantitative result from it.}
+\includegraphics[width=0.86\textwidth]{figs/fig_traj_hapt.png}
+\caption{$\zslow$ read as a trajectory rather than as classifier input (HAPT). This use needs no labels at evaluation time and no probe; we report the figure and claim no quantitative result from it.}
 \label{fig:traj}
 \end{figure}

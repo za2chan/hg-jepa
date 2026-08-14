@@ -82,11 +82,9 @@ def terms():
               f"sep {g['d_sep']:+.3f}")
 
     write("tab_terms", """\\begin{table}[!tb]
-\\caption{Where the shortfall against SFA sits. Every cell is \\emph{ours minus SFA} on
-one term of SEP, paired by seed and then averaged, $n=5$; positive means we lead. Our
-column is taken at the $\\lambda$ that maximizes our SEP, which is why $\\lambda$ is
-listed. Inclusion is a draw everywhere; \\textbf{every real-data loss is a loss on the
-exclusion term alone} --- the one term the objective does not enforce.}
+\\caption{Where the shortfall against SFA sits. Cells are \\emph{ours minus SFA} on one
+term of SEP, paired by seed then averaged, $n=5$; positive means we lead, and our column is
+taken at the listed $\\lambda$.}
 \\label{tab:terms}
 \\centering
 \\small
@@ -247,9 +245,8 @@ def lambdafree():
             p = pick_of(f"{key}/{stem}", d[f"{key}/{stem}"])
             ok = p["J"] == p["oracle"]
             agree += ok
-            verdict = "match" if ok else "\\textbf{miss}"
             rows.append(f"{label} & {stem_label} & {p['J']:.0f} & {p['oracle']:.0f} & "
-                        f"{verdict} & {p['margin']:.3f} \\\\")
+                        f"{p['margin']:.3f} \\\\")
     for stem in ("Reg", "NCE"):
         k = f"{HELD_OUT}/{stem}"
         p = pick_of(k, load("label_free_lambda.json")[k])
@@ -259,19 +256,16 @@ def lambdafree():
     print(f"  label-free lambda agrees in {agree} of {len(rows)} reported settings")
 
     write("tab_lambdafree", f"""\\begin{{table}}[!tb]
-\\caption{{Choosing $\\lambda$ without labels. $\\mathrm{{PPS}}=\\text{{purity}}\\times\\text{{persistence}}$: the first factor is read from the transient proxy, which is computed
-from the signal, and the second asks how well $\\zslow$ predicts \\emph{{its own}} value
-more than $\\tau$ ahead. No task label enters either. The product is needed because each
-factor alone has a degenerate maximum --- an empty block scores perfect exclusion, a
-constant block perfect self-prediction. The oracle column is the $\\lambda$ that maximizes
-SEP, which does use labels. $n=3$ seeds; the margin is the gap between the top two $\\mathrm{{PPS}}$
-values, and small margins should not be read as confident agreement.}}
+\\caption{{Choosing $\\lambda$ without labels: the two columns agree in every setting.
+The oracle is the $\\lambda$ maximizing SEP, which does use labels. $n=3$ seeds; the margin
+is the gap between the top two $\\mathrm{{PPS}}$ values, and a small margin is not confident
+agreement.}}
 \\label{{tab:lambdafree}}
 \\centering
 \\small
-\\begin{{tabular}}{{llcccc}}
+\\begin{{tabular}}{{llccc}}
 \\hline
-Dataset & Stem & $\\lambda$ by $\\mathrm{{PPS}}$ (no labels) & $\\lambda$ by SEP (oracle) & Agreement & $\\mathrm{{PPS}}$ margin \\\\
+Dataset & Stem & $\\lambda$ by $\\mathrm{{PPS}}$ (no labels) & $\\lambda$ by SEP (oracle) & $\\mathrm{{PPS}}$ margin \\\\
 \\hline
 {chr(10).join(rows)}
 \\hline
@@ -281,80 +275,26 @@ Dataset & Stem & $\\lambda$ by $\\mathrm{{PPS}}$ (no labels) & $\\lambda$ by SEP
 
 
 # --------------------------------------------------------------- appendix A.1
-def gatehard():
-    """Step gate against the smooth one. Backs the claim in Method that a step
-    lowers separation on both stems, which until now had no table behind it."""
+def gatehard(m):
+    """Step gate against the smooth one, on synthetic. Appendix A states these in
+    prose, so they go out as macros rather than as a two-row table."""
     soft = load("twosided_main22_synth_gap0.03.json")
     hard = load("twosided_gatehard_synth_gap0.03.json")
     bf = lambda d, k: (min(max(d[k]["z_slow"]["slow"], 0), 1)
                        * min(max(d[k]["z_fast"]["fast"], 0), 1)
                        * min(max(1 - d[k]["z_slow"]["fast"], 0), 1))
-    rows = []
-    for stem_label, stem, _ in STEMS:
-        s, h = bf(soft, f"{stem}/g1_x1"), bf(hard, f"{stem}/g1_x1")
-        rows.append(f"{stem_label} & \\textbf{{{s:.3f}}} & {h:.3f} & ${h - s:+.3f}$ \\\\")
-        print(f"  {stem_label}: smooth {s:.3f} -> hard {h:.3f} ({h - s:+.3f})")
-    write("tab_gatehard", f"""\\begin{{table}}[!tb]
-\\caption{{A step gate against the smooth one. The smooth gate is
-$g(\\Delta)=\\sigma((\\tau-\\Delta)/\\kappa)$; the step version replaces it with
-$\\mathbf{{1}}[\\Delta<\\tau]$, which zeroes $\\zmix$'s gradient outright beyond $\\tau$
-instead of passing a partial one. Cells are SEP on synthetic, $n=5$ seeds, all else
-held fixed. The step form is worse on both stems, which is why $\\tau$'s width
-$\\kappa$ is part of the method rather than a smoothing convenience.}}
-\\label{{tab:gatehard}}
-\\centering
-\\small
-\\begin{{tabular}}{{lccc}}
-\\hline
-Stem & Smooth gate (ours) & Step gate & Difference \\\\
-\\hline
-{chr(10).join(rows)}
-\\hline
-\\end{{tabular}}
-\\end{{table}}
-""")
+    for stem_label, stem, short in STEMS:
+        m[f"Soft{short}"] = f'{bf(soft, f"{stem}/g1_x1"):.3f}'
+        m[f"Hard{short}"] = f'{bf(hard, f"{stem}/g1_x1"):.3f}'
 
 
-def targetpilot():
-    """The harmlessness curve: does withholding the transient block cost anything
-    at long range? Measured on the two target designs, v1 cumulative and v2 bounded."""
+def targetpilot(m):
+    """The harmlessness pilot's stability numbers, quoted in Appendix A."""
     d = load("pilot_b5.json")
-    deltas = sorted((int(k) for k in d["bounded"]["harmlessness"]), key=int)
-    head = " & ".join(str(x) for x in deltas)
-    row = lambda m: " & ".join(f"{d[m]['harmlessness'][str(x)]:+.3f}" for x in deltas)
-    b, c = d["bounded"]["stability"], d["cumulative"]["stability"]
-    print(f"  bounded reaches {d['bounded']['harmlessness']['16']:+.3f} at D=16; "
-          f"cumulative still {d['cumulative']['harmlessness']['128']:+.3f} at D=128")
-    write("tab_targetpilot", f"""\\begin{{table}}[!tb]
-\\caption{{Is withholding the transient block harmless at long range? Cells are
-$R^2(s,u\\!\\to\\!\\bar z_{{t+\\Delta}}) - R^2(s\\!\\to\\!\\bar z_{{t+\\Delta}})$: how much the
-transient factor adds, \\emph{{beyond}} what the persistent factor already explains, to a
-linear reading of the target embedding $\\Delta$ ahead. \\textbf{{Zero means the transient
-factor is redundant there}}, so gating it away costs nothing. Synthetic, HGLP-Reg, 2{{,}}500
-steps, one seed, ground-truth factors. The bounded target reaches zero at
-$\\Delta=16$ --- the value of $\\tau$ used on this data --- and stays there; the cumulative
-target never does, because its receptive field runs back to the start of the window and so
-re-contains the anchor's own transient state. This is the measurement behind the
-receptive-field bound of Eq.~\\ref{{eq:target}}. It reads the target embedding rather than
-downstream error, and it is one seed on one dataset.}}
-\\label{{tab:targetpilot}}
-\\centering
-\\small
-\\begin{{tabular}}{{l{'c' * len(deltas)}}}
-\\hline
-Target $\\Delta$ & {head} \\\\
-\\hline
-Bounded (ours) & {row('bounded')} \\\\
-Cumulative & {row('cumulative')} \\\\
-\\hline
-\\end{{tabular}}
-
-\\medskip
-\\small On the same two runs, the bounded target also leaves less of the transient factor
-in $\\zslow$ ($R^2$ {b['leak_u']:.3f} against {c['leak_u']:.3f}) and does not partially
-collapse (target RankMe {b['rankme']:.1f} against {c['rankme']:.1f}).
-\\end{{table}}
-""")
+    for mode, tag in (("bounded", "Bd"), ("cumulative", "Cum")):
+        st = d[mode]["stability"]
+        m[f"Pilot{tag}Leak"] = f'{st["leak_u"]:.3f}'
+        m[f"Pilot{tag}Rank"] = f'{st["rankme"]:.1f}'
 
 
 # ------------------------------------------------- numbers quoted in the prose
@@ -366,6 +306,8 @@ def macros():
     cites these by name and never spells a digit.
     """
     m = {}
+    gatehard(m)
+    targetpilot(m)
     fmt = lambda v, n=3: f"{v:.{n}f}"
 
     tb = load("term_breakdown.json")
@@ -461,7 +403,6 @@ def macros():
 
 
 if __name__ == "__main__":
-    for fn in (terms, gatesym, gatehard, targetpilot,
-               mlpprobe, lambdafree, macros):
+    for fn in (terms, gatesym, mlpprobe, lambdafree, macros):
         print(f"[{fn.__name__}]")
         fn()

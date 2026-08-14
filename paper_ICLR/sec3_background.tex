@@ -1,6 +1,4 @@
-\section{Background}
-
-\subsection{Where persistence is not slowness}
+\section{Background: where persistence is not slowness}
 \label{sec:synthetic}
 
 If persistence and spectral slowness always agreed, a horizon gate would be an expensive way to reach what a low-pass filter already gives. To test the method where they disagree we need data in which the disagreement is a fact of construction rather than a hope, so we build one.
@@ -8,32 +6,12 @@ If persistence and spectral slowness always agreed, a horizon gate would be an e
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.94\textwidth]{figs/fig_persistence.png}
-\caption{\textbf{Spectral slowness is not factor persistence.} One synthetic series (400,000 steps, a single seed): the persistent factor $s$ switches every 3,000 steps among three frequencies 3\% apart, and the transient factor $u$ is an Ornstein--Uhlenbeck process of lifetime 50. Autocorrelation half-lives are 1,859 and 51 steps, so the two timescales are well separated. \textbf{(a)} The two factors and the signal they generate. $s$ changes only the frequency of $x$; $u$ changes its frequency and its baseline. \textbf{(b)} Reading the slow part of $x$ recovers the transient factor rather than the persistent one ($R^2$ 0.90 against 0.00), while reading the frequency of $x$ over a 1,001-step window recovers the persistent one ($R^2$ 0.50). \textbf{(c)} $R^2$ for both factors against the width of that window. The persistent factor appears only once the window is tens of times $u$'s lifetime, and falls off again when the window grows wide enough to blur $s$ itself.}
+\caption{One synthetic series, 400,000 steps, one seed. \textbf{(a)} The two factors and the signal they generate. \textbf{(b)} The slow part of $x$ against the frequency of $x$ read over a 1,001-step window, each scored on both factors. \textbf{(c)} The same $R^2$ against the width of that window.}
 \label{fig:persistence}
 \end{figure}
 
 A three-state Markov persistent factor $s$ (mean dwell 3{,}000 steps) sets the carrier frequency of an oscillation, spaced $\pm$3\% around 0.100; a transient Ornstein--Uhlenbeck factor $u$ (autocorrelation time 50 steps) modulates that instantaneous frequency and adds to the signal. Amplitude is identical across regimes, so a regime change alters \emph{only how fast the signal oscillates}. The two timescales are cleanly separated --- autocorrelation half-lives 1,859 and 51 steps --- so $s$ is persistent by any reading. Yet it is absent from the slow part of the signal: a low-pass reading ($f<0.02$) recovers the \emph{transient} factor at $R^2=0.90$ and the persistent one at $R^2<10^{-5}$ (Fig.~\ref{fig:persistence}b). The persistent factor is carried by the fastest-changing part of the signal and the transient factor enters as the slower additive term, which is the exact reversal of what a slowness criterion assumes.
 
-The persistent factor is still readable, but only through a nonlinear statistic and only over a wide enough window: reading the instantaneous frequency over 1,001 steps recovers it at $R^2=0.50$, and the recovery appears only once the window is tens of times $u$'s lifetime, falling away again when the window grows wide enough to blur $s$ itself (Fig.~\ref{fig:persistence}c). This is the general shape of the situation, not an artifact of our generator: while a factor persists, what stays fixed is not the signal but its statistics, and those surface only through some function of the signal.
+The persistent factor is still readable, but only through a nonlinear statistic and only over a wide enough window: the instantaneous frequency over 1,001 steps recovers it at $R^2=0.50$, and the recovery appears only once the window is tens of times $u$'s lifetime, falling away again when the window grows wide enough to blur $s$ itself (Fig.~\ref{fig:persistence}c). This is the general shape of the situation, not an artifact of our generator: while a factor persists, what stays fixed is not the signal but its statistics, and those surface only through some function of the signal.
 
 Difficulty is set by the spacing between regime frequencies and calibrated by a training-free FFT reader, so that the task is neither trivially solved nor unsolvable before any representation is learned. At $\pm$3\% the reader reaches accuracy 0.660 (chance 0.333); at $\pm$5\% it already reaches 0.784 before any training, and at $\pm$1\% it falls to 0.459, near chance. We use $\pm$3\% throughout.
-
-\subsection{Why near-horizon prediction needs both factors}
-\label{sec:asymmetry}
-
-The gate is one-sided: $\zslow$ is available at every horizon, while $\zmix$ is withheld once $\Delta$ exceeds the threshold. The asymmetry is the design, and it follows from what prediction at each range actually requires.
-
-At long range the transient factor is already forgotten, so withholding the block that carries it should cost nothing --- that is the premise the gate rests on, and it is what makes the remaining route, writing the current state into $\zslow$, the only way to lower the loss. At short range the requirement is different and, importantly, not symmetric. Predicting a few steps ahead needs the fast detail of the present \emph{and} the current persistent state, because the near future is a continuation of both. A model that withheld $\zslow$ at short horizons would not gain exclusion; it would remove the block from most of its own training signal, since short horizons are where gradients are dense. We test that variant rather than assert it, in Appendix~\ref{app:design}.
-
-\begin{wrapfigure}{r}{0.44\textwidth}
-\vspace{-\intextsep}
-\centering
-\includegraphics[width=0.42\textwidth]{figs/fig_concept_A_narrow.png}
-\caption{\textbf{What we ask of the embedding.} A nameable 16-dimensional block, $\zslow$, emptied of the transient factor; the rest left unconstrained, keeping both. The claim is about what is \emph{absent} from $\zslow$, not about where the persistent factor can be found.}
-\label{fig:concept}
-\vspace{-\intextsep}
-\end{wrapfigure}
-
-Two consequences are worth stating before any result. First, \textbf{only the \emph{availability} of $\zmix$ is constrained, never its content.} Nothing in the objective asks $\zmix$ to be free of the persistent factor, and it is not: across the six settings it carries the persistent factor at \numMixPerLo--\numMixPerHi{} (macro-F1 or accuracy, against chance levels of 0.167 to 0.500). This is why we call the block $\zmix$ and not ``$z_{\mathrm{fast}}$'' --- the latter name would promise a symmetric split the method never claims.
-
-Second, the separation the method can claim is one-directional (Fig.~\ref{fig:concept}). The latent space is rotation-symmetric, so the persistent factor can be read out of any 16 dimensions and its presence in $\zslow$ is no evidence of anything. The claim is the other one: that the \emph{transient} factor is emptied out of $\zslow$. Everything we measure is built around that asymmetry, and so is the honest weakness of the method --- the objective can force a factor to be available in a block, but it has no term that forces one out.

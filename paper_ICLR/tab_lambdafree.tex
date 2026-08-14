@@ -1,24 +1,21 @@
 \begin{table}[!tb]
-\caption{Choosing $\lambda$ without labels. $\mathrm{PPS}=\text{purity}\times\text{persistence}$: the first factor is read from the transient proxy, which is computed
-from the signal, and the second asks how well $\zslow$ predicts \emph{its own} value
-more than $\tau$ ahead. No task label enters either. The product is needed because each
-factor alone has a degenerate maximum --- an empty block scores perfect exclusion, a
-constant block perfect self-prediction. The oracle column is the $\lambda$ that maximizes
-SEP, which does use labels. $n=3$ seeds; the margin is the gap between the top two $\mathrm{PPS}$
-values, and small margins should not be read as confident agreement.}
+\caption{Choosing $\lambda$ without labels: the two columns agree in every setting.
+The oracle is the $\lambda$ maximizing SEP, which does use labels. $n=3$ seeds; the margin
+is the gap between the top two $\mathrm{PPS}$ values, and a small margin is not confident
+agreement.}
 \label{tab:lambdafree}
 \centering
 \small
-\begin{tabular}{llcccc}
+\begin{tabular}{llccc}
 \hline
-Dataset & Stem & $\lambda$ by $\mathrm{PPS}$ (no labels) & $\lambda$ by SEP (oracle) & Agreement & $\mathrm{PPS}$ margin \\
+Dataset & Stem & $\lambda$ by $\mathrm{PPS}$ (no labels) & $\lambda$ by SEP (oracle) & $\mathrm{PPS}$ margin \\
 \hline
-Synthetic & HGLP-Reg & 1 & 1 & match & 0.234 \\
-Synthetic & HGLP-NCE & 16 & 16 & match & 0.111 \\
-PTB-XL & HGLP-Reg & 4 & 4 & match & 0.023 \\
-PTB-XL & HGLP-NCE & 4 & 4 & match & 0.004 \\
-HAPT & HGLP-Reg & 1 & 1 & match & 0.016 \\
-HAPT & HGLP-NCE & 64 & 64 & match & 0.009 \\
+Synthetic & HGLP-Reg & 1 & 1 & 0.234 \\
+Synthetic & HGLP-NCE & 16 & 16 & 0.111 \\
+PTB-XL & HGLP-Reg & 4 & 4 & 0.023 \\
+PTB-XL & HGLP-NCE & 4 & 4 & 0.004 \\
+HAPT & HGLP-Reg & 1 & 1 & 0.016 \\
+HAPT & HGLP-NCE & 64 & 64 & 0.009 \\
 \hline
 \end{tabular}
 \end{table}

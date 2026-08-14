@@ -5,34 +5,27 @@ Every setting below is one of six: three datasets crossed with the two loss stem
 \subsection{Data and factors}
 \label{sec:data}
 
-We use one synthetic dataset of our own design (Section~\ref{sec:synthetic}) and two public real-world sets, PTB-XL \citep{wagner2020} and HAPT \citep{reyesortiz2016, hapt2015} (Table~\ref{tab:datasets}). In each, the \emph{persistent factor} is the quantity we try to separate and the \emph{transient proxy} is a fast-varying quantity computed directly from the signal, not from labels.
+We use the synthetic generator of Section~\ref{sec:synthetic} and two public sets, PTB-XL \citep{wagner2020} and HAPT \citep{reyesortiz2016, hapt2015}.
 
 \begin{table}[!tb]
-\caption{The three datasets. Persistent factor = the factor we try to separate; transient proxy = a fast-varying quantity computed directly from the signal, not from labels. Chance level is $1/k$ for balanced macro-F1.}
+\caption{The three datasets. The transient proxy is computed from the signal, never from labels.}
 \label{tab:datasets}
 \centering
-\small
-\begin{tabular}{lccc}
+\footnotesize
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{lllllll}
 \hline
- & Synthetic & PTB-XL & HAPT \\
+ & Size & Rate & Patch & Window $L$ & Persistent factor & Transient proxy \\
 \hline
-Samples & $10^6$ steps & 5,000 records & 2,104 windows \\
- & & (4,812 patients) & (30 subjects) \\
-Sampling rate & --- & 100 Hz & 50 Hz \\
-Channels & 1 & 1 (lead II) & 3 (accel.\ $x,y,z$) \\
-Patch & 8 steps & 10 samples (0.1 s) & 4 samples (0.08 s) \\
-Window length $L$ & 256 patches & 100 patches (10 s) & 256 patches (20.5 s) \\
- & (2,048 steps) & & \\
-Persistent factor & oscillation regime $s$ & ECG diagnosis (normal/ & physical activity \\
- & (3 classes) & abnormal, \textbf{2 classes}, & (6 classes) \\
- & & constant per record) & \\
-Transient proxy & OU factor $u$ & instantaneous voltage & accel.\ magnitude $\lVert a\rVert$ \\
-Chance level & 0.333 & 0.500 & 0.167 \\
+Synthetic & $10^6$ steps & --- & 8 steps & 256 & regime $s$, 3-way & OU $u$ \\
+PTB-XL & 5,000 rec. & 100\,Hz & 10 (0.1\,s) & 100 (10\,s) & diagnosis, 2-way & voltage \\
+HAPT & 2,104 win. & 50\,Hz & 4 (0.08\,s) & 256 (20.5\,s) & activity, 6-way & $\lVert a\rVert$ \\
 \hline
+\multicolumn{7}{l}{Channels 1 / 1 (lead II) / 3 (accel.); groups --- / 4,812 patients / 30 subjects; chance 0.333 / 0.500 / 0.167.}
 \end{tabular}
 \end{table}
 
-The synthetic generator and its calibration are described in Section~\ref{sec:synthetic}; it is the one dataset in which persistence and slowness are made to disagree by construction. On the two real sets the table gives the sizes and the factors, and three choices are worth stating. \textbf{Splits are per group} --- patient for PTB-XL, subject for HAPT --- and normalization uses training-split statistics only. \textbf{Nothing is selected by label before training}: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, since filtering them out would undermine the claim that training uses no labels. And the two sets sit at opposite ends of one axis: the PTB-XL diagnosis is constant over a whole record, whereas HAPT's activity changes within one, so windows are cut without consulting activity boundaries, labels are read per position, and 57\% of windows cross a transition. PTB-XL also strains the rule our threshold comes from --- the heartbeat is a regularly repeating component, so its autocorrelation oscillates instead of decaying and no lifetime can be read from it, and $\tau$ has to be set by hand there (Section~\ref{sec:handpicked}).
+Three choices the table cannot carry. \textbf{Splits are per group} --- patient for PTB-XL, subject for HAPT --- and normalization uses training-split statistics only. \textbf{Nothing is selected by label before training}: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, since filtering them out would undermine the claim that training uses no labels; windows are likewise cut without consulting activity boundaries, and labels are read per position. And PTB-XL strains the rule $\tau$ comes from --- the heartbeat repeats regularly, so its autocorrelation oscillates instead of decaying and no lifetime can be read from it, and $\tau$ is set by hand there (Section~\ref{sec:limits}).
 
 \subsection{What creates the separation}
 \label{sec:ablation}
@@ -40,7 +33,7 @@ The synthetic generator and its calibration are described in Section~\ref{sec:sy
 We switch each of the two devices we add --- the horizon gate and the cross-covariance penalty --- on and off. The mechanism-free cell (Section~\ref{sec:xcov}) is the baseline in which only the coordinate split remains.
 
 \begin{table}[!tb]
-\caption{Separation index by mechanism. Cells are SEP (higher is better), $n=5$ seeds, $\lambda=4$. Bold marks the best cell in each row. The gate and the penalty are complementary: neither alone reaches what the two reach together.}
+\caption{Separation index by mechanism. Cells are SEP, $n=5$ seeds, $\lambda=4$; bold marks the best cell in each row.}
 \label{tab:ablation}
 \centering
 \small
@@ -60,12 +53,12 @@ HAPT & NCE & 0.297 & 0.366 & 0.162 & \textbf{0.515} \\
 
 In Table~\ref{tab:ablation} the model with both devices ranks first in all six settings, and neither device alone reaches that value. On the contrastive stem of the synthetic data the gate alone is indistinguishable from the mechanism-free case (0.124 against 0.121), yet adding that same gate to the penalty raises SEP from 0.488 to 0.749: the two devices need each other. The penalty alone is actively harmful on the real data, breaking down the inclusion term and falling below even the mechanism-free case.
 
-The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agrees in all six settings to within 0.015 with the SEP of 16 dimensions drawn at random from the same embedding. Without our devices, any part of the embedding holds the two factors to a similar degree, so coordinate position carries no meaning by itself; our contribution is to give those coordinates structure. Fig.~\ref{fig:embed} shows the same contrast qualitatively: with the mechanism the transient factor is unstructured in $\zslow$, and without it that block is no different from any other.
+The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agrees in all six settings to within 0.015 with the SEP of 16 dimensions drawn at random from the same embedding. Without our devices, any part of the embedding holds the two factors to a similar degree, so coordinate position carries no meaning by itself; our contribution is to give those coordinates structure. Fig.~\ref{fig:embed} shows the same contrast qualitatively.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=0.92\textwidth]{figs/fig_embed_compare.png}
-\caption{\textbf{The three terms of SEP, with and without the mechanism.} A t-SNE of one block per panel (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$, one seed), coloured by one factor; the columns are exactly the three terms of Eq.~\ref{eq:sep} and the bottom row is a model trained with no gate, no penalty and no per-block LayerNorm. Each panel carries its term's value, and \textbf{the whole gap between the rows is one column}: inclusion is \numFigInclusion{} against \numFigNoInclusion{} and allocation \numFigAllocation{} against \numFigNoAllocation, both unchanged, while exclusion is \numFigExclusion{} against \numFigNoExclusion{} --- SEP \numFigSep{} against \numFigNoSep. The left column is therefore not a result: the regimes separate in $\zslow$ either way, as the random-subspace control above already said. What our devices change is the middle column. Read it by the colour scale rather than by eye, since the difference between a partly ordered and a fully scrambled scatter is exactly what a linear probe sees and a reader does not. The fourth combination, $\zmix$ coloured by the persistent factor, is not a term of SEP and is unconstrained by design (Section~\ref{sec:asymmetry}), so it is omitted.}
+\includegraphics[width=0.86\textwidth]{figs/fig_embed_exclusion.png}
+\caption{The exclusion term, seen directly: a t-SNE of $\zslow$ coloured by the transient factor, with the mechanism and without it. This is the only one of the three terms that differs between the two models --- inclusion is \numFigInclusion{} against \numFigNoInclusion{} and allocation \numFigAllocation{} against \numFigNoAllocation. All six panels are in Fig.~\ref{fig:embed_full}.}
 \label{fig:embed}
 \end{figure}
 
@@ -93,31 +86,12 @@ The agreement should not be over-read. The margin between the top two $\mathrm{P
 
 If an embedding trained without the gate is rotated post-hoc without labels --- by principal component analysis, by slowness-ordered independent component analysis, or by slow feature analysis (SFA) --- does it reach the same separation? These methods need no horizon gate at all, so they are the sharpest objection to our method.
 
-\begin{table}[!tb]
-\caption{Our method against label-free post-hoc unmixings. Cells are SEP, $n=5$ seeds. Our method has one knob, so we report its best point on the swept $\lambda$ curve; each unmixing is a single fixed value. Bold marks the winner of each row. The verdict is three to three overall: two of two on synthetic, one of four on real data.}
-\label{tab:rotation}
-\centering
-\small
-\begin{tabular}{llccc}
-\hline
-Dataset & Stem & Ours (best $\lambda$) & SFA & Verdict \\
-\hline
-Synthetic & Reg & \textbf{0.814} ($\lambda=1$) & 0.446 & win \\
-Synthetic & NCE & \textbf{0.849} ($\lambda=16$) & 0.388 & win \\
-PTB-XL & Reg & 0.495 & \textbf{0.567} & loss \\
-PTB-XL & NCE & 0.567 & \textbf{0.599} & loss \\
-HAPT & Reg & 0.677 & \textbf{0.717} & loss \\
-HAPT & NCE & \textbf{0.626} ($\lambda=64$) & 0.527 & win \\
-\hline
-\end{tabular}
-\end{table}
-
-We have one knob and the post-hoc rotations have none, so we report the whole curve rather than a single point (Table~\ref{tab:rotation}, Fig.~\ref{fig:rotation}); hiding that asymmetry would not make the comparison fair. On the synthetic data the curve passes above every post-hoc rotation point, and principal component analysis fails completely (SEP \numSynthPca) --- direct evidence that a ranking by variance is not a ranking by persistence, since the transient factor crowds into the leading components and nothing is left in the complement. On the real data we do not lead. The verdict over all six settings is three wins to three losses, but split apart it is two of two on synthetic and three losses of four on real data, with losing margins of \numRealLossLo--\numRealLossHi{} against a winning margin of 0.099.
+We have one knob and the post-hoc rotations have none, so we report the whole curve rather than a single point (Fig.~\ref{fig:rotation}); hiding that asymmetry would not make the comparison fair. On the synthetic data the curve passes above every post-hoc rotation point, and principal component analysis fails completely (SEP \numSynthPca) --- direct evidence that a ranking by variance is not a ranking by persistence, since the transient factor crowds into the leading components and nothing is left in the complement. On the real data we do not lead. The verdict over all six settings is three wins to three losses, but split apart it is two of two on synthetic and three losses of four on real data, with losing margins of \numRealLossLo--\numRealLossHi{} against a winning margin of 0.099.
 
 \begin{figure}[!tb]
 \centering
 \includegraphics[width=0.92\textwidth]{figs/fig_rotation_sep.png}
-\caption{SEP against the penalty weight $\lambda$. $n=5$ seeds. Our method traces a curve over $\lambda\in\{0,1,4,16,64\}$ with its best point ringed; each post-hoc unmixing has no knob and is a horizontal line. A win is our curve rising above the SFA line. Unlike an inclusion--exclusion plane, this view combines all three SEP terms, so it also shows the one real-data win, which the inclusion--exclusion plane cannot display.}
+\caption{SEP against the penalty weight $\lambda$, $n=5$ seeds. Our method traces a curve with its best point ringed; each post-hoc unmixing has no knob and is a horizontal line. A win is our curve rising above the SFA line.}
 \label{fig:rotation}
 \end{figure}
 
@@ -133,14 +107,12 @@ The explanation is that persistence and slowness mostly coincide on real data. O
 \subsection{The cost of separation, and stability under domain shift}
 \label{sec:cost}
 
-We measure two things: the downstream cost that accompanies the separation, and how far performance falls when a probe fitted with few labels is carried to a domain in which the transient factor has been perturbed. What we measure in the second case is not the difference in absolute performance between the two blocks but the difference in the drop each block suffers.
+Measured against the full embedding of a mechanism-free model --- not against our own $z_{\mathrm{full}}$, which would mix in the effect of block width --- the downstream cost of using $\zslow$ alone is effectively zero on synthetic data and PTB-XL, and $-0.111$ macro-F1 on HAPT (regression stem; $-0.072$ contrastive). HAPT is the only dataset whose persistent factor is not constant within the window: 57\% of its windows straddle an activity transition, which is also why its cost is the one that shows.
 
-We measure the cost against the full embedding of a model trained with no mechanism at all rather than against our own $z_{\mathrm{full}}$, since the latter mixes in the effect of block width. Read that way, the cost is effectively zero on synthetic data and PTB-XL, and only HAPT shows a substantial value ($-0.111$ on the regression stem, $-0.072$ on the contrastive stem). HAPT is the only dataset in which the persistent factor is not constant within the window: 57\% of its windows straddle an activity transition.
-
-The perturbed domain is made by multiplying the evaluation windows by a gain ($x \mapsto x\cdot(1+s)$, maximum perturbation $s=2$); this is a bijection and does not destroy the labels of the persistent factor --- even at maximum perturbation the HAPT activity labels survive at macro-F1 0.696 (chance 0.167). The encoder was trained on the clean domain alone, and the probe is fitted only on clean data with few labels (25 or 100); only the evaluation runs separately on clean and perturbed windows, so the probe never trains on the perturbation it is scored on.
+We then carry a probe fitted on clean data with few labels into a domain where the transient factor has been perturbed by a gain, $x \mapsto x\cdot(1+s)$ up to $s=2$ --- a bijection that leaves the persistent labels legible (HAPT activities survive at macro-F1 0.696, chance 0.167). \textbf{The result is a null one and we report it as such.} At 25 labels on HAPT/Reg the gated block's drop is 0.113 smaller than a width-matched mechanism-free block's, five times the seed standard deviation; in the other five settings the effect lies inside the noise, and 17 of 24 cells are negative by sign alone (Table~\ref{tab:shift}). Nowhere does absolute performance overtake the mechanism-free model. HAPT is at once the dataset with the largest cost and the only one with a visible shift effect, which is the trade in one sentence: the gate buys a smaller drop and pays in absolute performance.
 
 \begin{table}[!tb]
-\caption{Degradation under domain shift: a difference of differences. Each cell is the drop in macro-F1 from the clean domain to the most perturbed one, for the gated block minus the same drop for a width-matched block of the mechanism-free model; paired by seed, $n=5$. Negative means the gated block degrades less. \textbf{These are differences of drops, not differences in absolute performance} --- the gated block does not overtake the mechanism-free one at any perturbation strength.}
+\caption{Degradation under domain shift. Each cell is the gated block's drop in macro-F1 from the clean domain to the most perturbed one, minus the same drop for a width-matched mechanism-free block; paired by seed, $n=5$. Negative means it degrades less --- \textbf{it never overtakes in absolute terms}.}
 \label{tab:shift}
 \centering
 \small
@@ -157,7 +129,3 @@ Synthetic / NCE & $-0.044$$\pm$0.069 & $-0.055$$\pm$0.054 & $-0.045$$\pm$0.055 \
 \hline
 \end{tabular}
 \end{table}
-
-On that same HAPT the gated block has the smallest drop under shift: at 25 labels its drop is 0.113 smaller than that of the width-matched mechanism-free block (Table~\ref{tab:shift}), five times the seed standard deviation. This is only a difference of drops. At no perturbation strength we tested does absolute performance overtake that model, and the effect exceeds the error bars in only one of the six settings, the HAPT regression stem; in the remaining five it lies within the noise, though by sign alone 17 of the 24 cells are negative.
-
-The two results interlock: HAPT is both the dataset with the largest downstream cost and the only one with clear stability under domain shift, two sides of one phenomenon. The gate trades absolute performance for stability under domain shift; the two cannot be had together. A use that does not go through a classifier at all --- reading the trajectory of $\zslow$ over time as a state indicator --- is shown in Appendix~\ref{app:traj}, and is the direction in which we think the separated block earns its cost.
