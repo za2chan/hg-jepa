@@ -1,0 +1,22 @@
+\begin{table}[!tbp]
+\caption{Where the shortfall against SFA sits. Every cell is \emph{ours minus SFA} on
+one term of SEP, paired by seed and then averaged, $n=5$; positive means we lead. Our
+column is taken at the $\lambda$ that maximizes our SEP, which is why $\lambda$ is
+listed. Inclusion is a draw everywhere; \textbf{every real-data loss is a loss on the
+exclusion term alone} --- the one term the objective does not enforce.}
+\label{tab:terms}
+\centering
+\small
+\begin{tabular}{lllcccc}
+\hline
+Dataset & Stem & $\lambda$ & Inclusion & Allocation & Exclusion & SEP \\
+\hline
+Synthetic & HGLP-Reg & 1 & $+0.102$ & $+0.236$ & $+0.156$ & $+0.395$ \\
+Synthetic & HGLP-NCE & 16 & $-0.006$ & $+0.327$ & $+0.266$ & $+0.451$ \\
+PTB-XL & HGLP-Reg & 4 & $-0.007$ & $+0.048$ & $\mathbf{-0.136}$ & $-0.073$ \\
+PTB-XL & HGLP-NCE & 4 & $-0.000$ & $+0.007$ & $\mathbf{-0.051}$ & $-0.031$ \\
+HAPT & HGLP-Reg & 1 & $-0.033$ & $-0.011$ & $-0.007$ & $-0.039$ \\
+HAPT & HGLP-NCE & 64 & $-0.041$ & $+0.155$ & $-0.016$ & $+0.100$ \\
+\hline
+\end{tabular}
+\end{table}

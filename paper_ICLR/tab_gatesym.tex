@@ -1,0 +1,24 @@
+\begin{table}[!tbp]
+\caption{Can exclusion be bought structurally? The symmetric variant multiplies
+$\zslow$ by $1-g(\Delta)$, switching it off below $\tau$ so that no horizon can push
+transient information into it. Cells are SEP at each model's own best $\lambda$ over
+$\{0,1,4,16,64\}$, $n=5$ seeds; higher is better; differences within $\pm0.005$ SEP
+are called a tie. The asymmetric gate of Eq.~\ref{eq:gate} is better in 4 of
+6 settings against 1 for the symmetric one, so the design choice is not
+an oversight.}
+\label{tab:gatesym}
+\centering
+\small
+\begin{tabular}{llcccc}
+\hline
+Dataset & Stem & Asymmetric (ours) & Symmetric & Difference & Better \\
+\hline
+Synthetic & HGLP-Reg & 0.814 ($\lambda=1$) & 0.673 ($\lambda=1$) & $-0.141$ & asym \\
+Synthetic & HGLP-NCE & 0.849 ($\lambda=16$) & 0.873 ($\lambda=4$) & $+0.024$ & \textbf{sym} \\
+PTB-XL & HGLP-Reg & 0.495 ($\lambda=4$) & 0.438 ($\lambda=1$) & $-0.057$ & asym \\
+PTB-XL & HGLP-NCE & 0.567 ($\lambda=4$) & 0.567 ($\lambda=16$) & $-0.000$ & tie \\
+HAPT & HGLP-Reg & 0.677 ($\lambda=1$) & 0.575 ($\lambda=4$) & $-0.102$ & asym \\
+HAPT & HGLP-NCE & 0.626 ($\lambda=64$) & 0.598 ($\lambda=64$) & $-0.028$ & asym \\
+\hline
+\end{tabular}
+\end{table}

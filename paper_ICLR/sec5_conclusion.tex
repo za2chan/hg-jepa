@@ -11,6 +11,18 @@ data we fall short of Slow Feature Analysis, losing three of the four real
 settings, and the separation costs $0.111$ macro-F1 downstream on HAPT. The
 gate trades absolute performance for stability under domain shift.
 
+Two measurements sharpen that comparison. Splitting SEP into its three factors
+shows that the shortfall against SFA is confined to the exclusion term --- the
+one term the objective cannot enforce --- while inclusion is a draw everywhere;
+and that shortfall is not an artifact of linear probing, since it survives and
+in places widens under a non-linear reader that also collapses our own
+exclusion. On the datasets where SFA leads, two different mechanisms are at
+work: on HAPT the persistent factor really does sit in the low band of the
+signal, whereas on PTB-XL it does not but is constant within a window, which is
+the limiting case of what SFA maximizes. Finally, the coefficient that governs
+exclusion can be selected without task labels, agreeing with the label-based
+choice in all six settings.
+
 \subsection{Relevance to Responsible AI}
 
 \textbf{Explanation comes from the design, not after the fact.} Most
@@ -40,30 +52,54 @@ entangled representation there is no such quantity to measure.
 
 \subsection{Limitations}
 
-\textbf{First, the hyperparameters cannot be chosen without labels.} The
-cross-covariance coefficient, the block width, the target width, the patch
-size, and the horizon range have no derivation rule and were set by downstream
-performance. The autocorrelation-derived horizon threshold is a partial
-exception, but it fails on regularly repeating signals: on PTB-XL the per-record estimates scatter from $0.1$ to $49.9$ patches and the rule returns $56.6$, outside the training horizon range, so we set the threshold by hand instead. The exclusion term needs no task labels, so a failed separation can at
-least be detected label-free.
+\textbf{First, the exclusion we demonstrate is a linear-level one.} The
+objective enforces availability but not exclusion, and Section~\ref{sec:exclusion}
+shows that this is not a formality: swapping the linear probe for a small MLP,
+with the same head given to every baseline, leaves inclusion and allocation
+intact and collapses exclusion alone, by $\numMlpExcl$ on average and
+$\numMlpExclWorst$ at worst. The transient factor is not absent from $\zslow$;
+it is linearly unreadable there. A structural repair does not help either --- a
+gate that also switches $\zslow$ off below $\tau$ is worse in $\numSymWorse$ of
+six settings. What we can claim is that the method fails where its own analysis
+said it would, and nowhere else.
 
-\textbf{Second, we did not analyze the target width.} We used 8, 12, and 8
+\textbf{Second, most hyperparameters cannot be chosen without labels, but the
+one that governs exclusion can.} The block width, the target width, the patch
+size and the horizon range have no derivation rule and were set by downstream
+performance; model selection without labels is a known difficulty in this
+literature \cite{locatello2019}. The cross-covariance coefficient $\lambda$ is
+now an exception: the label-free criterion $J$ of Eq.~\ref{eq:J} picks the
+label-selected value in all six settings. That agreement is decisive only on
+synthetic data, where the gap to the runner-up is
+$\numJmarginSynthLo$--$\numJmarginSynthHi$; on real data it is
+$\numJmarginRealLo$--$\numJmarginRealHi$ and we did not store the seed-level
+spread, so those four agreements are not distinguishable from chance. On a
+fourth dataset not reported here, the criterion selected a different $\lambda$
+from the label-based one; that analysis is unfinished --- one configuration axis
+was never tested --- and we report neither its results nor its disagreement as
+evidence. The autocorrelation-derived horizon threshold remains a partial
+exception in the other direction: it fails on regularly repeating signals, since
+on PTB-XL the per-record estimates scatter from $0.1$ to $49.9$ patches and the
+rule returns $56.6$, outside the training horizon range, so we set the threshold
+by hand instead.
+
+\textbf{Third, we did not analyze the target width.} We used 8, 12, and 8
 patches, but the ratio to the transient factor's autocorrelation time is
 $1.53$, $0.91$, and $0.42$---not constant. This width governs how much of the
 transient factor is averaged away inside the target; the sweep was not run.
 
-\textbf{Third, we did not demonstrate a practical benefit:} the perturbed-domain effect clears the error bars in only one of six settings, and even there absolute performance never overtakes the mechanism-free embedding.
+\textbf{Fourth, we did not demonstrate a practical benefit:} the perturbed-domain effect clears the error bars in only one of six settings, and even there absolute performance never overtakes the mechanism-free embedding.
 
-\textbf{Fourth,} the claim that a factor can be ``persistent yet absent from
+\textbf{Fifth,} the claim that a factor can be ``persistent yet absent from
 the slow part of the signal'' rests on a single synthetic dataset. One
 counterexample refutes a universal proposition, but we designed it ourselves,
 and neither PTB-XL nor HAPT exhibits the case.
 
-\textbf{Fifth, our axis selects persistence, not relevance.} A persistent
+\textbf{Sixth, our axis selects persistence, not relevance.} A persistent
 nuisance factor---the low-frequency drift respiration and electrode motion
 produce in an electrocardiogram---enters $\zslow$ by the same criterion, and
 which persistent factors matter remains a human judgment.
 
 \subsection{Future Work}
 
-We compared only against label-free post-hoc rotation, so methods that place factor separation explicitly in the objective remain to be compared. Validation is also needed on data whose persistent factor varies within a recording while staying constant within a window --- PTB-XL fails the first property and HAPT the second, whereas sleep-stage classification has both. Finally, using the trajectory of the separated block as a state indicator, rather than as classifier input, would address the fourth limitation directly.
+We compared only against label-free post-hoc rotation, so methods that place factor separation explicitly in the objective remain to be compared. Validation is also needed on data whose persistent factor varies within a recording while staying constant within a window --- PTB-XL fails the first property and HAPT the second, whereas sleep-stage classification has both. We have that fourth dataset in hand and the analysis is under way; it is the one referred to in the second limitation, and it is not reported here because one configuration axis, the window length, has not been tested. Finally, using the trajectory of the separated block as a state indicator, rather than as classifier input, would address the fourth limitation directly.

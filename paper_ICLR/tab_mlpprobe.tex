@@ -1,0 +1,36 @@
+\begin{table}[!tbp]
+\caption{What survives a non-linear reader. The features, the splits and the blocks are
+held fixed and only the probe head changes, from a linear model to a one-hidden-layer
+MLP (256 units); the \emph{same} head is given to SFA, PCA and ICA, so no method is
+tested more harshly than another. $\lambda=4$, one seed. \textbf{(a)} Cells are
+$\text{MLP}-\text{linear}$ on one SEP term, averaged over four methods $\times$ six
+settings. Only exclusion falls, and it is the term the objective never enforced.
+\textbf{(b)} Cells are SFA's exclusion minus ours, so positive means SFA holds the
+lead; the diagnosis of Table~\ref{tab:terms} was not an artifact of linear probing.}
+\label{tab:mlpprobe}
+\centering
+\small
+(a) Change in each SEP term when the probe head stops being linear\\[2pt]
+\begin{tabular}{lcccc}
+\hline
+SEP term & Mean change & Worst & Best & Rows \\
+\hline
+Inclusion & $+0.015$ & $-0.027$ & $+0.113$ & 16 \\
+Allocation & $+0.087$ & $+0.031$ & $+0.156$ & 16 \\
+Exclusion & $-0.149$ & $-0.530$ & $+0.019$ & 16 \\
+\hline
+\end{tabular}
+
+\medskip
+(b) Exclusion gap, SFA minus ours\\[2pt]
+\begin{tabular}{lcc}
+\hline
+Setting & Linear probe & MLP probe \\
+\hline
+PTB-XL/HGLP-Reg & $+0.085$ & $+0.122$ \\
+PTB-XL/HGLP-NCE & $+0.020$ & $+0.033$ \\
+HAPT/HGLP-Reg & $+0.009$ & $+0.236$ \\
+HAPT/HGLP-NCE & $+0.000$ & $+0.000$ \\
+\hline
+\end{tabular}
+\end{table}

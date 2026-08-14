@@ -1,0 +1,20 @@
+\begin{table}[!tbp]
+\caption{Is the persistent factor readable from the \emph{slow band of the signal}?
+Each row filters the raw signal to one band at a time and fits the same linear probe on
+that band alone. Cells are the score named in the second column; ``low band'' is
+$0$--$0.5$\,Hz for HAPT (a true low-pass, keeping DC), $0.05$--$0.5$\,Hz for PTB-XL
+(band-pass: the ECG baseline is arbitrary), $f<0.02$ for the synthetic carrier. The
+ratio column is low band over chance. Only HAPT clears chance by a real margin.}
+\label{tab:bandaccess}
+\centering
+\small
+\begin{tabular}{llcccc}
+\hline
+Dataset & Score & Low band & Chance & Low/chance & Best band (score) \\
+\hline
+Synthetic & $R^2$ & $8.2\times 10^{-6}$ & 0 & --- & carrier freq.\ (0.279) \\
+PTB-XL & macro-F1 & 0.498 & 0.500 & 1.00 & 2.0-5.0\,Hz (0.761) \\
+HAPT & macro-F1 & \textbf{0.570} & 0.167 & \textbf{3.42} & 0.0-0.5\,Hz (0.570) \\
+\hline
+\end{tabular}
+\end{table}

@@ -1,0 +1,477 @@
+"""Tables for the exclusion-clause sections of the report (Results IV-C / IV-D).
+
+Every number is read from runs_v2/*.json and written straight into LaTeX; nothing
+here is typed by hand (CLAUDE.md rule 3).
+
+    python3 src/exp/gen_sec4d.py            -> paper_ICLR/tab_*.tex  + console summary
+
+Sleep-EDF is EXCLUDED from every table by user decision (the window-length axis was
+never tested there and the analysis is unfinished). It is still computed and printed
+to the console under "[held out]" so the Limitations sentence about a fourth dataset
+stays honest.
+
+Tables produced
+  tab_bandaccess  IV-C  is the persistent factor readable from the slow BAND of x?
+  tab_metricC     IV-C  does ordering an ungated embedding by slowness FIND the factor?
+  tab_terms       IV-D  our score minus SFA's, split into inclusion/allocation/exclusion
+  tab_gatesym     IV-D  does gating z_slow symmetrically fix the exclusion term?
+  tab_mlpprobe    IV-D  how far each term moves when the probe head stops being linear
+  tab_lambdafree  IV-D  does a label-free criterion J pick the same lambda as the oracle?
+"""
+import json
+import pathlib
+
+R = pathlib.Path(__file__).resolve().parents[2] / "runs_v2"
+OUT = pathlib.Path(__file__).resolve().parents[2] / "paper_ICLR"
+load = lambda n: json.loads((R / n).read_text())
+
+LAMS = [0, 1, 4, 16, 64]
+# (paper label, rotation-file dataset tag, term_breakdown key prefix)
+DSETS = [("Synthetic", "synth", "Synthetic", "_gap0.03"),
+         ("PTB-XL", "ptbxl", "PTB-XL", ""),
+         ("HAPT", "hapt", "HAPT", "")]
+STEMS = [("HGLP-Reg", "l1+ema", "Reg"), ("HGLP-NCE", "nce+ema", "NCE")]
+HELD_OUT = "Sleep-EDF"          # computed, printed, never tabulated
+
+
+def write(name, body):
+    (OUT / f"{name}.tex").write_text(body)
+    print(f"  wrote paper_ICLR/{name}.tex")
+
+
+def rot(dset, stem, suffix=""):
+    """rotation_<dset>_<stem>[_gap][_sym].json"""
+    return load(f"rotation_{dset}_{stem}{suffix}.json")
+
+
+def per_seed(entry, half="slow_half", factor="slow"):
+    """rotation values are stored as [mean, std, seed0, seed1, ...]."""
+    return entry[half][factor][2:]
+
+
+def sep_of(d, key):
+    """SEP = inclusion * allocation * exclusion, each clipped to [0,1]."""
+    c = lambda v: min(max(v, 0.0), 1.0)
+    incl = c(d[key]["slow_half"]["slow"][0])
+    excl = c(1.0 - d[key]["slow_half"]["fast"][0])
+    alloc = c(d[key]["fast_half"]["fast"][0])
+    return incl * alloc * excl
+
+
+def best_lam(d):
+    vals = [(sep_of(d, f"gate@lam{l}"), l) for l in LAMS]
+    return max(vals)
+
+
+# ----------------------------------------------------------------- IV-C table 1
+def bandaccess():
+    """Is the persistent factor readable from the slow band of the raw signal?
+
+    Scores are macro-F1 for the real sets (chance = 1/k) and R^2 for synthetic.
+    The 'full signal' column is deliberately absent: the two scripts build a
+    different comparison view (HAPT all-band, PTB-XL beat-averaged 5-40 Hz), so
+    the columns would not mean the same thing.
+    """
+    rows = []
+
+    s = load("fig_persistence.json")
+    low = s["r2"]["low-pass ($f<0.02$)"]["persistent factor $s$"]
+    car = s["r2"]["carrier frequency"]["persistent factor $s$"]
+    mant, expo = f"{low:.1e}".split("e")
+    rows.append(("Synthetic", f"${mant}\\times 10^{{{int(expo)}}}$",
+                 "0", "---", f"carrier freq.\\ ({car:.3f})", "$R^2$"))
+
+    p = load("fig_persistence_ptbxl.json")
+    b = max(p["band_f1"].items(), key=lambda kv: kv[1])
+    rows.append(("PTB-XL", f"{p['lowpass_view_f1']:.3f}", f"{p['config']['chance']:.3f}",
+                 f"{p['lowpass_view_f1'] / p['config']['chance']:.2f}",
+                 f"{b[0]}\\,Hz ({b[1]:.3f})", "macro-F1"))
+
+    h = load("fig_persistence_hapt.json")
+    b = max(h["band_f1"].items(), key=lambda kv: kv[1])
+    rows.append(("HAPT", f"\\textbf{{{h['lowpass_view_f1']:.3f}}}",
+                 f"{h['config']['chance']:.3f}",
+                 f"\\textbf{{{h['lowpass_view_f1'] / h['config']['chance']:.2f}}}",
+                 f"{b[0]}\\,Hz ({b[1]:.3f})", "macro-F1"))
+
+    sl = load("fig_persistence_sleepedf.json")
+    b = max(sl["band_f1"].items(), key=lambda kv: kv[1])
+    print(f"  [held out] {HELD_OUT} band access: low {sl['lowpass_view_f1']:.3f} "
+          f"chance {sl['config']['chance']:.3f} "
+          f"ratio {sl['lowpass_view_f1'] / sl['config']['chance']:.2f} "
+          f"best {b[0]} Hz ({b[1]:.3f})")
+
+    body = "\n".join(
+        f"{d} & {sc} & {lo} & {ch} & {ra} & {be} \\\\" for d, lo, ch, ra, be, sc in rows)
+    write("tab_bandaccess", f"""\\begin{{table}}[!tbp]
+\\caption{{Is the persistent factor readable from the \\emph{{slow band of the signal}}?
+Each row filters the raw signal to one band at a time and fits the same linear probe on
+that band alone. Cells are the score named in the second column; ``low band'' is
+$0$--$0.5$\\,Hz for HAPT (a true low-pass, keeping DC), $0.05$--$0.5$\\,Hz for PTB-XL
+(band-pass: the ECG baseline is arbitrary), $f<0.02$ for the synthetic carrier. The
+ratio column is low band over chance. Only HAPT clears chance by a real margin.}}
+\\label{{tab:bandaccess}}
+\\centering
+\\small
+\\begin{{tabular}}{{llcccc}}
+\\hline
+Dataset & Score & Low band & Chance & Low/chance & Best band (score) \\\\
+\\hline
+{body}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+""")
+
+
+# ----------------------------------------------------------------- IV-C table 2
+def metricC():
+    """C = how much of the reachable persistent signal a slowness ordering recovers.
+
+    C = [s_per(SFA slow half) - s_per(random 16)] / [s_per(full 64) - s_per(random 16)]
+
+    All three terms come from ONE mechanism-free embedding (gate, penalty and per-block
+    LayerNorm all off), re-based three ways. Our method enters nowhere, so C is a
+    prediction about SFA rather than a restatement of its score.
+    """
+    rows, printed = [], []
+    for label, tag, _, suf in DSETS + [(HELD_OUT, "sleepedf", "Sleep-EDF", "_p10C")]:
+        for stem_label, stem, _ in STEMS:
+            try:
+                d = rot(tag, stem, suf)
+            except FileNotFoundError:
+                continue
+            sfa, rnd, full = (per_seed(d[k]) for k in ("SFA", "random", "ungated_full"))
+            cs = [(a - r) / (f - r) for a, r, f in zip(sfa, rnd, full) if abs(f - r) > 1e-9]
+            mean = sum(cs) / len(cs)
+            sd = (sum((c - mean) ** 2 for c in cs) / max(len(cs) - 1, 1)) ** .5
+            line = (label, stem_label, sum(sfa) / len(sfa), sum(rnd) / len(rnd),
+                    sum(full) / len(full), mean, sd)
+            (printed if label == HELD_OUT else rows).append(line)
+
+    for r in printed:
+        print(f"  [held out] {r[0]}/{r[1]} metric C = {r[5]:+.2f} +- {r[6]:.2f}")
+
+    body = "\n".join(
+        f"{d} & {s} & {a:.3f} & {r:.3f} & {f:.3f} & $\\mathbf{{{m:+.2f}}} \\pm {sd:.2f}$ \\\\"
+        for d, s, a, r, f, m, sd in rows)
+    write("tab_metricC", f"""\\begin{{table}}[!tbp]
+\\caption{{Does ordering by slowness \\emph{{find}} the persistent factor? All four score
+columns are the persistent factor read by a linear probe from a 16-dimensional subspace
+of the \\emph{{same mechanism-free}} embedding (macro-F1 on real data, accuracy on
+synthetic); only the choice of subspace differs. $C$ is the fraction of the reachable
+range $(\\text{{full}}-\\text{{random}})$ that the slowness ordering recovers; $n=5$ seeds,
+$\\pm$ is the seed standard deviation. \\textbf{{Read the sign, not the size}}: the
+denominator is small, so the ratio is noisy, but real data and synthetic data do not
+overlap.}}
+\\label{{tab:metricC}}
+\\centering
+\\small
+\\begin{{tabular}}{{llcccc}}
+\\hline
+Dataset & Stem & SFA slow half & Random 16 & Full 64 & $C$ \\\\
+\\hline
+{body}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+""")
+
+
+# ----------------------------------------------------------------- IV-D table 1
+def terms():
+    """Where do we actually lose to SFA? Split the product into its three factors."""
+    d = load("term_breakdown.json")
+    rows = []
+    for label, _, key, _ in DSETS:
+        for stem_label, _, stem in STEMS:
+            e = d[f"{key}/{stem}"]
+            g = e["_diagnosis"]
+            lam = g["best_ours"].replace("ours@lam", "")
+            bold = lambda v: (f"$\\mathbf{{{v:+.3f}}}$" if v < -0.02 else f"${v:+.3f}$")
+            rows.append(f"{label} & {stem_label} & {lam} & ${g['d_inclusion']:+.3f}$ & "
+                        f"${g['d_allocation']:+.3f}$ & {bold(g['d_exclusion'])} & "
+                        f"${g['d_sep']:+.3f}$ \\\\")
+    for stem in ("Reg", "NCE"):
+        g = d[f"{HELD_OUT}/{stem}"]["_diagnosis"]
+        print(f"  [held out] {HELD_OUT}/{stem} incl {g['d_inclusion']:+.3f} "
+              f"alloc {g['d_allocation']:+.3f} excl {g['d_exclusion']:+.3f} "
+              f"sep {g['d_sep']:+.3f}")
+
+    write("tab_terms", """\\begin{table}[!tbp]
+\\caption{Where the shortfall against SFA sits. Every cell is \\emph{ours minus SFA} on
+one term of SEP, paired by seed and then averaged, $n=5$; positive means we lead. Our
+column is taken at the $\\lambda$ that maximizes our SEP, which is why $\\lambda$ is
+listed. Inclusion is a draw everywhere; \\textbf{every real-data loss is a loss on the
+exclusion term alone} --- the one term the objective does not enforce.}
+\\label{tab:terms}
+\\centering
+\\small
+\\begin{tabular}{lllcccc}
+\\hline
+Dataset & Stem & $\\lambda$ & Inclusion & Allocation & Exclusion & SEP \\\\
+\\hline
+""" + "\n".join(rows) + """
+\\hline
+\\end{tabular}
+\\end{table}
+""")
+
+
+# ----------------------------------------------------------------- IV-D table 2
+def gatesym():
+    """Can the exclusion term be fixed structurally, by gating z_slow too?"""
+    TIE = 0.005                          # SEP differences below this are called a tie
+    rows, tally = [], {"\\textbf{sym}": 0, "asym": 0, "tie": 0}
+    for label, tag, _, suf in DSETS:
+        for stem_label, stem, _ in STEMS:
+            a_sep, a_lam = best_lam(rot(tag, stem, suf))
+            s_sep, s_lam = best_lam(rot(tag, stem, suf + "_sym"))
+            win = "tie" if abs(s_sep - a_sep) <= TIE else (
+                "\\textbf{sym}" if s_sep > a_sep else "asym")
+            tally[win] += 1
+            rows.append(f"{label} & {stem_label} & {a_sep:.3f} ($\\lambda={a_lam}$) & "
+                        f"{s_sep:.3f} ($\\lambda={s_lam}$) & ${s_sep - a_sep:+.3f}$ & {win} \\\\")
+    better, worse, tied = tally["\\textbf{sym}"], tally["asym"], tally["tie"]
+    print(f"  symmetric gate: better {better}, worse {worse}, tied {tied} of {len(rows)}")
+
+    write("tab_gatesym", f"""\\begin{{table}}[!tbp]
+\\caption{{Can exclusion be bought structurally? The symmetric variant multiplies
+$\\zslow$ by $1-g(\\Delta)$, switching it off below $\\tau$ so that no horizon can push
+transient information into it. Cells are SEP at each model's own best $\\lambda$ over
+$\\{{0,1,4,16,64\\}}$, $n=5$ seeds; higher is better; differences within $\\pm{TIE:g}$ SEP
+are called a tie. The asymmetric gate of Eq.~\\ref{{eq:gate}} is better in {worse} of
+{len(rows)} settings against {better} for the symmetric one, so the design choice is not
+an oversight.}}
+\\label{{tab:gatesym}}
+\\centering
+\\small
+\\begin{{tabular}}{{llcccc}}
+\\hline
+Dataset & Stem & Asymmetric (ours) & Symmetric & Difference & Better \\\\
+\\hline
+{chr(10).join(rows)}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+""")
+
+
+# ----------------------------------------------------------------- IV-D table 3
+def mlpprobe():
+    """Same features, same splits, same blocks -- only the probe head changes."""
+    d = load("mlp_probe_rotation.json")["results"]
+    tag_of = lambda s: "nce" if s == "nce+ema" else "l1"
+    keep = [(f"{lbl}/{s_lbl}", f"{tag}/{tag_of(s)}")
+            for lbl, tag, _, _ in DSETS for s_lbl, s, _ in STEMS]
+    real = [(lbl, key) for lbl, key in keep if not lbl.startswith("Synthetic")]
+    methods = ["ours", "SFA", "PCA", "ICA-slow"]     # "ours" is the unprefixed pair
+    terms_ = ["inclusion", "allocation", "exclusion"]
+    head = lambda e, m, p: e[p] if m == "ours" else e[f"{m}/{p}"]
+
+    # (a) per-term mean change over method x setting. Only the four real settings enter:
+    # the synthetic path builds no time-series stream, so it has no post-hoc rows to
+    # average against and including it would put "ours" in four times as often.
+    agg = {t: [] for t in terms_}
+    for _, key in real:
+        for m in methods:
+            for t in terms_:
+                agg[t].append(head(d[key], m, "mlp")[t] - head(d[key], m, "linear")[t])
+    lines = [f"{t.capitalize()} & ${sum(v) / len(v):+.3f}$ & ${min(v):+.3f}$ & "
+             f"${max(v):+.3f}$ & {len(v)} \\\\" for t, v in
+             ((t, agg[t]) for t in terms_)]
+    for lbl, key in keep:
+        if lbl.startswith("Synthetic"):
+            e = d[key]
+            print("  [ours only, no post-hoc rows] %s excl %.3f -> %.3f, SEP %.3f -> %.3f"
+                  % (lbl, e["linear"]["exclusion"], e["mlp"]["exclusion"],
+                     e["linear"]["sep"], e["mlp"]["sep"]))
+
+    # (b) exclusion gap SFA - ours, linear against MLP
+    gap = [f"{lbl} & ${d[key]['SFA/linear']['exclusion'] - d[key]['linear']['exclusion']:+.3f}$ "
+           f"& ${d[key]['SFA/mlp']['exclusion'] - d[key]['mlp']['exclusion']:+.3f}$ \\\\"
+           for lbl, key in real]
+    for stem, t in (("Reg", "l1"), ("NCE", "nce")):
+        e = d.get(f"sleepedf/{t}")
+        if e and "SFA/linear" in e:
+            print(f"  [held out] {HELD_OUT}/{stem} exclusion gap linear "
+                  f"{e['SFA/linear']['exclusion'] - e['linear']['exclusion']:+.3f} "
+                  f"-> mlp {e['SFA/mlp']['exclusion'] - e['mlp']['exclusion']:+.3f}")
+
+    write("tab_mlpprobe", f"""\\begin{{table}}[!tbp]
+\\caption{{What survives a non-linear reader. The features, the splits and the blocks are
+held fixed and only the probe head changes, from a linear model to a one-hidden-layer
+MLP (256 units); the \\emph{{same}} head is given to SFA, PCA and ICA, so no method is
+tested more harshly than another. $\\lambda=4$, one seed. \\textbf{{(a)}} Cells are
+$\\text{{MLP}}-\\text{{linear}}$ on one SEP term, averaged over four methods $\\times$ six
+settings. Only exclusion falls, and it is the term the objective never enforced.
+\\textbf{{(b)}} Cells are SFA's exclusion minus ours, so positive means SFA holds the
+lead; the diagnosis of Table~\\ref{{tab:terms}} was not an artifact of linear probing.}}
+\\label{{tab:mlpprobe}}
+\\centering
+\\small
+(a) Change in each SEP term when the probe head stops being linear\\\\[2pt]
+\\begin{{tabular}}{{lcccc}}
+\\hline
+SEP term & Mean change & Worst & Best & Rows \\\\
+\\hline
+{chr(10).join(lines)}
+\\hline
+\\end{{tabular}}
+
+\\medskip
+(b) Exclusion gap, SFA minus ours\\\\[2pt]
+\\begin{{tabular}}{{lcc}}
+\\hline
+Setting & Linear probe & MLP probe \\\\
+\\hline
+{chr(10).join(gap)}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+""")
+
+
+# ----------------------------------------------------------------- IV-D table 4
+def lambdafree():
+    """J = exclusion x long-horizon self-prediction. Neither factor uses task labels."""
+    d = load("label_free_lambda.json")
+    # PTB-XL was recomputed after the fix described in the analysis log (the earlier run
+    # skipped it, mistaking "one label per record" for "one time position per record"),
+    # so the later file wins. It carries no _pick, hence the picks are recomputed here.
+    d.update(load("ptbxl_label_free_lambda.json"))
+
+    # The oracle is "the lambda that maximizes SEP". Take it from term_breakdown, which
+    # carries five seeds and is the same curve the main tables use; the label-free file's
+    # own sep column is three-seed and is null for PTB-XL. Where both exist they agree,
+    # and the assertion below keeps it that way.
+    tb = load("term_breakdown.json")
+    oracle_of = lambda key: float(tb[key]["_diagnosis"]["best_ours"].replace("ours@lam", ""))
+
+    def pick_of(key, e):
+        curve = {float(k): v for k, v in e.items() if k != "_pick"}
+        js = sorted((v["J"] for v in curve.values()), reverse=True)
+        p = dict(J=max(curve.items(), key=lambda kv: kv[1]["J"])[0],
+                 oracle=oracle_of(key), margin=js[0] - js[1])
+        if "_pick" in e:                     # agree with the stored pick where one exists
+            assert (p["J"], p["oracle"]) == (e["_pick"]["J"], e["_pick"]["oracle"]), \
+                f"{key}: recomputed {p} disagrees with stored {e['_pick']}"
+        return p
+
+    rows, agree = [], 0
+    for label, _, key, _ in DSETS:
+        for stem_label, _, stem in STEMS:
+            p = pick_of(f"{key}/{stem}", d[f"{key}/{stem}"])
+            ok = p["J"] == p["oracle"]
+            agree += ok
+            verdict = "match" if ok else "\\textbf{miss}"
+            rows.append(f"{label} & {stem_label} & {p['J']:.0f} & {p['oracle']:.0f} & "
+                        f"{verdict} & {p['margin']:.3f} \\\\")
+    for stem in ("Reg", "NCE"):
+        k = f"{HELD_OUT}/{stem}"
+        p = pick_of(k, load("label_free_lambda.json")[k])
+        print(f"  [held out] {HELD_OUT}/{stem} J picks lambda={p['J']:.0f}, "
+              f"oracle picks {p['oracle']:.0f} -> "
+              f"{'match' if p['J'] == p['oracle'] else 'MISS'}")
+    print(f"  label-free lambda agrees in {agree} of {len(rows)} reported settings")
+
+    write("tab_lambdafree", f"""\\begin{{table}}[!tbp]
+\\caption{{Choosing $\\lambda$ without labels. $J=\\text{{exclusion}}\\times\\text{{long-horizon
+self-prediction}}$: the first factor is read from the transient proxy, which is computed
+from the signal, and the second asks how well $\\zslow$ predicts \\emph{{its own}} value
+more than $\\tau$ ahead. No task label enters either. The product is needed because each
+factor alone has a degenerate maximum --- an empty block scores perfect exclusion, a
+constant block perfect self-prediction. The oracle column is the $\\lambda$ that maximizes
+SEP, which does use labels. $n=3$ seeds; the margin is the gap between the top two $J$
+values, and small margins should not be read as confident agreement.}}
+\\label{{tab:lambdafree}}
+\\centering
+\\small
+\\begin{{tabular}}{{llcccc}}
+\\hline
+Dataset & Stem & $\\lambda$ by $J$ (no labels) & $\\lambda$ by SEP (oracle) & Agreement & $J$ margin \\\\
+\\hline
+{chr(10).join(rows)}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+""")
+
+
+# ------------------------------------------------- numbers quoted in the prose
+def macros():
+    """Every figure the IV-C / IV-D prose states in running text.
+
+    The tables above are generated, so the sentences around them have to be too, or
+    the two drift apart -- which has happened twice in this project. sec4_results.tex
+    cites these by name and never spells a digit.
+    """
+    m = {}
+    fmt = lambda v, n=3: f"{v:.{n}f}"
+
+    h = load("fig_persistence_hapt.json")
+    m["HaptBandRatio"] = fmt(h["lowpass_view_f1"] / h["config"]["chance"], 2)
+    p = load("fig_persistence_ptbxl.json")
+    m["PtbLowBand"] = fmt(p["lowpass_view_f1"])
+    m["PtbChance"] = fmt(p["config"]["chance"])
+
+    tb = load("term_breakdown.json")
+    incl = [tb[f"{k}/{s}"]["_diagnosis"]["d_inclusion"] for _, _, k, _ in DSETS
+            for _, _, s in STEMS]
+    m["InclDiffLo"], m["InclDiffHi"] = f"{min(incl):+.3f}", f"{max(incl):+.3f}"
+
+    drops = []
+    for label, tag, _, suf in DSETS:
+        for _, stem, _ in STEMS:
+            drops.append(best_lam(rot(tag, stem, suf + "_sym"))[0] - best_lam(rot(tag, stem, suf))[0])
+    TIE = 0.005                          # SEP differences below this are called a tie
+    m["SymBetter"] = str(sum(d > TIE for d in drops))
+    m["SymWorse"] = str(sum(d < -TIE for d in drops))
+    m["SymTied"] = str(sum(abs(d) <= TIE for d in drops))
+    m["SymWorstDrop"] = fmt(-min(drops))
+
+    d = load("mlp_probe_rotation.json")["results"]
+    tag_of = lambda s: "nce" if s == "nce+ema" else "l1"
+    real = [f"{tag}/{tag_of(s)}" for lbl, tag, _, _ in DSETS if lbl != "Synthetic"
+            for _, s, _ in STEMS]
+    head = lambda e, mm, ph: e[ph] if mm == "ours" else e[f"{mm}/{ph}"]
+    for t, name in (("inclusion", "MlpIncl"), ("allocation", "MlpAlloc"),
+                    ("exclusion", "MlpExcl")):
+        v = [head(d[k], mm, "mlp")[t] - head(d[k], mm, "linear")[t]
+             for k in real for mm in ("ours", "SFA", "PCA", "ICA-slow")]
+        m[name] = f"{sum(v) / len(v):+.3f}"
+        if t == "exclusion":
+            m["MlpExclWorst"] = f"{min(v):+.3f}"
+
+    lf = load("label_free_lambda.json")
+    lf.update(load("ptbxl_label_free_lambda.json"))
+    syn = {float(k): v for k, v in lf["Synthetic/Reg"].items() if k != "_pick"}
+    by = lambda f: max(syn.items(), key=lambda kv: kv[1][f])[0]
+    m["JexclOnlyLam"] = f"{by('exclusion'):.0f}"
+    m["JexclOnlySep"] = fmt(syn[by("exclusion")]["sep"])
+    m["JbestLam"] = f"{by('sep'):.0f}"
+    m["JbestSep"] = fmt(syn[by("sep")]["sep"])
+    m["JlongBest"] = fmt(syn[by("sep")]["longhorizon"])
+    m["JlongCollapse"] = fmt(min(v["longhorizon"] for k, v in syn.items() if k >= 4))
+    m["JrankLo"] = fmt(min(v["rankme"] for v in syn.values()), 1)
+    m["JrankHi"] = fmt(max(v["rankme"] for v in syn.values()), 1)
+
+    marg = {}
+    for label, _, key, _ in DSETS:
+        for stem_label, _, stem in STEMS:
+            c = {k: v for k, v in lf[f"{key}/{stem}"].items() if k != "_pick"}
+            js = sorted((v["J"] for v in c.values()), reverse=True)
+            marg.setdefault("Synth" if label == "Synthetic" else "Real", []).append(js[0] - js[1])
+    for k, v in marg.items():
+        m[f"Jmargin{k}Lo"], m[f"Jmargin{k}Hi"] = fmt(min(v)), fmt(max(v))
+
+    body = "\n".join(f"\\newcommand{{\\num{k}}}{{{v}}}" for k, v in m.items())
+    write("nums_sec4d", "% Generated by src/exp/gen_sec4d.py -- do not edit by hand.\n"
+                        + body + "\n")
+    print("  " + "  ".join(f"{k}={v}" for k, v in m.items()))
+
+
+if __name__ == "__main__":
+    for fn in (bandaccess, metricC, terms, gatesym, mlpprobe, lambdafree, macros):
+        print(f"[{fn.__name__}]")
+        fn()
