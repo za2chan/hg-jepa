@@ -31,23 +31,32 @@ Splits follow the protocol of Section~\ref{sec:method_model}, with the patient a
 
 We switch each of the two devices we add --- the horizon gate and the cross-covariance penalty --- on and off. The mechanism-free cell (Section~\ref{sec:xcov}) is the baseline in which only the coordinate split remains.
 
+% Two tables in one float: each minipage carries its own \caption, so they keep
+% their own numbers (2 and 3) and their own \label, and no subfigure package is
+% needed. Declared here in 5.2; 5.3 refers back to the right-hand one.
 \begin{table}[!htb]
+\begin{minipage}[t]{0.53\textwidth}
 \caption{Separation index by mechanism. Cells are SEP, $n=5$ seeds, $\lambda=4$; bold marks the best cell in each row.}
 \label{tab:ablation}
 \centering
-\small
-\begin{tabular}{llcccc}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcccc}
 \hline
-Dataset & Stem & Neither & Gate only & xcov only & \textbf{Gate + xcov} \\
+Setting & Neither & Gate & xcov & \textbf{Both} \\
 \hline
-Synthetic & Reg & 0.135 & 0.342 & 0.279 & \textbf{0.408} \\
-Synthetic & NCE & 0.121 & 0.124 & 0.488 & \textbf{0.749} \\
-PTB-XL & Reg & 0.375 & 0.404 & 0.312 & \textbf{0.495} \\
-PTB-XL & NCE & 0.392 & 0.503 & 0.283 & \textbf{0.567} \\
-HAPT & Reg & 0.521 & 0.537 & 0.236 & \textbf{0.632} \\
-HAPT & NCE & 0.297 & 0.366 & 0.162 & \textbf{0.515} \\
+Synth. / Reg & 0.135 & 0.342 & 0.279 & \textbf{0.408} \\
+Synth. / NCE & 0.121 & 0.124 & 0.488 & \textbf{0.749} \\
+PTB-XL / Reg & 0.375 & 0.404 & 0.312 & \textbf{0.495} \\
+PTB-XL / NCE & 0.392 & 0.503 & 0.283 & \textbf{0.567} \\
+HAPT / Reg & 0.521 & 0.537 & 0.236 & \textbf{0.632} \\
+HAPT / NCE & 0.297 & 0.366 & 0.162 & \textbf{0.515} \\
 \hline
 \end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.44\textwidth}
+\input{tab_lambdafree}
+\end{minipage}
 \end{table}
 
 In Table~\ref{tab:ablation} the model with both devices ranks first in all six settings, and neither device alone reaches that value. On the contrastive stem of the synthetic data the gate alone is indistinguishable from the mechanism-free case (0.124 against 0.121), yet adding that same gate to the penalty raises SEP from 0.488 to 0.749: the two devices need each other. The penalty alone is actively harmful on the real data, breaking down the inclusion term and falling below even the mechanism-free case.
@@ -74,11 +83,9 @@ $\lambda$ was chosen by looking at downstream performance, which makes ``our bes
 \end{equation}
 Purity is one minus the transient proxy's score from $\zslow$ --- the exclusion term of Eq.~\ref{eq:sep}, and the proxy is computed from the signal. Persistence is how well $\zslow$ predicts \emph{its own} value more than $\tau$ ahead; neither the labels nor the target encoder enters. The product is required because each half alone has a degenerate maximum: an empty block is perfectly pure, a constant block is perfectly self-predicting, and multiplying kills both.
 
-\input{tab_lambdafree}
+Selecting $\lambda$ by $\mathrm{PPS}$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: purity alone would have chosen $\lambda=\numJexclOnlyLam$, close to the worst choice by the oracle, and it is the persistence half, collapsing once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
 
-Selecting $\lambda$ by $\mathrm{PPS}$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: purity alone would have chosen $\lambda=\numJexclOnlyLam$, close to the worst choice by the oracle (SEP \numJexclOnlySep{} against \numJbestSep{} at $\lambda=\numJbestLam$), and it is the persistence half, collapsing from \numJlongBest{} to \numJlongCollapse{} once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
-
-The margin between the top two $\mathrm{PPS}$ values is \numJmarginSynthLo--\numJmarginSynthHi{} on synthetic but only \numJmarginRealLo--\numJmarginRealHi{} on the real sets, and we did not store its seed-level spread, so the four real-data agreements are not distinguishable from chance at this sample size. The honest reading is that the criterion is verified on synthetic data, consistent on real data, and cheap to run wherever the transient proxy exists.
+The agreement is far less confident on the real sets, where the margin between the top two $\mathrm{PPS}$ values is much smaller than on synthetic and we did not store its seed-level spread; those four agreements are therefore not distinguishable from chance at this sample size. The honest reading is that the criterion is verified on synthetic data, consistent on real data, and cheap to run wherever the transient proxy exists.
 
 \subsection{Against label-free post-hoc rotation}
 \label{sec:rotation}

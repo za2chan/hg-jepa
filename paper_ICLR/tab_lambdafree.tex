@@ -1,21 +1,20 @@
-\begin{table}[!htb]
-\caption{Choosing $\lambda$ without labels: the two columns agree in every setting.
-The oracle is the $\lambda$ maximizing SEP, which does use labels. $n=3$ seeds; the margin
-is the gap between the top two $\mathrm{PPS}$ values, and a small margin is not confident
-agreement.}
+\caption{Choosing $\lambda$ without labels. \emph{PPS}: the
+$\lambda$ our label-free criterion picks; \emph{oracle}: the $\lambda$ maximizing SEP, which
+does use labels; \emph{margin}: the gap between the top two $\mathrm{PPS}$ values, where
+small is not confident agreement. $n=3$ seeds.}
 \label{tab:lambdafree}
 \centering
-\small
-\begin{tabular}{llccc}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccc}
 \hline
-Dataset & Stem & $\lambda$ by $\mathrm{PPS}$ (no labels) & $\lambda$ by SEP (oracle) & $\mathrm{PPS}$ margin \\
+Setting & PPS & Oracle & Margin \\
 \hline
-Synthetic & HGLP-Reg & 1 & 1 & 0.234 \\
-Synthetic & HGLP-NCE & 16 & 16 & 0.111 \\
-PTB-XL & HGLP-Reg & 4 & 4 & 0.023 \\
-PTB-XL & HGLP-NCE & 4 & 4 & 0.004 \\
-HAPT & HGLP-Reg & 1 & 1 & 0.016 \\
-HAPT & HGLP-NCE & 64 & 64 & 0.009 \\
+Synth. / Reg & 1 & 1 & 0.234 \\
+Synth. / NCE & 16 & 16 & 0.111 \\
+PTB-XL / Reg & 4 & 4 & 0.023 \\
+PTB-XL / NCE & 4 & 4 & 0.004 \\
+HAPT / Reg & 1 & 1 & 0.016 \\
+HAPT / NCE & 64 & 64 & 0.009 \\
 \hline
 \end{tabular}
-\end{table}

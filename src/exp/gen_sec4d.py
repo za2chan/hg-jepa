@@ -245,7 +245,8 @@ def lambdafree():
             p = pick_of(f"{key}/{stem}", d[f"{key}/{stem}"])
             ok = p["J"] == p["oracle"]
             agree += ok
-            rows.append(f"{label} & {stem_label} & {p['J']:.0f} & {p['oracle']:.0f} & "
+            setting = f"{label.replace('Synthetic', 'Synth.')} / {stem}"
+            rows.append(f"{setting} & {p['J']:.0f} & {p['oracle']:.0f} & "
                         f"{p['margin']:.3f} \\\\")
     for stem in ("Reg", "NCE"):
         k = f"{HELD_OUT}/{stem}"
@@ -255,22 +256,23 @@ def lambdafree():
               f"{'match' if p['J'] == p['oracle'] else 'MISS'}")
     print(f"  label-free lambda agrees in {agree} of {len(rows)} reported settings")
 
-    write("tab_lambdafree", f"""\\begin{{table}}[!htb]
-\\caption{{Choosing $\\lambda$ without labels: the two columns agree in every setting.
-The oracle is the $\\lambda$ maximizing SEP, which does use labels. $n=3$ seeds; the margin
-is the gap between the top two $\\mathrm{{PPS}}$ values, and a small margin is not confident
-agreement.}}
+    # caption + tabular only, no float: sec5 puts this in the right-hand minipage
+    # of the float it shares with the mechanism table
+    write("tab_lambdafree", f"""\\caption{{Choosing $\\lambda$ without labels. \\emph{{PPS}}: the
+$\\lambda$ our label-free criterion picks; \\emph{{oracle}}: the $\\lambda$ maximizing SEP, which
+does use labels; \\emph{{margin}}: the gap between the top two $\\mathrm{{PPS}}$ values, where
+small is not confident agreement. $n=3$ seeds.}}
 \\label{{tab:lambdafree}}
 \\centering
-\\small
-\\begin{{tabular}}{{llccc}}
+\\footnotesize
+\\setlength{{\\tabcolsep}}{{3pt}}
+\\begin{{tabular}}{{lccc}}
 \\hline
-Dataset & Stem & $\\lambda$ by $\\mathrm{{PPS}}$ (no labels) & $\\lambda$ by SEP (oracle) & $\\mathrm{{PPS}}$ margin \\\\
+Setting & PPS & Oracle & Margin \\\\
 \\hline
 {chr(10).join(rows)}
 \\hline
 \\end{{tabular}}
-\\end{{table}}
 """)
 
 
