@@ -33,6 +33,7 @@ import torch
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 
@@ -48,6 +49,31 @@ GAP, LAM, SEED, STEPS = 0.03, 4.0, 0, 2500
 # Same palette as fig_persistence.py so a reader who learned the colours in Fig. 1
 # does not have to relearn them here.
 C_PERS, C_TRAN, INK, MUTE = "#1a5fb4", "#e8a33d", "#222222", "#9aa0a6"
+
+# u is a SIGNED process, so what its colour has to show is polarity -- which side
+# of zero a point sits on -- not magnitude. A one-ended ramp (cividis, what this
+# used to be) spends its whole range on that one question and leaves the bulk of
+# the points, which sit near zero, in one muddy mid band; the figure is printed at
+# 0.72 textwidth, where that band reads as no gradient at all. A diverging ramp
+# answers it in one glance: blue on one side, red on the other. The neutral centre
+# is a visible grey rather than the near-white the convention would use, because
+# these are 3px marks on a white page and a centre that recedes into the surface
+# would simply delete every point with u near zero.
+CMAP_U = LinearSegmentedColormap.from_list(
+    "u_diverging", ["#104281", "#2a78d6", "#b9b7b0", "#d03b3b", "#7d1d1d"])
+
+
+def u_norm(*arrays):
+    """One symmetric colour scale shared by every panel of a figure.
+
+    Two things go wrong without this. Each panel autoscaled to its own u range, so
+    the same colour meant different values in the two rows the reader is asked to
+    compare, and the lone colourbar described only the last panel drawn. And the
+    scale ran to the extremes, so a handful of tail draws set the endpoints and
+    compressed everything else toward the centre. Clipping at the 98th percentile
+    of |u| puts the ramp where the points are; the few beyond it saturate."""
+    m = float(np.quantile(np.abs(np.concatenate([np.ravel(a) for a in arrays])), .98))
+    return Normalize(vmin=-m, vmax=m, clip=True)
 
 
 def get_model(stem, lam, cache, mech=True):
@@ -102,6 +128,7 @@ def fig_grid(F, ys, yu, sep, tag, lam, n_show=3000, seed=0):
                       random_state=seed).fit_transform(B) for name, B in blocks}
 
     fig, axes = plt.subplots(2, 2, figsize=(8.2, 8.0))
+    nrm = u_norm(yu)
     for i, (name, _) in enumerate(blocks):
         E = emb[name]
         for j, (fac, col) in enumerate([("persistent factor $s$", "s"),
@@ -116,8 +143,8 @@ def fig_grid(F, ys, yu, sep, tag, lam, n_show=3000, seed=0):
                     ax.legend(fontsize=7.5, frameon=False, markerscale=3,
                               loc="upper right", handletextpad=.1)
             else:
-                sc = ax.scatter(E[:, 0], E[:, 1], s=3, c=yu, cmap="cividis",
-                                alpha=.65, linewidths=0)
+                sc = ax.scatter(E[:, 0], E[:, 1], s=3, c=yu, cmap=CMAP_U,
+                                norm=nrm, alpha=.65, linewidths=0)
                 if i == 0:
                     cb = fig.colorbar(sc, ax=ax, fraction=.045, pad=.02)
                     cb.set_label("$u$", fontsize=8); cb.ax.tick_params(labelsize=7)
@@ -187,6 +214,7 @@ def fig_compare(panels, only=None, n_show=3000, seed=0):
                                       else (3.9 * ncol, 3.6 * len(panels))))
     if side_by_side:
         axes = axes.T
+    nrm = u_norm(*[p[3] for p in panels])
     for i, (row_label, F, ys, yu, sep) in enumerate(panels):
         idx = rng.choice(len(F), min(n_show, len(F)), replace=False)
         Fi, si, ui = F[idx], ys[idx], yu[idx]
@@ -205,8 +233,8 @@ def fig_compare(panels, only=None, n_show=3000, seed=0):
                     ax.legend(fontsize=7.5, frameon=False, markerscale=3,
                               loc="upper right", handletextpad=.1)
             else:
-                sc = ax.scatter(E[:, 0], E[:, 1], s=3, c=ui, cmap="cividis",
-                                alpha=.65, linewidths=0)
+                sc = ax.scatter(E[:, 0], E[:, 1], s=3, c=ui, cmap=CMAP_U,
+                                norm=nrm, alpha=.65, linewidths=0)
                 if i == 0 and j == ncol - 1:
                     cb = fig.colorbar(sc, ax=ax, fraction=.045, pad=.02)
                     cb.set_label("$u$", fontsize=8); cb.ax.tick_params(labelsize=7)
