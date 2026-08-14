@@ -2,90 +2,19 @@
 
 \subsection{Classical Methods}
 
-Classical methods apply a \emph{fixed transform} to the raw signal to read out
-its factors, and the dominant line has been the search for slowly varying
-components, since the slowly varying part of a signal reflects the factors that
-persist. The most direct approach splits the waveform itself: STL decomposes a
-series into seasonal and trend components \citep{cleveland1990}, and EMD
-extracts oscillatory modes empirically \citep{huang1998}. These deliver
-\emph{components of the signal}, not the factors that generated it.
+Classical methods apply a \emph{fixed transform} to the raw signal, and the dominant line has looked for slowly varying components on the premise that they reflect the factors that persist. STL \citep{cleveland1990} and EMD \citep{huang1998} split the waveform itself, and so deliver components of the signal rather than the factors behind it. Slow Feature Analysis instead optimizes slowness directly, minimizing the temporal derivative of its output under unit variance and pairwise decorrelation, with a polynomial expansion of the input making it nonlinear \citep{wiskott2002}; strengthening decorrelation into independence separates the slow components from one another as well \citep{blaschke2007}. These two are our label-free post-hoc rotation baselines. Predictable Feature Analysis keeps SFA's extraction scheme and swaps the criterion, selecting features best predicted from their own last $p$ values by a linear autoregressive model \citep{richthofer2013}. Reading the signal elsewhere reaches factors carried on the \emph{modulation} rather than the values, as in envelope analysis for rotating-machinery diagnosis \citep{randall2011}.
 
-Another strand optimizes the slowness of the output directly. Slow Feature
-Analysis (SFA) minimizes the temporal derivative of the output under unit
-variance and pairwise decorrelation constraints, and, since the input is
-expanded into low-order polynomials, it also extracts nonlinear features
-\citep{wiskott2002}. Strengthening decorrelation into statistical independence
-makes the slow components separate from one another too, combining slowness
-with independent component analysis \citep{blaschke2007}. We use these two
-variants as our label-free post-hoc rotation baselines. A further strand
-changes the criterion: Predictable Feature Analysis (PFA) keeps SFA's
-extraction scheme but selects the most predictable features instead of the
-slowest, predictability being how well the next value is approximated from the
-most recent $p$ values \citep{richthofer2013}. Yet another changes where the
-signal is read: the Fourier transform reaches factors riding on the
-\emph{modulation} rather than the values, as in the envelope analysis of
-rotating-machinery diagnosis \citep{randall2011}.
-
-What this family has in common is that \emph{the transform is not learned}:
-which statistics and bands to keep are fixed in advance by a human, and the
-projection is refitted over the whole signal whenever the domain changes.
+What the family shares is that \emph{the transform is not learned}: which statistics and bands to keep are fixed in advance, and the projection is refitted whenever the domain changes.
 
 \subsection{Self-Supervised Learning for Time Series}
 
-Time-series representation learning trains an encoder mapping a signal segment
-to a vector without labels, taking its learning signal from the temporal
-structure of the data---neighboring segments should be similar, or what is
-observed now should predict what comes shortly after. The family splits into
-three groups by the \emph{form of the target}.
+These methods differ chiefly in the \emph{form of the target}. Reconstruction is the default, and the prior a variational model places over the latents doubles as a handle on latent structure --- weighting the KL term pushes coordinates toward independence \citep{higgins2017}, a lineage leading to Section~\ref{sec:disent}; masked-patch pretraining is the current standard form \citep{nie2023}. Contrastive methods instead fix which pairs count as similar: CPC predicts the future contrastively in latent space \citep{oord2018}, and later work refines the pairs, contrasting hierarchically over augmented context views \citep{yue2022} or using local smoothness of the generative process to define neighborhoods with stationary properties \citep{tonekaboni2021}. What such a method discards is decided by the pair-selection rule and is not visible in the objective. Latent prediction takes the representation itself as the target \citep{lecun2022, assran2023}; its time-series variants differ in where that target is read --- masked patches \citep{ennadir2025}, the next latent token \citep{chemeris2026}, or an attention-pooled summary of the whole future interval \citep{petersen2026}.
 
-The \emph{reconstruction family} is the largest and effectively the default.
-Autoencoders pass a signal through a narrow bottleneck and restore it, the
-remaining error itself being useful for anomaly detection, imputation, and
-forecasting pretraining. Variational autoencoders add a prior over the latent
-variables, and that prior becomes a \emph{handle for inducing structure in the
-latent space}: a representative variant weights the KL term to push the
-coordinates toward independence \citep{higgins2017}, a lineage leading to
-Section~\ref{sec:disent}. Masked pretraining, which reconstructs randomly
-masked patches, has since become established \citep{nie2023}.
-
-The \emph{contrastive family} decides which pairs count as similar and pulls
-and pushes the representations accordingly. CPC predicts the future
-contrastively in the latent space \citep{oord2018}, and later time-series
-methods refined those pairs: contrasting hierarchically over augmented context
-views \citep{yue2022}, or using local smoothness to define stationary temporal
-neighborhoods \citep{tonekaboni2021}. Their weakness is that what gets discarded
-is hidden in the pair-selection rule.
-
-The \emph{latent-prediction family} takes the representation itself, not the
-raw signal, as the target \citep{lecun2022, assran2023}. Its time-series
-variants differ in where the target is read: from masked patches
-\citep{ennadir2025}, from the next latent token \citep{chemeris2026}, or from an
-attention-pooled summary of the whole future interval \citep{petersen2026}.
-
-This work belongs to the latent-prediction family but uses \emph{both} a
-regression-form ($L_1$) and a contrastive-form (InfoNCE) loss, reporting the
-two stems together to show that the horizon gate does not rely on a particular
-loss form. All three groups \emph{learn} the representation, but the objective
-does not determine what each coordinate means.
+This work sits in the latent-prediction family and carries both a regression ($L_1$) and a contrastive (InfoNCE) loss, to show the horizon gate does not depend on the loss form. In all three groups the representation is learned but the objective says nothing about what each coordinate means.
 
 \subsection{Disentangled Representations for Time Series}
 \label{sec:disent}
 
-Work here has been most successful at separating \emph{factors constant over
-an entire sequence} from the rest, because invariance transfers directly into
-an objective. FHVAE separates what stays fixed within a sequence from what
-changes across segments by assigning different priors \citep{hsu2017}, and the
-disentangled sequential autoencoder splits the latent into static and dynamic
-parts \citep{li2018}. On identifiability, exploiting non-stationarity by
-learning to distinguish time segments makes a nonlinear ICA model identifiable
-\emph{up to a pointwise transformation of each factor} when combined with
-linear ICA \citep{hyvarinen2016}, and an approach placing a \emph{sparse} prior
-on the change between adjacent observations followed \citep{klindt2021}. That
-models cannot be selected without labels \citep{locatello2019} applies equally
-to our hyperparameters, and we address it in the limitations.
+Success here has concentrated on factors \emph{constant over an entire sequence}, since invariance transfers directly into an objective: FHVAE assigns different priors to what is fixed within a sequence and what changes across segments \citep{hsu2017}, and the disentangled sequential autoencoder splits the latent into static and dynamic parts \citep{li2018}. On identifiability, learning to distinguish time segments exploits non-stationarity and, combined with linear ICA, identifies a nonlinear ICA model up to a pointwise transformation of each factor \citep{hyvarinen2016}; a sparse prior on the change between adjacent observations followed \citep{klindt2021}. The difficulty of model selection without labels \citep{locatello2019} applies to our hyperparameters too, and we return to it in the limitations.
 
-What this family leaves empty is \emph{factors that vary slowly but are not
-constant}: the static/non-static dichotomy pushes them into the ``dynamic''
-side and separates them no further. None of the three strands creates
-coordinate-block structure of the kind we seek; this work fills that place with
-the axis of the prediction horizon.
+What this leaves empty is the factor that varies slowly without being constant: the static/dynamic dichotomy files it under ``dynamic'' and stops. None of the three strands produces coordinate-block structure of the kind we want, and this work fills that place with the prediction horizon.
