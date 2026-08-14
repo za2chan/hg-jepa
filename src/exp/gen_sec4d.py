@@ -259,20 +259,19 @@ def lambdafree():
     print(f"  label-free lambda agrees in {agree} of {len(rows)} reported settings")
 
     write("tab_lambdafree", f"""\\begin{{table}}[!tb]
-\\caption{{Choosing $\\lambda$ without labels. $J=\\text{{exclusion}}\\times\\text{{long-horizon
-self-prediction}}$: the first factor is read from the transient proxy, which is computed
+\\caption{{Choosing $\\lambda$ without labels. $\\mathrm{{PPS}}=\\text{{purity}}\\times\\text{{persistence}}$: the first factor is read from the transient proxy, which is computed
 from the signal, and the second asks how well $\\zslow$ predicts \\emph{{its own}} value
 more than $\\tau$ ahead. No task label enters either. The product is needed because each
 factor alone has a degenerate maximum --- an empty block scores perfect exclusion, a
 constant block perfect self-prediction. The oracle column is the $\\lambda$ that maximizes
-SEP, which does use labels. $n=3$ seeds; the margin is the gap between the top two $J$
+SEP, which does use labels. $n=3$ seeds; the margin is the gap between the top two $\\mathrm{{PPS}}$
 values, and small margins should not be read as confident agreement.}}
 \\label{{tab:lambdafree}}
 \\centering
 \\small
 \\begin{{tabular}}{{llcccc}}
 \\hline
-Dataset & Stem & $\\lambda$ by $J$ (no labels) & $\\lambda$ by SEP (oracle) & Agreement & $J$ margin \\\\
+Dataset & Stem & $\\lambda$ by $\\mathrm{{PPS}}$ (no labels) & $\\lambda$ by SEP (oracle) & Agreement & $\\mathrm{{PPS}}$ margin \\\\
 \\hline
 {chr(10).join(rows)}
 \\hline

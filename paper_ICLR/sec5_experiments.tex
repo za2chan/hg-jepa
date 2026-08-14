@@ -32,15 +32,7 @@ Chance level & 0.333 & 0.500 & 0.167 \\
 \end{tabular}
 \end{table}
 
-The synthetic generator and its calibration are described in Section~\ref{sec:synthetic}; it is the one dataset in which persistence and slowness are made to disagree by construction.
-
-\subsubsection{PTB-XL}
-
-PTB-XL \citep{wagner2020} holds clinical 12-lead electrocardiograms, each 10 seconds long; we use \textbf{lead II}. Our subset is \textbf{5,000 records} at 100 Hz from \textbf{4,812 patients}, classified as normal or abnormal with balanced classes, so chance is 0.500. The persistent factor is the \textbf{diagnosis}, constant within a record; the transient proxy is the \textbf{instantaneous voltage}. We cut into 100 patches of 10 samples (0.1 s), normalize with per-channel statistics from the training split alone, and split \textbf{per patient}. This is the simplest form of our setting, a label constant over the whole record, but it strains the assumption our threshold rule relies on --- that the transient factor has a decaying autocorrelation from which a lifetime can be read. The heartbeat is a regularly repeating component, so its autocorrelation oscillates instead of decaying, and the threshold has to be set by hand (Section~\ref{sec:handpicked}).
-
-\subsubsection{HAPT}
-
-In HAPT (Human Activities and Postural Transitions) \citep{reyesortiz2016, hapt2015}, \textbf{thirty subjects} wearing a waist-mounted smartphone performed six activities --- walking, walking upstairs, walking downstairs, sitting, standing, lying --- with postural transitions as separate classes. We use the \textbf{three acceleration axes at 50 Hz} and not the gyroscope. The persistent factor is the \textbf{activity being performed}, scored only over the six basic activities; the transient proxy is the \textbf{acceleration magnitude} $\lVert a\rVert$. Transition and unlabeled segments (24.7\% of the total) are excluded from scoring but \textbf{not removed from the pre-training input}, since selecting training data by labels would undermine the claim that training uses no labels. Windows are 256 patches of 4 samples (0.08 s), i.e.\ 20.5 s, giving \textbf{2,104} windows; activity boundaries are not consulted when cutting, so labels are read \textbf{per position}. Normalization and splitting follow PTB-XL, with the \textbf{subject} as unit. Unlike the fixed diagnosis in PTB-XL the activity \emph{changes} within a record, so 57\% of windows cross a transition and the persistent factor is not constant within a window (see Results).
+The synthetic generator and its calibration are described in Section~\ref{sec:synthetic}; it is the one dataset in which persistence and slowness are made to disagree by construction. On the two real sets the table gives the sizes and the factors, and three choices are worth stating. \textbf{Splits are per group} --- patient for PTB-XL, subject for HAPT --- and normalization uses training-split statistics only. \textbf{Nothing is selected by label before training}: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, since filtering them out would undermine the claim that training uses no labels. And the two sets sit at opposite ends of one axis: the PTB-XL diagnosis is constant over a whole record, whereas HAPT's activity changes within one, so windows are cut without consulting activity boundaries, labels are read per position, and 57\% of windows cross a transition. PTB-XL also strains the rule our threshold comes from --- the heartbeat is a regularly repeating component, so its autocorrelation oscillates instead of decaying and no lifetime can be read from it, and $\tau$ has to be set by hand there (Section~\ref{sec:handpicked}).
 
 \subsection{What creates the separation}
 \label{sec:ablation}
@@ -82,19 +74,19 @@ Three further design choices could each have gone the other way, and none of the
 \subsection{Setting the penalty weight without labels}
 \label{sec:lambdafree}
 
-$\lambda$ was chosen by looking at downstream performance, which makes ``our best $\lambda$ separates well'' partly circular. We therefore define a criterion that uses no task label at all,
+$\lambda$ was chosen by looking at downstream performance, which makes ``our best $\lambda$ separates well'' partly circular. We therefore define a criterion that uses no task label at all, the \textbf{purity--persistence score}: $\zslow$ should be \emph{pure}, holding none of the transient factor, and \emph{persistent}, still predicting its own value far ahead.
 \begin{equation}
-J = \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{exclusion}} \cdot
-    \underbrace{s_{\text{self}}(z^{\mathrm{per}};\,\Delta>\tau)}_{\text{long-horizon self-prediction}},
-\label{eq:J}
+\mathrm{PPS} = \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{purity}} \cdot
+    \underbrace{s_{\text{self}}(z^{\mathrm{per}};\,\Delta>\tau)}_{\text{persistence}},
+\label{eq:pps}
 \end{equation}
-where the first factor is read from the transient proxy, which is computed from the signal, and the second asks how well $\zslow$ predicts \emph{its own} value more than $\tau$ ahead --- neither the labels nor the target encoder enters. The product is required because each factor alone has a degenerate maximum: an empty block scores perfect exclusion, a constant block scores perfect self-prediction, and multiplying kills both.
+Purity is one minus the transient proxy's score from $\zslow$ --- the exclusion term of Eq.~\ref{eq:sep}, and the proxy is computed from the signal. Persistence is how well $\zslow$ predicts \emph{its own} value more than $\tau$ ahead; neither the labels nor the target encoder enters. The product is required because each half alone has a degenerate maximum: an empty block is perfectly pure, a constant block is perfectly self-predicting, and multiplying kills both.
 
 \input{tab_lambdafree}
 
-Selecting $\lambda$ by $J$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: exclusion alone would have chosen $\lambda=\numJexclOnlyLam$, close to the worst choice by the oracle (SEP \numJexclOnlySep{} against \numJbestSep{} at $\lambda=\numJbestLam$), and it is the self-prediction factor, collapsing from \numJlongBest{} to \numJlongCollapse{} once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
+Selecting $\lambda$ by $\mathrm{PPS}$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: purity alone would have chosen $\lambda=\numJexclOnlyLam$, close to the worst choice by the oracle (SEP \numJexclOnlySep{} against \numJbestSep{} at $\lambda=\numJbestLam$), and it is the persistence half, collapsing from \numJlongBest{} to \numJlongCollapse{} once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
 
-The agreement should not be over-read. The margin between the top two $J$ values is \numJmarginSynthLo--\numJmarginSynthHi{} on synthetic but only \numJmarginRealLo--\numJmarginRealHi{} on the real sets, and we did not store the seed-level spread of $J$, so the four real-data agreements are not distinguishable from chance at this sample size. The honest reading is that the criterion is verified on synthetic data, consistent on real data, and cheap to run wherever the transient proxy exists.
+The agreement should not be over-read. The margin between the top two $\mathrm{PPS}$ values is \numJmarginSynthLo--\numJmarginSynthHi{} on synthetic but only \numJmarginRealLo--\numJmarginRealHi{} on the real sets, and we did not store its seed-level spread, so the four real-data agreements are not distinguishable from chance at this sample size. The honest reading is that the criterion is verified on synthetic data, consistent on real data, and cheap to run wherever the transient proxy exists.
 
 \subsection{Against label-free post-hoc rotation}
 \label{sec:rotation}

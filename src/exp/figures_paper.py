@@ -166,7 +166,9 @@ def rotation_sep():
     the SFA line. Unlike the inclusion-exclusion plane, this shows all three SEP
     terms combined, so it reveals the wins the plane cannot -- HAPT-NCE wins on
     the allocation term, invisible on the plane but visible here."""
-    fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharex=True)
+    # Short. The y axis carries one number per panel and nothing else, so height
+    # here is white space the paper pays for by the page.
+    fig, axes = plt.subplots(2, 3, figsize=(11, 4.3), sharex=True)
     BL = {"SFA": "#d62728", "ICA-slow": "#e8a33d", "PCA": "#9aa0a6", "random split": "k"}
     key = {"SFA": "SFA", "ICA-slow": "ICA-slow", "PCA": "PCA", "random split": "random"}
     x = list(range(len(LAMS)))
@@ -193,11 +195,11 @@ def rotation_sep():
         ax.set_xticks(x); ax.set_xticklabels([f"{l:g}" for l in LAMS])
     for ax in axes[:, 0]:
         ax.set_ylabel("SEP")
-    axes[0, 0].legend(fontsize=7, frameon=False, loc="best")
-    fig.suptitle("SEP vs $\\lambda$. Our knob traces a curve (best ringed); "
-                 "post-hoc unmixings are flat lines. Above the line = win.",
-                 fontsize=10, y=.99)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    axes[0, 0].legend(fontsize=6.5, frameon=False, loc="best", labelspacing=.25)
+    for ax in axes.ravel():
+        ax.tick_params(labelsize=7.5)
+    # no suptitle: the paper's caption says the same thing, and here it costs height
+    fig.tight_layout()
     save(fig, "rotation_sep")
 
 

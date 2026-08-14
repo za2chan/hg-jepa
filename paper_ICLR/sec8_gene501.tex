@@ -3,7 +3,7 @@
 An earlier version of this work was written for another course. That version proposed the horizon gate, the cross-covariance penalty and the SEP protocol, and reported the mechanism ablation, the post-hoc rotation comparison, and the downstream cost and shift results. Three things in this report are new, and they are of one kind: each takes a sentence the earlier version had to assert and turns it into a measurement.
 
 \paragraph{A method change: the penalty weight is now chosen without labels.}
-The earlier version set $\lambda$ by downstream performance and listed that among its limitations. Section~\ref{sec:lambdafree} defines $J$, a criterion built from the transient proxy and long-horizon self-prediction, neither of which uses a task label, and shows it recovers the label-selected value in all six settings. This is the only change to the method itself.
+The earlier version set $\lambda$ by downstream performance and listed that among its limitations. Section~\ref{sec:lambdafree} defines the purity--persistence score, built from the transient proxy and long-horizon self-prediction, neither of which uses a task label, and shows it recovers the label-selected value in all six settings. This is the only change to the method itself.
 
 \paragraph{Design choices, ablated instead of argued.}
 The earlier version justified three choices in prose. Appendix~\ref{app:design} tests them: the step gate against the smooth one and the symmetric gate against the one-sided one are both new here, and the target's receptive-field bound is measured for the first time --- that pilot predates this report but was never reported, and the earlier version stated the bound as holding ``by construction'' with nothing behind it.
