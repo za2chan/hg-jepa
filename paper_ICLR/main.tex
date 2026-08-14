@@ -43,9 +43,21 @@ Waterloo, Canada \\
 
 \iclrfinalcopy   % show the author name; this is not an anonymous submission
 
+% The style sets \lhead inside \maketitle, so the running head repeats on every
+% page. Keep it on the title page and drop it, and its rule, everywhere after.
+\fancypagestyle{firstpage}{%
+  \fancyhf{}%
+  \lhead{Spring 2026 GENE501 Final Report}%
+  \cfoot{\thepage}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+}
+
 \begin{document}
 
 \maketitle
+\thispagestyle{firstpage}
+\lhead{}
+\renewcommand{\headrulewidth}{0pt}
 
 \begin{abstract}
 A long-lasting factor in a time series need not be a slow one: a factor can persist while riding on a nonlinear statistic such as an oscillation's frequency, where no low-pass reading reaches it. What persistent factors of either kind share is that they stay useful for predicting the distant future, while short-lived ones do not. We introduce Horizon-Gated Latent Prediction (HGLP), a self-supervised representation learning method for time series that disentangles long-lasting \emph{persistent} factors from short-lived \emph{transient} ones by gating the latent space as a function of the prediction horizon. A soft gate prevents long-horizon predictions from using a designated subspace ($\zmix$), forcing the model to route long-range predictive information through a specific block ($\zslow$); a cross-covariance penalty and a per-block LayerNorm further encourage separation. We also propose a block-by-factor evaluation protocol and a single-number Separation Index (SEP), and demonstrate that the method separates factors on synthetic data and, more mixedly, on two real datasets (PTB-XL ECG, HAPT activities), with ablations showing the necessity of both the gate and a latent target. The penalty's one free coefficient can be set with no task labels at all.
