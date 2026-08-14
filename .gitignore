@@ -13,3 +13,4 @@ report.pdf
 
 # checkpoint cache (850M, regenerable from the run scripts)
 runs_v2/ckpt/
+hglp_overleaf.zip

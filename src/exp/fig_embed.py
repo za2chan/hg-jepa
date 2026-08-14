@@ -204,10 +204,13 @@ def fig_compare(panels, n_show=3000, seed=0):
                 ax.set_title(title, fontsize=10, pad=8)
             if j == 0:
                 ax.set_ylabel(f"{row_label}\nSEP {sep['sep']:.3f}", fontsize=10)
-            # the term label is the claim; grey it out on the control row, where the
-            # same panel is evidence of nothing
-            ax.text(.02, .02, term, transform=ax.transAxes, fontsize=9, weight="bold",
-                    color=(c if i == 0 else MUTE), va="bottom")
+            # The term label is the claim. Print its VALUE too: two of the three
+            # columns are near-identical across the rows, and asking a reader to
+            # eyeball which scatter is "less structured" would be asking them to
+            # see a difference that is only in the middle column.
+            ax.text(.02, .02, f"{term}  {sep[term]:.3f}", transform=ax.transAxes,
+                    fontsize=9, weight="bold", color=(c if i == 0 else MUTE),
+                    va="bottom")
     fig.suptitle("The three terms of SEP, with and without the mechanism "
                  "(synthetic $\\pm$3%, HGLP-NCE)", fontsize=11, y=.98)
     fig.tight_layout(rect=[0, 0, 1, .96])
