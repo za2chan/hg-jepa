@@ -168,7 +168,7 @@ def rotation_sep():
     the allocation term, invisible on the plane but visible here."""
     # Short. The y axis carries one number per panel and nothing else, so height
     # here is white space the paper pays for by the page.
-    fig, axes = plt.subplots(2, 3, figsize=(11, 4.3), sharex=True)
+    fig, axes = plt.subplots(2, 3, figsize=(8.6, 3.6), sharex=True)
     BL = {"SFA": "#d62728", "ICA-slow": "#e8a33d", "PCA": "#9aa0a6", "random split": "k"}
     key = {"SFA": "SFA", "ICA-slow": "ICA-slow", "PCA": "PCA", "random split": "random"}
     x = list(range(len(LAMS)))
