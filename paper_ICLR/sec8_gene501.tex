@@ -1,3 +1,10 @@
-\section{What is new to this report}
+\section{What is new in this GENE 501 report}
 
-An earlier version of this work, written for another course, proposed the horizon gate, the cross-covariance penalty and the SEP protocol, and reported the mechanism ablation, the post-hoc rotation comparison and the downstream cost and shift results. Three things here are new, and all three replace an assertion with a measurement. The penalty weight is now chosen without task labels (Section~\ref{sec:lambdafree}), the only change to the method itself. Three design choices that the earlier version defended in prose --- the smooth gate, the one-sided gate, and the bound on the target's receptive field --- are ablated in Appendix~\ref{app:design}; the first two are new experiments, and the third is a pilot that predates this report but was never reported. And the two limitations the earlier version conceded in words, that the objective cannot enforce exclusion and that the probes are linear, are now quantified: the term decomposition locates every real-data loss on the exclusion term alone, and a non-linear probe given equally to every baseline collapses that term and no other.
+An earlier version of this work, written for another course, proposed the horizon gate, the cross-covariance penalty and the SEP protocol, and reported the mechanism ablation, the post-hoc rotation comparison, and the downstream cost and shift results. This report adds:
+
+\begin{itemize}
+\setlength{\itemsep}{2pt}
+\item \textbf{Label-free selection of the penalty weight} (Section~\ref{sec:lambdafree}). The earlier version set $\lambda$ by downstream performance. The purity--persistence score uses no task label and recovers the same value in all six settings. This is the only change to the method itself.
+\item \textbf{Ablations of three design choices} (Appendix~\ref{app:design}): the smooth gate against a step gate, the one-sided gate against a symmetric one, and the receptive-field-bounded target against the cumulative one. The earlier version defended all three in prose.
+\item \textbf{A non-linear probe} (Appendix~\ref{app:probe}): the same MLP reading head given to our method and to every baseline, which shows that the exclusion the method achieves holds at the linear level only.
+\end{itemize}
