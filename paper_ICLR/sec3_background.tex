@@ -20,13 +20,15 @@ The gate is one-sided: $\zslow$ is available at every horizon, while $\zmix$ is 
 
 At long range the transient factor is already forgotten, so withholding the block that carries it should cost nothing --- that is the premise the gate rests on, and it is what makes the remaining route, writing the current state into $\zslow$, the only way to lower the loss. At short range the requirement is different and, importantly, not symmetric. Predicting a few steps ahead needs the fast detail of the present \emph{and} the current persistent state, because the near future is a continuation of both. A model that withheld $\zslow$ at short horizons would not gain exclusion; it would remove the block from most of its own training signal, since short horizons are where gradients are dense. We test that variant rather than assert it, in Appendix~\ref{app:design}.
 
-Two consequences are worth stating before any result. First, \textbf{only the \emph{availability} of $\zmix$ is constrained, never its content.} Nothing in the objective asks $\zmix$ to be free of the persistent factor, and it is not: across the six settings it carries the persistent factor at \numMixPerLo--\numMixPerHi{} (macro-F1 or accuracy, against chance levels of 0.167 to 0.500). This is why we call the block $\zmix$ and not ``$z_{\mathrm{fast}}$'' --- the latter name would promise a symmetric split the method never claims.
-
-\begin{figure}[!tbp]
+\begin{wrapfigure}{r}{0.44\textwidth}
+\vspace{-\intextsep}
 \centering
-\includegraphics[width=0.9\textwidth]{figs/fig_concept_A.png}
-\caption{\textbf{What we ask of the embedding.} In an ordinary embedding every one of the 64 coordinates mixes both factors. We ask instead that a nameable 16-dimensional block, $\zslow$, be emptied of the transient factor; the remaining block $\zmix$ is left unconstrained and keeps both. The claim is about what is \emph{absent} from $\zslow$, not about where the persistent factor can be found --- the latent space is rotation-symmetric, so any 16 coordinates carry it.}
+\includegraphics[width=0.42\textwidth]{figs/fig_concept_A_narrow.png}
+\caption{\textbf{What we ask of the embedding.} A nameable 16-dimensional block, $\zslow$, emptied of the transient factor; the rest left unconstrained, keeping both. The claim is about what is \emph{absent} from $\zslow$, not about where the persistent factor can be found.}
 \label{fig:concept}
-\end{figure}
+\vspace{-\intextsep}
+\end{wrapfigure}
+
+Two consequences are worth stating before any result. First, \textbf{only the \emph{availability} of $\zmix$ is constrained, never its content.} Nothing in the objective asks $\zmix$ to be free of the persistent factor, and it is not: across the six settings it carries the persistent factor at \numMixPerLo--\numMixPerHi{} (macro-F1 or accuracy, against chance levels of 0.167 to 0.500). This is why we call the block $\zmix$ and not ``$z_{\mathrm{fast}}$'' --- the latter name would promise a symmetric split the method never claims.
 
 Second, the separation the method can claim is one-directional (Fig.~\ref{fig:concept}). The latent space is rotation-symmetric, so the persistent factor can be read out of any 16 dimensions and its presence in $\zslow$ is no evidence of anything. The claim is the other one: that the \emph{transient} factor is emptied out of $\zslow$. Everything we measure is built around that asymmetry, and so is the honest weakness of the method --- the objective can force a factor to be available in a block, but it has no term that forces one out.

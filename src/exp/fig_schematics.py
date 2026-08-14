@@ -46,6 +46,63 @@ def arrow(ax, x0, y0, x1, y1, style="-|>", color=INK, lw=1.2, ls="-"):
                                  shrinkA=0, shrinkB=0))
 
 
+# ------------------------------------------------------- Figure A, narrow ----
+def fig_a_narrow():
+    """The same content as fig_a, stacked instead of side-annotated.
+
+    The paper wraps this figure into a fraction of the text column, and the wide
+    version does not survive that: its annotations sit to the RIGHT of the bars, so
+    shrinking to fit a column shrinks the type past legibility. Here every
+    annotation sits under its bar, which trades height for width -- exactly the
+    trade a wrapped figure wants."""
+    from matplotlib.colors import LinearSegmentedColormap
+    fig, ax = plt.subplots(figsize=(4.4, 4.0))
+    ax.set_xlim(0, 100); ax.set_ylim(0, 100); ax.axis("off")
+    X0, W, H = 3, 94, 9.0
+
+    def bar(y, spans, title, notes):
+        for (a, b, c) in spans:
+            ax.add_patch(Rectangle((X0 + W * a / D_Z, y), W * (b - a) / D_Z, H,
+                                   facecolor=c, edgecolor="white", lw=0.4))
+        ax.add_patch(Rectangle((X0, y), W, H, fill=False, edgecolor=INK, lw=1.3))
+        ax.text(X0, y + H + 2.5, title, fontsize=11, color=INK, va="bottom")
+        for d in (0, D_Z):
+            ax.text(X0 + W * d / D_Z, y - 1.6, str(d), fontsize=8.5,
+                    ha="center", va="top", color=MUTE)
+        dy = 0
+        for txt, size, col in notes:
+            ax.text(X0, y - 7.0 - dy, txt, fontsize=size, color=col, va="top")
+            dy += 5.0 * (1 + txt.count("\n"))
+
+    bar(84, [(0, D_Z, MIXED)], "Ordinary embedding",
+        [("every coordinate mixes both factors", 9.5, INK)])
+
+    bar(50, [(0, D_SLOW, PERSIST), (D_SLOW, D_Z, MIXED_B)], "What we ask for",
+        [("a nameable block holds the persistent\nfactor and little else", 9.5, INK),
+         ("the rest is unconstrained — it keeps both", 9, MUTE)])
+    ax.text(X0 + W * D_SLOW / D_Z, 48.4, str(D_SLOW), fontsize=8.5,
+            ha="center", va="top", color=MUTE)
+    ax.text(X0 + W * D_SLOW / (2 * D_Z), 54.5, "$z_{per}$", fontsize=10,
+            ha="center", color="white", weight="bold")
+    ax.text(X0 + W * (D_SLOW + D_Z) / (2 * D_Z), 54.5, "$z_{mix}$", fontsize=10,
+            ha="center", color="white", weight="bold")
+
+    cm = LinearSegmentedColormap.from_list("pt", [PERSIST, MIXED, TRANSIENT])
+    kx, ky, kw = X0, 14, W
+    for i in range(160):
+        ax.add_patch(Rectangle((kx + kw * i / 160, ky), kw / 160 + 0.05, 3.2,
+                               facecolor=cm(i / 159), edgecolor="none"))
+    ax.add_patch(Rectangle((kx, ky), kw, 3.2, fill=False, edgecolor=MUTE, lw=0.8))
+    ax.text(kx, ky + 4.4, "what a coordinate carries", fontsize=9, color=INK)
+    for x, ha, txt in ((kx, "left", "persistent\nfactor only"),
+                       (kx + kw / 2, "center", "both"),
+                       (kx + kw, "right", "transient\nfactor only")):
+        ax.text(x, ky - 1.4, txt, fontsize=8, ha=ha, va="top", color=MUTE)
+
+    fig.savefig(OUT / "fig_concept_A_narrow.png", dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
 # ---------------------------------------------------------------- Figure A ----
 def fig_a():
     fig, ax = plt.subplots(figsize=(9.2, 3.5))
