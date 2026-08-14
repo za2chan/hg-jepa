@@ -1,6 +1,6 @@
 \section{Experiments}
 
-Every setting below is one of six: three datasets crossed with the two loss stems, at $n=5$ seeds unless stated. We ask four questions in order --- what produces the separation, whether its one free coefficient can be set without labels, how it compares against label-free post-hoc rotation, and what it costs. Design choices that could have been made differently are tested in Appendix~\ref{app:design}.
+Every setting below is one of six: three datasets crossed with the two loss stems, at $n=5$ seeds unless stated. We ask four questions in order --- what produces the separation, whether its one free coefficient can be set without labels, how it compares against label-free post-hoc rotation, and what it costs.
 
 \subsection{Data and factors}
 \label{sec:data}
@@ -8,7 +8,7 @@ Every setting below is one of six: three datasets crossed with the two loss stem
 We use the synthetic generator of Section~\ref{sec:synthetic} and two public sets, PTB-XL \citep{wagner2020} and HAPT \citep{reyesortiz2016, hapt2015}; Table~\ref{tab:datasets} gives their sizes and their two factors.
 
 \begin{table}[!tb]
-\caption{The three datasets. The transient proxy is computed from the signal, never from labels. Channels are 1, 1 (lead II) and 3 (acceleration axes); the grouping unit for splits is 4,812 patients for PTB-XL and 30 subjects for HAPT; chance is 0.333, 0.500 and 0.167.}
+\caption{The three datasets. The transient proxy is computed from the signal, never from labels. Channels are 1, 1 (lead II) and 3 (acceleration axes); the grouping unit for splits is 4,812 patients for PTB-XL and 30 subjects for HAPT.}
 \label{tab:datasets}
 \centering
 \footnotesize
@@ -24,7 +24,7 @@ HAPT & 2,104 win. & 50\,Hz & 4 (0.08\,s) & 256 (20.5\,s) & activity, 6-way & $\l
 \end{tabular}
 \end{table}
 
-Splits are per group, patient for PTB-XL and subject for HAPT, and normalization uses training-split statistics only. No data is selected by label before training: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, windows are cut without consulting activity boundaries, and labels are read per position. On PTB-XL the rule that initializes $\tau$ does not apply, since the heartbeat repeats regularly and its autocorrelation oscillates instead of decaying; $\tau$ is set by hand there (Section~\ref{sec:limits}).
+Splits follow the protocol of Section~\ref{sec:method_model}, with the patient as unit for PTB-XL and the subject for HAPT. No data is selected by label before training: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, windows are cut without consulting activity boundaries, and labels are read per position. On PTB-XL the rule that initializes $\tau$ does not apply, since the heartbeat repeats regularly and its autocorrelation oscillates instead of decaying; $\tau$ is set by hand there (Section~\ref{sec:limits}).
 
 \subsection{What creates the separation}
 \label{sec:ablation}
@@ -57,7 +57,7 @@ The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agre
 \begin{figure}[!tb]
 \centering
 \includegraphics[width=0.86\textwidth]{figs/fig_embed_exclusion.png}
-\caption{The exclusion term, seen directly: a t-SNE of $\zslow$ coloured by the transient factor, with the mechanism and without it. This is the only one of the three terms that differs between the two models --- inclusion is \numFigInclusion{} against \numFigNoInclusion{} and allocation \numFigAllocation{} against \numFigNoAllocation. All six panels are in Fig.~\ref{fig:embed_full}.}
+\caption{The exclusion term, seen directly: a t-SNE of $\zslow$ coloured by the transient factor, with the mechanism and without it (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$, one seed). This is the only one of the three terms that differs between the two models --- inclusion is \numFigInclusion{} against \numFigNoInclusion{} and allocation \numFigAllocation{} against \numFigNoAllocation. All six panels are in Fig.~\ref{fig:embed_full}.}
 \label{fig:embed}
 \end{figure}
 
