@@ -3,9 +3,11 @@
 \subsection{Model}
 \label{sec:method_model}
 
-\textbf{Encoder.} One patch becomes one token (Fig.~\ref{fig:arch}(a)) through a \emph{single} linear projection; there is no codebook and no quantization. Channels are mixed at this first layer by design, since the factor of interest is sometimes defined by the relation between channels --- HAPT posture is determined by how gravity distributes over the three axes. Tokens then pass through a stack of \textbf{causal transformer layers} with rotary position encoding, and a final linear layer produces the embedding, whose leading coordinates form $\zslow$ and the remainder $\zmix$. The last operation is a \textbf{per-block LayerNorm}, applied to the two blocks separately rather than to the embedding as a whole, for the reason given in Section~\ref{sec:xcov}. The \textbf{predictor} is a small MLP that sees only the embedding at one time point together with the horizon, which enters as a learned expansion of $\log_2\Delta$; one predictor is conditioned on the horizon rather than one head per horizon, consistent with treating the horizon as a continuous axis.
+\textbf{Encoder.} A patch becomes a token through one linear projection, so channels are mixed at the first layer --- HAPT posture is defined by how gravity distributes over the three axes. Tokens pass through causal transformer layers with rotary position encoding, and a final linear layer produces the embedding, whose leading 16 coordinates form $\zslow$ and the remaining 48 $\zmix$. A per-block LayerNorm is applied last, to the two blocks separately rather than to the embedding as a whole (Section~\ref{sec:xcov}).
 
-\textbf{No modification is made to the attention operation}: the gate sits between encoder output and predictor input, the penalty in the loss, the per-block LayerNorm in the encoder's last line. This is a change of training procedure, not of architecture, so it attaches to any causal sequence encoder.
+\textbf{Predictor.} A small MLP reading the embedding at one time point together with the horizon, which enters as a learned expansion of $\log_2\Delta$. One predictor is conditioned on $\Delta$ rather than one head per horizon.
+
+The attention operation is unmodified: the gate sits between encoder output and predictor input, the penalty in the loss, the per-block LayerNorm in the encoder's last line. This is a change of training procedure, not of architecture.
 
 \begin{figure}[!tb]
 \centering
@@ -28,7 +30,7 @@ The prediction target is not the raw signal but the representation an EMA copy o
 \label{eq:loss}
 \end{equation}
 
-The two forms share backbone, gate and penalty and differ only in the loss layer. \textbf{HGLP-Reg} uses the $L_1$ distance; $L_2$'s squared-error gradient is dominated by large residuals and buries a weak persistent signal, which made results swing across seeds. \textbf{HGLP-NCE} uses InfoNCE over cosine similarity with temperature 0.1, with one departure from the standard form: \textbf{samples from the same window are excluded from the negative pairs}, since they share the persistent factor and pushing them apart would teach the model to discard it.
+The two forms share backbone, gate and penalty and differ only in the loss layer. \textbf{HGLP-Reg} uses the $L_1$ distance; under $L_2$ the squared-error gradient is dominated by large residuals and results swung across seeds. \textbf{HGLP-NCE} uses InfoNCE over cosine similarity with temperature 0.1, with one departure from the standard form: \textbf{samples from the same window are excluded from the negative pairs}, since they share the persistent factor and pushing them apart would teach the model to discard it.
 
 
 \subsection{The Horizon Gate}
@@ -39,7 +41,7 @@ g(\Delta) = \sigma\!\Big(\frac{\tau-\Delta}{\kappa}\Big), \qquad \tilde z_t(\Del
 \label{eq:gate}
 \end{equation}
 
-Immediately before the predictor, the rear block is multiplied by $g(\Delta)\in(0,1)$ (Fig.~\ref{fig:arch}(b)--(d)): for $\Delta\ll\tau$ the embedding passes unchanged, for $\Delta\gg\tau$ the rear block is suppressed. \emph{Dimensions are multiplied, not truncated}, so the predictor input is always $D$-dimensional; \emph{$\zslow$ is never blocked}; and the gate is \emph{a smooth curve, not a step}. The width $\kappa$ is a buffer rather than a convenience, since $\tau$ cannot be chosen accurately without labels, and a step gate was worse on both stems (Appendix~\ref{app:design}).
+Immediately before the predictor, the rear block is multiplied by $g(\Delta)\in(0,1)$ (Fig.~\ref{fig:arch}(b)--(d)): for $\Delta\ll\tau$ the embedding passes unchanged, for $\Delta\gg\tau$ the rear block is suppressed. \emph{Dimensions are multiplied, not truncated}, so the predictor input is always $D$-dimensional; \emph{$\zslow$ is never blocked}; and the gate is \emph{a smooth curve, not a step}. The trained horizons must straddle the threshold, $\Delta_{\min}<\tau<\Delta_{\max}$, or the gate never opens or never closes. The width $\kappa$ is a buffer rather than a convenience, since $\tau$ cannot be chosen accurately without labels, and a step gate was worse on both stems (Appendix~\ref{app:design}).
 
 The one-sidedness is likewise a choice. Withholding $\zmix$ beyond $\tau$ should cost nothing, because the transient factor is already forgotten there. Withholding $\zslow$ below $\tau$ would cost a great deal: near horizons need the current persistent state as much as the fast detail, and they are where the gradients are dense, so the block would lose most of its training signal rather than gain protection. Appendix~\ref{app:design} tests the symmetric variant. Note also that only the \emph{availability} of $\zmix$ is constrained, never its content --- across the six settings it carries the persistent factor at \numMixPerLo--\numMixPerHi{} --- which is why we call it $\zmix$ and not ``$z_{\mathrm{fast}}$''.
 
