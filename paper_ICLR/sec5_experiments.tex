@@ -5,10 +5,10 @@ Every setting below is one of six: three datasets crossed with the two loss stem
 \subsection{Data and factors}
 \label{sec:data}
 
-We use the synthetic generator of Section~\ref{sec:synthetic} and two public sets, PTB-XL \citep{wagner2020} and HAPT \citep{reyesortiz2016, hapt2015}.
+We use the synthetic generator of Section~\ref{sec:synthetic} and two public sets, PTB-XL \citep{wagner2020} and HAPT \citep{reyesortiz2016, hapt2015}; Table~\ref{tab:datasets} gives their sizes and their two factors.
 
 \begin{table}[!tb]
-\caption{The three datasets. The transient proxy is computed from the signal, never from labels.}
+\caption{The three datasets. The transient proxy is computed from the signal, never from labels. Channels are 1, 1 (lead II) and 3 (acceleration axes); the grouping unit for splits is 4,812 patients for PTB-XL and 30 subjects for HAPT; chance is 0.333, 0.500 and 0.167.}
 \label{tab:datasets}
 \centering
 \footnotesize
@@ -21,7 +21,6 @@ Synthetic & $10^6$ steps & --- & 8 steps & 256 & regime $s$, 3-way & OU $u$ \\
 PTB-XL & 5,000 rec. & 100\,Hz & 10 (0.1\,s) & 100 (10\,s) & diagnosis, 2-way & voltage \\
 HAPT & 2,104 win. & 50\,Hz & 4 (0.08\,s) & 256 (20.5\,s) & activity, 6-way & $\lVert a\rVert$ \\
 \hline
-\multicolumn{7}{l}{Channels 1 / 1 (lead II) / 3 (accel.); groups --- / 4,812 patients / 30 subjects; chance 0.333 / 0.500 / 0.167.}
 \end{tabular}
 \end{table}
 

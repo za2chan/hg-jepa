@@ -16,7 +16,7 @@ The symmetric variant multiplies $\zslow$ by $1-g(\Delta)$, switching it off bel
 \paragraph{The target's receptive field is bounded.}
 The gate rests on a premise: withholding $\zmix$ at long range should cost nothing, because the transient factor is already forgotten there. That premise is a property of the data \emph{and of how the target is defined}, so it can be measured. For each horizon we fit two linear readings of the target embedding, one from the persistent factor alone and one from both, and take the difference (Fig.~\ref{fig:targetpilot}).
 
-\begin{figure}[!tb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.68\textwidth]{figs/fig_target_pilot.png}
 \caption{$R^2(s,u\!\to\!\bar z_{t+\Delta}) - R^2(s\!\to\!\bar z_{t+\Delta})$: what the transient factor adds, beyond the persistent one, to a linear reading of the target embedding $\Delta$ ahead. Zero means gating it away costs nothing. Synthetic, HGLP-Reg, 2{,}500 steps, one seed, ground-truth factors.}
@@ -44,7 +44,7 @@ Three cautions. Because exclusion falls monotonically as the reading head grows,
 \section{The block $\times$ factor matrix, all six panels}
 \label{app:embed}
 
-\begin{figure}[!tb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{figs/fig_embed_compare.png}
 \caption{The two blocks against both factors, with and without the mechanism (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$, one seed). Fig.~\ref{fig:embed} shows the middle column of this figure, which is the only one that differs between the rows. The fourth combination, $\zmix$ against the persistent factor, is not a term of SEP and is unconstrained by design, so it is omitted here too.}
@@ -54,7 +54,9 @@ Three cautions. Because exclusion falls monotonically as the reading head grows,
 \section{Reading $\zslow$ as a trajectory}
 \label{app:traj}
 
-\begin{figure}[!tb]
+The persistent block can also be read as a signal in its own right rather than as input to a classifier. Fig.~\ref{fig:traj} plots its leading principal components against time on a held-out HAPT subject, with the activity boundaries marked.
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.86\textwidth]{figs/fig_traj_hapt.png}
 \caption{$\zslow$ read as a trajectory rather than as classifier input (HAPT). This use needs no labels at evaluation time and no probe. The figure is qualitative.}

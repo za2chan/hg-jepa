@@ -81,7 +81,7 @@ def terms():
               f"alloc {g['d_allocation']:+.3f} excl {g['d_exclusion']:+.3f} "
               f"sep {g['d_sep']:+.3f}")
 
-    write("tab_terms", """\\begin{table}[!tb]
+    write("tab_terms", """\\begin{table}[H]
 \\caption{Where the shortfall against SFA sits. Cells are \\emph{ours minus SFA} on one
 term of SEP, paired by seed then averaged, $n=5$; positive means we lead, and our column is
 taken at the listed $\\lambda$.}
@@ -116,7 +116,7 @@ def gatesym():
     better, worse, tied = tally["\\textbf{sym}"], tally["asym"], tally["tie"]
     print(f"  symmetric gate: better {better}, worse {worse}, tied {tied} of {len(rows)}")
 
-    write("tab_gatesym", f"""\\begin{{table}}[!tb]
+    write("tab_gatesym", f"""\\begin{{table}}[H]
 \\caption{{Can exclusion be bought structurally? The symmetric variant multiplies
 $\\zslow$ by $1-g(\\Delta)$, switching it off below $\\tau$ so that no horizon can push
 transient information into it. Cells are SEP at each model's own best $\\lambda$ over
@@ -179,7 +179,7 @@ def mlpprobe():
                   f"{e['SFA/linear']['exclusion'] - e['linear']['exclusion']:+.3f} "
                   f"-> mlp {e['SFA/mlp']['exclusion'] - e['mlp']['exclusion']:+.3f}")
 
-    write("tab_mlpprobe", f"""\\begin{{table}}[!tb]
+    write("tab_mlpprobe", f"""\\begin{{table}}[H]
 \\caption{{What survives a non-linear reader. The features, the splits and the blocks are
 held fixed and only the probe head changes, from a linear model to a one-hidden-layer
 MLP (256 units); the \\emph{{same}} head is given to SFA, PCA and ICA, so no method is
