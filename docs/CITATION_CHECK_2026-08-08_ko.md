@@ -277,3 +277,29 @@ Related Works 2.1에 세 문장으로 되살렸다. **두 문헌 모두 원문�
 | Huang et al., 1998 | *Proc. R. Soc. Lond. A*, 1998 | "신호에서 진동 모드를 경험적으로 뽑아낸다" | 제목 "The **Empirical Mode Decomposition** and the Hilbert Spectrum…"이 그대로 보증 |
 
 ⚠️ **이 이상은 쓰지 말 것.** 예를 들어 EMD가 IMF를 고주파부터 저주파 순으로 내놓는다거나, STL의 강건성·반복 구조 같은 것은 확인하지 않았다. 세 번째 문장 *"이들이 내놓는 것은 신호의 성분이지 그 신호를 만든 요인이 아니다"*는 두 방법이 **신호 분해 기법**이라는 사실에서 나오는 것이며, 특정 문헌에 귀속시키는 주장이 아니다.
+
+---
+
+# 데이터셋 인용 3건 — 1차 출처 대조 (2026-08-14 추가)
+
+ICLR 판 §9를 위해 데이터셋 인용을 넣었다. 두 데이터셋 모두 그때까지 참고문헌에 **한 건도 없었다.** 검색 요약이 아니라 CrossRef 서지 레코드와 데이터셋 배포처 페이지를 직접 읽어 확정했다.
+
+## ⚠️ 첫 시도의 DOI가 틀렸다
+
+PTB-XL의 DOI를 `10.1038/s41597-020-0495-7`로 잡고 Nature 페이지를 열었다가 인증 리다이렉트에 막혔다. PhysioNet의 배포 페이지를 대신 읽어보니 **끝자리가 `-6`이었다.** CrossRef로 다시 조회해 저자·권·논문번호를 확인했다. 기억으로 DOI를 적었으면 그대로 틀린 값이 들어갔을 사례다.
+
+## 확정 서지
+
+| 인용 키 | 확정 내용 | 대조한 1차 출처 |
+|---|---|---|
+| `wagner2020` | P. Wagner, N. Strodthoff, R.-D. Bousseljot, D. Kreiseler, F. I. Lunze, W. Samek, T. Schaeffter. "PTB-XL, a large publicly available electrocardiography dataset." *Scientific Data* 7(1), art. 154, 2020. doi:10.1038/s41597-020-0495-6 | CrossRef 레코드 |
+| `reyesortiz2016` | J.-L. Reyes-Ortiz, L. Oneto, A. Samà, X. Parra, D. Anguita. "Transition-Aware Human Activity Recognition Using Smartphones." *Neurocomputing* 171:754–767, 2016. doi:10.1016/j.neucom.2015.07.085 | CrossRef 레코드 |
+| `hapt2015` | J.-L. Reyes-Ortiz, D. Anguita, L. Oneto, X. Parra. "Smartphone-Based Recognition of Human Activities and Postural Transitions." UCI Machine Learning Repository, 2015. doi:10.24432/C54G7M | UCI 데이터셋 페이지가 요구하는 인용 |
+
+HAPT는 배포처(UCI)가 요구하는 인용과 데이터셋에 딸린 논문이 서로 다르므로 **둘 다** 넣었다. UCI 페이지의 사양(피험자 30명, 가속도계·자이로 50 Hz)이 Method의 서술과 일치하는 것도 확인했다 — 우리는 그중 가속도계 3축만 쓴다.
+
+## 넣지 않은 것과 그 이유
+
+**PhysioNet의 버전 지정 데이터셋 인용**(v1.0.3, doi:10.13026/kfzx-aw45)은 넣지 않았다. PhysioNet 페이지는 이것도 함께 인용하라고 요구하지만, **우리 저장소에는 어느 버전을 내려받았는지 남은 기록이 없다.** `data/ptbxl_v2.npz`는 서버에서 만들어졌고 `src/prep/`에 PTB-XL 전처리 스크립트가 없으며 코드 어디에도 버전 문자열이 없다. 확인되지 않은 버전 번호를 적는 것은 값을 지어내는 것이므로, 서버에서 원본 다운로드를 확인한 뒤 넣기로 한다.
+
+**Anguita et al. 2013 (ESANN, UCI HAR)** 도 넣지 않았다. 전이 동작이 없는 선행 데이터셋이고 우리가 쓰는 것이 아니다.
