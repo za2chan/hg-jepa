@@ -92,7 +92,7 @@ def main():
     with torch.no_grad():
         Z = torch.cat([enc(xb[i:i + 64]) for i in range(0, len(xb), 64)]).cpu().numpy()
     lag_p = np.arange(L // 2) * P                       # patches -> steps
-    blocks = {"$z_{slow}$ (16 dims)": acf_block(Z[:, :, :D_SLOW]),
+    blocks = {"$z_{per}$ (16 dims)": acf_block(Z[:, :, :D_SLOW]),
               "$z_{mix}$ (48 dims)": acf_block(Z[:, :, D_SLOW:])}
     blocks_mean = {k: acf_block(Z[:, :, sl_], "mean") for k, sl_ in
                    [("z_slow_meandim", slice(0, D_SLOW)), ("z_mix_meandim", slice(D_SLOW, D_Z))]}

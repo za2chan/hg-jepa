@@ -93,7 +93,7 @@ def fig_grid(F, ys, yu, sep, tag, lam, n_show=3000, seed=0):
     rng = np.random.default_rng(seed)
     idx = rng.choice(len(F), min(n_show, len(F)), replace=False)
     F, ys, yu = F[idx], ys[idx], yu[idx]
-    blocks = [("$z_{slow}$  (16 dims)", F[:, :D_SLOW]),
+    blocks = [("$z_{per}$  (16 dims)", F[:, :D_SLOW]),
               ("$z_{mix}$  (48 dims)", F[:, D_SLOW:])]
     emb = {name: TSNE(n_components=2, perplexity=30, init="pca",
                       random_state=seed).fit_transform(B) for name, B in blocks}

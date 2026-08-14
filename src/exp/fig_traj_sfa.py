@@ -152,7 +152,7 @@ def fig_single(a):
     for sw in switch:
         ax[0].axvline(sw, color="#d64550", lw=.8, ls=":", alpha=.6)
     panel(ax[1], t, r["ours"], switch, C_OURS, "ours",
-          "PC1 of $z_{slow}$, a block named before training", r["acc_ours"])
+          "PC1 of $z_{per}$, a block named before training", r["acc_ours"])
     panel(ax[2], t, S[:, 0], switch, C_SFA1, "SFA #1",
           "the component SFA's own ordering points to", readout(S[:, 0], reg))
     panel(ax[3], t, S[:, best], switch, C_SFA2, f"SFA #{best+1}",

@@ -480,6 +480,13 @@ def macros():
             if gap > 0:
                 losses.append(gap)
     m["RealLossLo"], m["RealLossHi"] = fmt(min(losses)), fmt(max(losses))
+    # how much of the PERSISTENT factor the complement block still carries, at each
+    # setting's best lambda -- the Background claim that z_mix is not "the fast block"
+    mixper = [rot(tag, stem, suf)[f"gate@lam{best_lam(rot(tag, stem, suf))[1]}"]
+              ["fast_half"]["slow"][0]
+              for _, tag, _, suf in DSETS for _, stem, _ in STEMS]
+    m["MixPerLo"], m["MixPerHi"] = fmt(min(mixper)), fmt(max(mixper))
+
     alloc = [tb[f"{k}/{s}"]["_diagnosis"]["d_allocation"] for _, _, k, _ in DSETS
              for _, _, s in STEMS]
     m["AllocLead"] = str(sum(a > 0 for a in alloc))

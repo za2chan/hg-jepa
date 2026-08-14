@@ -1,4 +1,4 @@
-\section{Data and Methods}
+\section{Method}
 
 \subsection{Data and Factors}
 
@@ -29,10 +29,7 @@ Chance level & 0.333 & 0.500 & 0.167 \\
 \end{tabular}
 \end{table}
 
-\subsubsection{Synthetic data}
-A three-state Markov persistent factor $s$ (mean dwell 3{,}000 steps) sets the carrier frequency of an oscillation, spaced $\pm$3\% around 0.100; a transient Ornstein--Uhlenbeck factor $u$ (autocorrelation time 50 steps) modulates that instantaneous frequency and adds to the signal. Amplitude is identical across regimes, so a regime change alters only how fast the signal oscillates. Consequently the persistent factor does not appear in the slow component: a low-pass reading ($f<0.02$) recovers the transient factor ($R^2=0.90$) and essentially not the persistent one ($R^2<10^{-5}$; Fig.~\ref{fig:persistence}).
-
-Difficulty is set by the spacing between regime frequencies, calibrated by a training-free FFT reader. At $\pm$3\% it reaches accuracy 0.660 (chance 0.333); at $\pm$5\% it is already 0.784 before any training, and at $\pm$1\% it falls to 0.459, near chance. We therefore use $\pm$3\% throughout.
+The synthetic generator and its calibration are described in Section~\ref{sec:synthetic}; it is the one dataset in which persistence and slowness are made to disagree by construction.
 
 \subsubsection{PTB-XL}
 
@@ -51,7 +48,7 @@ In HAPT (Human Activities and Postural Transitions), \textbf{thirty subjects} we
 \begin{figure}[!tbp]
 \centering
 \includegraphics[width=0.9\textwidth]{figs/fig_main.png}
-\caption{Horizon-gated latent prediction. \textbf{(a)} A causal encoder maps a window to an embedding $z_t$, split into a persistent block $z_{slow}$ (16 of 64 dimensions) and the rest $z_{mix}$. A predictor conditioned on the horizon $\Delta$ must match a target read at one position inside $(t,\,t+\Delta]$, produced by an EMA copy of the encoder. A cross-covariance penalty is applied to $z_t$ before the gate. \textbf{(b, c)} The same pipeline at a short and a long horizon. $z_{slow}$ is never gated; only $z_{mix}$ is, and only past $\tau$, so at long horizons the only route to lowering the loss runs through $z_{slow}$. \textbf{(d)} The gate is a sigmoid of width $\kappa$, not a switch. $\tau$ is set from the transient factor's lifetime and $\Delta_{max}$ is set separately, so the axis is drawn in units of $\tau$ rather than absolute horizons.}
+\caption{Horizon-gated latent prediction. \textbf{(a)} A causal encoder maps a window to an embedding $z_t$, split into a persistent block $\zslow$ (16 of 64 dimensions) and the rest $\zmix$. A predictor conditioned on the horizon $\Delta$ must match a target read at one position inside $(t,\,t+\Delta]$, produced by an EMA copy of the encoder. A cross-covariance penalty is applied to $z_t$ before the gate. \textbf{(b, c)} The same pipeline at a short and a long horizon. $\zslow$ is never gated; only $\zmix$ is, and only past $\tau$, so at long horizons the only route to lowering the loss runs through $\zslow$. \textbf{(d)} The gate is a sigmoid of width $\kappa$, not a switch. $\tau$ is set from the transient factor's lifetime and $\Delta_{max}$ is set separately, so the axis is drawn in units of $\tau$ rather than absolute horizons.}
 \label{fig:arch}
 \end{figure}
 
@@ -75,7 +72,7 @@ The two forms share backbone, gate and penalty and differ only in the loss layer
 \subsection{The Horizon Gate}
 
 \begin{equation}
-g(\Delta) = \sigma\!\Big(\frac{\tau-\Delta}{\kappa}\Big), \qquad \tilde z_t(\Delta) = \big[\,z_t^{\mathrm{slow}}\,;\ g(\Delta)\,z_t^{\mathrm{mix}}\,\big]
+g(\Delta) = \sigma\!\Big(\frac{\tau-\Delta}{\kappa}\Big), \qquad \tilde z_t(\Delta) = \big[\,z_t^{\mathrm{per}}\,;\ g(\Delta)\,z_t^{\mathrm{mix}}\,\big]
 \label{eq:gate}
 \end{equation}
 
@@ -83,7 +80,7 @@ Immediately before the predictor, the rear block is multiplied by $g(\Delta)\in(
 
 \textbf{Gradient split.}
 \begin{equation}
-\frac{\partial\mathcal{L}}{\partial z_t^{\mathrm{slow}}} = \frac{\partial\mathcal{L}}{\partial \tilde z_t^{\mathrm{slow}}}, \qquad \frac{\partial\mathcal{L}}{\partial z_t^{\mathrm{mix}}} = g(\Delta)\,\frac{\partial\mathcal{L}}{\partial \tilde z_t^{\mathrm{mix}}}
+\frac{\partial\mathcal{L}}{\partial z_t^{\mathrm{per}}} = \frac{\partial\mathcal{L}}{\partial \tilde z_t^{\mathrm{per}}}, \qquad \frac{\partial\mathcal{L}}{\partial z_t^{\mathrm{mix}}} = g(\Delta)\,\frac{\partial\mathcal{L}}{\partial \tilde z_t^{\mathrm{mix}}}
 \label{eq:grad}
 \end{equation}
 
@@ -114,7 +111,7 @@ Reading the persistent factor from $\zslow$ is not by itself evidence of separat
 \end{enumerate}
 
 \begin{equation}
-\mathrm{SEP} = \underbrace{\big[s_{\text{per}}(z^{\mathrm{slow}})\big]_0^1}_{\text{inclusion}} \cdot \underbrace{\big[s_{\text{tra}}(z^{\mathrm{mix}})\big]_0^1}_{\text{allocation}} \cdot \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{slow}})\big]_0^1}_{\text{exclusion}}
+\mathrm{SEP} = \underbrace{\big[s_{\text{per}}(z^{\mathrm{per}})\big]_0^1}_{\text{inclusion}} \cdot \underbrace{\big[s_{\text{tra}}(z^{\mathrm{mix}})\big]_0^1}_{\text{allocation}} \cdot \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{exclusion}}
 \label{eq:sep}
 \end{equation}
 

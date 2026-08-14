@@ -67,7 +67,7 @@ def fig_a():
 
     bar(11, [(0, D_SLOW, PERSIST), (D_SLOW, D_Z, MIXED_B)], "What we ask for")
     ax.text(X0 + W * D_SLOW / D_Z, 9.0, str(D_SLOW), fontsize=8, ha="center", color=MUTE)
-    ax.text(X0 + W * D_SLOW / (2 * D_Z), 14.5, "$z_{slow}$", fontsize=10,
+    ax.text(X0 + W * D_SLOW / (2 * D_Z), 14.5, "$z_{per}$", fontsize=10,
             ha="center", color="white", weight="bold")
     ax.text(X0 + W * (D_SLOW + D_Z) / (2 * D_Z), 14.5, "$z_{mix}$", fontsize=10,
             ha="center", color="white", weight="bold")
@@ -201,7 +201,7 @@ def _pipeline(ax, closed, title, boxes=True):
                            facecolor=("#e9ecef" if closed else MIXED_B),
                            edgecolor=INK, lw=1.0,
                            hatch=("//" if closed else None)))
-    ax.text(cx + cw / 2, cy + ch - n_slow / 2, "$z_{slow}$", fontsize=7.5,
+    ax.text(cx + cw / 2, cy + ch - n_slow / 2, "$z_{per}$", fontsize=7.5,
             ha="center", va="center", color="white", weight="bold")
     ax.text(cx + cw / 2, cy + (ch - n_slow) / 2, "$z_{mix}$", fontsize=7.5,
             ha="center", va="center",
@@ -258,7 +258,7 @@ def fig_b2(tau=16.0, Wg=4.0):
              "$\\tau$ comes from the transient\nfactor's lifetime; $\\Delta_{max}$ is set\n"
              "separately, so the axis is drawn\nin units of $\\tau$, not absolute\nhorizons.",
              fontsize=8, color=MUTE, va="center", ha="center")
-    fig.suptitle("$z_{slow}$ is never gated; only its complement is, and only at long horizons",
+    fig.suptitle("$z_{per}$ is never gated; only its complement is, and only at long horizons",
                  fontsize=10, y=0.99, color=INK)
     fig.savefig(OUT / "fig_gate_B2.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -345,7 +345,7 @@ def fig_arch(ax=None):
                            edgecolor=INK, lw=1.2))
     ax.add_patch(Rectangle((bx, by), bw, bh - ns, facecolor=MIXED_B,
                            edgecolor=INK, lw=1.2))
-    ax.text(bx + bw / 2, by + bh - ns / 2, r"$z_{slow}$", fontsize=7, ha="center",
+    ax.text(bx + bw / 2, by + bh - ns / 2, r"$z_{per}$", fontsize=7, ha="center",
             va="center", color="white", weight="bold", rotation=90)
     ax.text(bx + bw / 2, by + (bh - ns) / 2, r"$z_{mix}$", fontsize=7, ha="center",
             va="center", color="white", weight="bold", rotation=90)
@@ -366,7 +366,7 @@ def fig_arch(ax=None):
     ax.text(63.5, gy + 2.2, r"$z_{mix}$", fontsize=7.5, ha="center", color=MIXED_B)
     # z_slow bypasses the gate entirely -- the point of the figure
     arrow(ax, bx + bw, by + bh - ns / 2, 88, by + bh - ns / 2, color=PERSIST, lw=1.8)
-    ax.text(74, by + bh - ns / 2 + 1.6, r"$z_{slow}$ never gated", fontsize=8,
+    ax.text(74, by + bh - ns / 2 + 1.6, r"$z_{per}$ never gated", fontsize=8,
             ha="center", color=PERSIST)
     arrow(ax, gx0 + gw, gy, 88, gy)
 

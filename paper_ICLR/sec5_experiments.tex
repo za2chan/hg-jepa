@@ -1,9 +1,10 @@
-\section{Results}
+\section{Experiments}
 
 \medskip
 \noindent\textit{Part 1: Does the separation happen, and what creates it?}
 
 \subsection{What creates the separation}
+\label{sec:ablation}
 
 We decompose the contribution of the two devices we add --- the horizon gate and the cross-covariance penalty --- by switching each on and off. The mechanism-free cell (Section~\ref{sec:xcov}) is also the baseline in which only the coordinate split remains.
 
@@ -51,7 +52,7 @@ HGLP-NCE & \textbf{0.844} ($\lambda=16$) & 0.432 ($\lambda=16$) & $+0.411$ ($1.9
 
 
 
-Replacing the latent target with raw patches halves SEP on both stems (Table~\ref{tab:latentraw}); since both carry the same penalty and are compared at their own optimal $\lambda$, neither side gains from the knob. The allocation term is the same for the two targets, at 0.86 to 0.89, and the gap opens in the inclusion term: the raw target loses the persistent factor as the penalty grows, falling from 0.807 to 0.401, whereas the latent target stays above 0.97 throughout. The raw signal still contains the transient component, and the pressure to predict it too pushes out the persistent factor. The gate and the penalty of Section~IV-A are thus not enough on their own; the latent target has to be present as well.
+Replacing the latent target with raw patches halves SEP on both stems (Table~\ref{tab:latentraw}); since both carry the same penalty and are compared at their own optimal $\lambda$, neither side gains from the knob. The allocation term is the same for the two targets, at 0.86 to 0.89, and the gap opens in the inclusion term: the raw target loses the persistent factor as the penalty grows, falling from 0.807 to 0.401, whereas the latent target stays above 0.97 throughout. The raw signal still contains the transient component, and the pressure to predict it too pushes out the persistent factor. The gate and the penalty of Section~\ref{sec:ablation} are thus not enough on their own; the latent target has to be present as well.
 
 \subsection{Can post-hoc processing take its place?}
 
@@ -129,8 +130,8 @@ Section~\ref{sec:handpicked} states that our objective enforces availability but
 
 \textbf{The knob that governs exclusion can be set without labels.} $\lambda$ was chosen by looking at downstream performance, which makes ``our best $\lambda$ separates well'' partly circular. We therefore define a criterion using no task label at all,
 \begin{equation}
-J = \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{slow}})\big]_0^1}_{\text{exclusion}} \cdot
-    \underbrace{s_{\text{self}}(z^{\mathrm{slow}};\,\Delta>\tau)}_{\text{long-horizon self-prediction}},
+J = \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{exclusion}} \cdot
+    \underbrace{s_{\text{self}}(z^{\mathrm{per}};\,\Delta>\tau)}_{\text{long-horizon self-prediction}},
 \label{eq:J}
 \end{equation}
 where the first factor uses the transient proxy, computed from the signal, and the second asks how well $\zslow$ predicts \emph{its own} value more than $\tau$ ahead --- neither the labels nor the target encoder enters. The product is required because each factor alone has a degenerate maximum: an empty block scores perfect exclusion, a constant block scores perfect self-prediction, and multiplying kills both. Selecting $\lambda$ by $J$ reproduces the label-selected value in all six settings (Table~\ref{tab:lambdafree}). On synthetic data the criterion is also doing real work rather than agreeing by luck: exclusion alone would have chosen $\lambda=\numJexclOnlyLam$, which is close to the worst choice by the oracle (SEP \numJexclOnlySep{} against \numJbestSep{} at $\lambda=\numJbestLam$), and it is the self-prediction factor, collapsing from \numJlongBest{} to \numJlongCollapse{} once $\lambda\ge4$, that rules it out. A collapse monitor would not have caught this: effective rank \emph{rises} from \numJrankLo{} to \numJrankHi{} over the same range, so the penalty is not emptying $\zslow$ but scattering it along the time axis.
