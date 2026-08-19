@@ -55,12 +55,20 @@ C_PERS, C_TRAN, INK, MUTE = "#1a5fb4", "#e8a33d", "#222222", "#9aa0a6"
 # used to be) spends its whole range on that one question and leaves the bulk of
 # the points, which sit near zero, in one muddy mid band; the figure is printed at
 # 0.72 textwidth, where that band reads as no gradient at all. A diverging ramp
-# answers it in one glance: blue on one side, red on the other. The neutral centre
-# is a visible grey rather than the near-white the convention would use, because
-# these are 3px marks on a white page and a centre that recedes into the surface
-# would simply delete every point with u near zero.
+# answers it in one glance.
+#
+# Purple-green rather than the usual blue-red: the appendix grid puts this ramp in
+# the columns next to the regime column, which is blue / purple / red, and those
+# two columns are the SAME t-SNE layout, so a blue-red ramp had the identical blob
+# reading as "regime 0" on the left and as "negative u" in the middle. Green is
+# free of the regime palette entirely. Purple-green is one of the colourblind-safe
+# diverging schemes, so the switch costs nothing there.
+#
+# The neutral centre is a visible grey rather than the near-white the convention
+# would use, because these are 3px marks on a white page and a centre that recedes
+# into the surface would simply delete every point with u near zero.
 CMAP_U = LinearSegmentedColormap.from_list(
-    "u_diverging", ["#104281", "#2a78d6", "#b9b7b0", "#d03b3b", "#7d1d1d"])
+    "u_diverging", ["#1b7837", "#5aae61", "#b9b7b0", "#9970ab", "#762a83"])
 
 
 def u_norm(*arrays):
