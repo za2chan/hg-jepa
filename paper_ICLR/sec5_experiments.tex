@@ -1,6 +1,6 @@
 \section{Experiments}
 
-Every setting below is one of six: three datasets crossed with the two loss stems, at $n=5$ seeds unless stated. We ask four questions in order --- what produces the separation, whether its one free coefficient can be set without labels, how it compares against label-free post-hoc rotation, and what it costs.
+Every setting below is one of six: three datasets crossed with the two loss stems, at $n=5$ seeds unless stated.
 
 \subsection{Data and factors}
 \label{sec:data}
@@ -63,16 +63,9 @@ HAPT / NCE & 0.297 & 0.366 & 0.162 & \textbf{0.515} \\
 
 In Table~\ref{tab:ablation} the model with both devices ranks first in all six settings, and neither device alone reaches that value. On the contrastive stem of the synthetic data the gate alone is indistinguishable from the mechanism-free case (0.124 against 0.121), yet adding that same gate to the penalty raises SEP from 0.488 to 0.749: the two devices need each other. The penalty alone is actively harmful on the real data, breaking down the inclusion term and falling below even the mechanism-free case.
 
-The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agrees in all six settings to within 0.015 with the SEP of 16 dimensions drawn at random from the same embedding. Without our devices, any part of the embedding holds the two factors to a similar degree, so coordinate position carries no meaning by itself; our contribution is to give those coordinates structure. Fig.~\ref{fig:embed} shows the same contrast qualitatively.
+The ``Neither'' cells take the first 16 of the 64 dimensions, and their SEP agrees in all six settings to within 0.015 with the SEP of 16 dimensions drawn at random from the same embedding. Without our devices, any part of the embedding holds the two factors to a similar degree, so coordinate position carries no meaning by itself; our contribution is to give those coordinates structure. Fig.~\ref{fig:embed_full} in Appendix~\ref{app:embed} shows the same contrast qualitatively, as a t-SNE of the two blocks with the mechanism and without it.
 
-\begin{figure}[!htb]
-\centering
-\includegraphics[width=0.72\textwidth]{figs/fig_embed_exclusion.png}
-\caption{The exclusion term, seen directly: a t-SNE of $\zslow$ coloured by the transient factor, with the mechanism and without it (synthetic $\pm$3\%, HGLP-NCE, $\lambda=4$, one seed). This is the only one of the three terms that differs between the two models --- inclusion is \numFigInclusion{} against \numFigNoInclusion{} and allocation \numFigAllocation{} against \numFigNoAllocation. All six panels are in Fig.~\ref{fig:embed_full}.}
-\label{fig:embed}
-\end{figure}
-
-Three further design choices could each have gone the other way, and none of them is left to argument. Replacing the smooth gate with a step at $\tau$, gating $\zslow$ symmetrically as well, and predicting the raw signal instead of a latent target are each tested in Appendix~\ref{app:design}; all three are worse, and the latent target by a factor of two.
+Three further design choices could each have gone the other way. Replacing the smooth gate with a step at $\tau$, gating $\zslow$ symmetrically as well, and predicting the raw signal instead of a latent target are each tested in Appendix~\ref{app:design}; all three are worse, and the latent target by a factor of two.
 
 \subsection{Setting the penalty weight without labels}
 \label{sec:lambdafree}
@@ -110,7 +103,7 @@ SEP is a product of three factors, so a single number cannot say which one is lo
 Every probe so far has been linear, and an unreadable direction is not the same as an absent one. Holding the features, the splits and the blocks fixed and replacing only the reading head with a one-hidden-layer MLP --- given equally to SFA, PCA and ICA --- exactly one term collapses, and it is exclusion: averaged over four methods and four real settings, inclusion moves $\numMlpIncl$ and allocation $\numMlpAlloc$, while exclusion falls $\numMlpExcl$ and as much as $\numMlpExclWorst$ in the worst row. The transient information is still present in $\zslow$; the linear probe could not reach it. Our claim therefore narrows to a linear-level one --- and the diagnosis above is not an artifact of weak probing, since SFA's lead on exclusion survives the stronger head and in places widens, while PCA and ICA degrade sharply. Appendix~\ref{app:probe} gives the per-setting values and the caveats.
 
 \paragraph{Why SFA leads where it leads.}
-The explanation is that persistence and slowness mostly coincide on real data. On PTB-XL this is plain: the diagnosis is constant within a record, so its time derivative is zero, which is the limiting solution of the quantity SFA maximizes. On HAPT it is not constant within a window and we did not measure why the coincidence holds there, so that half of the explanation remains untested. What the synthetic data shows is the other side of the same statement: built so that the persistent factor is neither constant within a window nor present in the slow band, it is the one dataset on which the post-hoc route fails. What remains ours is that the coordinates are fixed during training, so no second fitting stage is needed at deployment --- an operational difference, not a difference in the quality of the separation.
+The explanation is that persistence and slowness mostly coincide on real data. On PTB-XL this is plain: the diagnosis is constant within a record, so its time derivative is zero, which is the limiting solution of the quantity SFA maximizes. On HAPT it is not constant within a window and we did not measure why the coincidence holds there, so that half of the explanation remains untested. What the synthetic data shows is the other side of the same statement: built so that the persistent factor is neither constant within a window nor present in the slow band, it is the one dataset on which the post-hoc route fails. What remains ours is that the coordinates are fixed during training.
 
 \subsection{The cost of separation, and stability under domain shift}
 \label{sec:cost}

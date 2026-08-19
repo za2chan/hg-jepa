@@ -32,7 +32,7 @@ A three-state Markov persistent factor $s$ (mean dwell 3{,}000 steps) sets the c
 
 The persistent factor is still readable, but only through a nonlinear statistic and only over a wide enough window: the instantaneous frequency over 1,001 steps recovers it at $R^2=0.50$, and the recovery appears only once the window is tens of times $u$'s lifetime, falling away again when the window grows wide enough to blur $s$ itself (Fig.~\ref{fig:persistence}c). This is the general shape of the situation, not an artifact of our generator: while a factor persists, what stays fixed is not the signal but its statistics, and those surface only through some function of the signal.
 
-Difficulty is set by the spacing between regime frequencies and calibrated by a training-free FFT reader, so that the task is neither trivially solved nor unsolvable before any representation is learned. At $\pm$3\% the reader reaches accuracy 0.660 (chance 0.333); at $\pm$5\% it already reaches 0.784 before any training, and at $\pm$1\% it falls to 0.459, near chance. We use $\pm$3\% throughout.
+Difficulty is set by the spacing between regime frequencies and calibrated by a training-free FFT reader: $\pm$3\% gives accuracy 0.660 (chance 0.333), against 0.784 at $\pm$5\% and 0.459 at $\pm$1\%. We use $\pm$3\% throughout.
 
 \subsection{What We Measure}
 \label{sec:measure}
