@@ -3,7 +3,7 @@
 \subsection{Model}
 \label{sec:method_model}
 
-\textbf{Encoder.} A patch becomes a token through one linear projection, so channels are mixed at the first layer --- HAPT posture is defined by how gravity distributes over the three axes. Tokens pass through causal transformer layers with rotary position encoding, and a final linear layer produces the embedding, whose leading 16 coordinates form $\zslow$ and the remaining 48 $\zmix$. A per-block LayerNorm is applied last, to the two blocks separately rather than to the embedding as a whole (Section~\ref{sec:xcov}).
+\textbf{Encoder.} A patch becomes a token through one linear projection, so channels are mixed at the first layer --- HAPT posture is defined by how gravity distributes over the three axes. Tokens pass through causal transformer layers with rotary position encoding, and a final linear layer produces the 64-dimensional embedding, of which $\zslow$ is the leading 16 coordinates and $\zmix$ the remaining 48. A per-block LayerNorm is applied last, to the two blocks separately rather than to the embedding as a whole (Section~\ref{sec:xcov}).
 
 \textbf{Predictor.} A small MLP reading the embedding at one time point together with the horizon, which enters as a learned expansion of $\log_2\Delta$. One predictor is conditioned on $\Delta$ rather than one head per horizon.
 
@@ -67,22 +67,3 @@ C &= \tfrac{1}{N-1}\,\bar Z^{\top}_{(1:\dslow)}\,\bar Z_{(\dslow+1:D)},\\[2pt]
 
 The penalty pushes the two blocks to be linearly unpredictable from each other and \textbf{acts on the embedding before the gate}. It travels with the \textbf{per-block LayerNorm}: a single LayerNorm over the whole embedding gives the two blocks one shared mean and variance, recreating exactly the coupling the penalty is trying to remove. \textbf{``Mechanism-free'' therefore means all three devices absent} --- gate, penalty and per-block LayerNorm.
 
-\subsection{What We Measure}
-
-Reading the persistent factor from $\zslow$ is not by itself evidence of separation, since rotational symmetry means it is read about as well from any 16 dimensions. We therefore report a \textbf{block $\times$ factor matrix} scoring both blocks on both factors, plus a single-number summary \textbf{SEP}, which asks three questions.
-
-\begin{enumerate}
-\item \textbf{Inclusion --- is the persistent factor in $\zslow$?} We score how well the persistent factor is predicted from $\zslow$ alone.
-\item \textbf{Allocation --- is the transient factor in $\zmix$?} We score how well the transient proxy is recovered from $\zmix$ alone.
-\item \textbf{Exclusion --- is the transient factor absent from $\zslow$?} We measure how well the transient proxy can be recovered from $\zslow$, and subtract that value from 1.
-\end{enumerate}
-
-\begin{equation}
-\mathrm{SEP} = \underbrace{\big[s_{\text{per}}(z^{\mathrm{per}})\big]_0^1}_{\text{inclusion}} \cdot \underbrace{\big[s_{\text{tra}}(z^{\mathrm{mix}})\big]_0^1}_{\text{allocation}} \cdot \underbrace{\big[1-s_{\text{tra}}(z^{\mathrm{per}})\big]_0^1}_{\text{exclusion}}
-\label{eq:sep}
-\end{equation}
-
-$s_{\text{per}}(\cdot)$ scores reading the \emph{persistent factor} from a subspace and $s_{\text{tra}}(\cdot)$ the \emph{transient proxy}; $[\cdot]_0^1$ clips into $[0,1]$. Classification scores already lie in this range, but $R^2$ goes negative when a prediction is worse than the mean, and the clipping acts only there, preventing a negative value from flipping the sign of the product. There is no normalization by any denominator anywhere.
-
-
-\textbf{Probe protocol.} With the encoder frozen we fit only a linear classifier or regressor. Splits are \textbf{per group} (subject for HAPT, patient for PTB-XL, a front/back time split for the synthetic data), evaluation windows are \textbf{non-overlapping} to prevent leakage (asserted in the code), and only positions after the \textbf{minimum context length (64 patches)} are scored, since with less context the encoder lacks the evidence to read the persistent state. A \textbf{random subspace} of the same width is scored as a control.

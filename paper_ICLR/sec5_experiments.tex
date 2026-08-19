@@ -24,7 +24,9 @@ HAPT & 2,104 win. & 50\,Hz & 4 (0.08\,s) & 256 (20.5\,s) & activity, 6-way & $\l
 \end{tabular}
 \end{table}
 
-Splits follow the protocol of Section~\ref{sec:method_model}, with the patient as unit for PTB-XL and the subject for HAPT. No data is selected by label before training: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, windows are cut without consulting activity boundaries, and labels are read per position. On PTB-XL the rule that initializes $\tau$ does not apply, since the heartbeat repeats regularly and its autocorrelation oscillates instead of decaying; $\tau$ is set by hand there (Section~\ref{sec:limits}).
+\textbf{Probe protocol.} With the encoder frozen we fit only a linear classifier or regressor. Splits are \textbf{per group} --- patient for PTB-XL, subject for HAPT, a front/back time split for the synthetic data --- evaluation windows are \textbf{non-overlapping} to prevent leakage (asserted in the code), and only positions after the \textbf{minimum context length (64 patches)} are scored, since with less context the encoder lacks the evidence to read the persistent state. A \textbf{random subspace} of the same width is scored as a control. No data is selected by label before training: HAPT's transition and unlabeled segments, 24.7\% of the total, are excluded from scoring but left in the pre-training input, windows are cut without consulting activity boundaries, and labels are read per position.
+
+On PTB-XL the rule that initializes $\tau$ does not apply, since the heartbeat repeats regularly and its autocorrelation oscillates instead of decaying; $\tau$ is set by hand there (Section~\ref{sec:limits}).
 
 \subsection{What creates the separation}
 \label{sec:ablation}
