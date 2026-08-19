@@ -1,0 +1,1599 @@
+{
+ "config": {
+  "mlp": {
+   "hidden_layer_sizes": [
+    256
+   ],
+   "max_iter": 300,
+   "early_stopping": true,
+   "validation_fraction": 0.1,
+   "random_state": 0
+  },
+  "max_samples": 40000,
+  "seed": 0,
+  "lam": 4.0,
+  "gate": true,
+  "xcov": true,
+  "d_slow": 16,
+  "d_z": 64,
+  "note": "identical features, splits and blocks; only the probe head differs. Downstream = z_slow's persistent score, which is also SEP's inclusion term."
+ },
+ "results": {
+  "synth/nce": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.9828062954750858,
+      "transient": 0.035722434520721436
+     },
+     "z_mix": {
+      "persistent": 0.8553108168127627,
+      "transient": 0.8903166055679321
+     },
+     "z_full": {
+      "persistent": 0.9847101604149517,
+      "transient": 0.8909720182418823
+     },
+     "randsplit_slow": {
+      "persistent": 0.9841897899675399,
+      "transient": 0.843232055233333
+     },
+     "randsplit_mix": {
+      "persistent": 0.9840637155705384,
+      "transient": 0.8900524973677418
+     }
+    },
+    "inclusion": 0.9828062954750858,
+    "allocation": 0.8903166055679321,
+    "exclusion": 0.9642775654792786,
+    "sep": 0.8437513216083258,
+    "ceiling": 0.8909720182418823,
+    "null_sep": 0.1373256752517872
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.9832430605694588,
+      "transient": 0.5237189531326294
+     },
+     "z_mix": {
+      "persistent": 0.9655765800341398,
+      "transient": 0.891054630279541
+     },
+     "z_full": {
+      "persistent": 0.9822944008193102,
+      "transient": 0.8872660398483276
+     },
+     "randsplit_slow": {
+      "persistent": 0.9767281249654154,
+      "transient": 0.8799912024344048
+     },
+     "randsplit_mix": {
+      "persistent": 0.9798399175083076,
+      "transient": 0.8908060694396179
+     }
+    },
+    "inclusion": 0.9832430605694588,
+    "allocation": 0.891054630279541,
+    "exclusion": 0.4762810468673706,
+    "sep": 0.41728091384564964,
+    "ceiling": 0.8872660398483276,
+    "null_sep": 0.10441669557428163
+   }
+  },
+  "synth/l1": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.45332672040832483,
+      "transient": 0.06926202774047852
+     },
+     "z_mix": {
+      "persistent": 0.5356614273987156,
+      "transient": 0.8829136490821838
+     },
+     "z_full": {
+      "persistent": 0.5645057503039924,
+      "transient": 0.8854449987411499
+     },
+     "randsplit_slow": {
+      "persistent": 0.41377706965536515,
+      "transient": 0.8747482267356189
+     },
+     "randsplit_mix": {
+      "persistent": 0.5332696202287167,
+      "transient": 0.8825555088628197
+     }
+    },
+    "inclusion": 0.45332672040832483,
+    "allocation": 0.8829136490821838,
+    "exclusion": 0.9307379722595215,
+    "sep": 0.37252633669465945,
+    "ceiling": 0.8854449987411499,
+    "null_sep": 0.04573959690412033
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.29840665405623684,
+      "transient": 0.5664159059524536
+     },
+     "z_mix": {
+      "persistent": 0.47751883797816946,
+      "transient": 0.8870962858200073
+     },
+     "z_full": {
+      "persistent": 0.5549338785025995,
+      "transient": 0.8816072940826416
+     },
+     "randsplit_slow": {
+      "persistent": 0.36095642412939727,
+      "transient": 0.8842887364072739
+     },
+     "randsplit_mix": {
+      "persistent": 0.4494618151513175,
+      "transient": 0.8869766153159983
+     }
+    },
+    "inclusion": 0.29840665405623684,
+    "allocation": 0.8870962858200073,
+    "exclusion": 0.4335840940475464,
+    "sep": 0.11477640183822693,
+    "ceiling": 0.8816072940826416,
+    "null_sep": 0.03704610743129798
+   }
+  },
+  "hapt/nce": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8837879005766763,
+      "transient": 0.007221519947052002
+     },
+     "z_mix": {
+      "persistent": 0.9015237152958093,
+      "transient": 0.718353271484375
+     },
+     "z_full": {
+      "persistent": 0.924915183465474,
+      "transient": 0.7625958919525146
+     },
+     "randsplit_slow": {
+      "persistent": 0.8842018840374771,
+      "transient": 0.11356895195560213
+     },
+     "randsplit_mix": {
+      "persistent": 0.9285984658588397,
+      "transient": 0.5854698543035984
+     }
+    },
+    "inclusion": 0.8837879005766763,
+    "allocation": 0.718353271484375,
+    "exclusion": 0.992778480052948,
+    "sep": 0.6302871893735731,
+    "ceiling": 0.7625958919525146,
+    "null_sep": 0.4588819058956344
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.90733091662345,
+      "transient": -0.12024390697479248
+     },
+     "z_mix": {
+      "persistent": 0.9301450572934084,
+      "transient": 0.8541293144226074
+     },
+     "z_full": {
+      "persistent": 0.9335583595580067,
+      "transient": 0.8915963768959045
+     },
+     "randsplit_slow": {
+      "persistent": 0.9071011857266781,
+      "transient": 0.4007428143951837
+     },
+     "randsplit_mix": {
+      "persistent": 0.9303496541435666,
+      "transient": 0.8229783552754766
+     }
+    },
+    "inclusion": 0.90733091662345,
+    "allocation": 0.8541293144226074,
+    "exclusion": 1.0,
+    "sep": 0.7749779337700233,
+    "ceiling": 0.8915963768959045,
+    "null_sep": 0.4473602558883047
+   },
+   "PCA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.9109158256085385,
+      "transient": 0.019067347049713135
+     },
+     "z_mix": {
+      "persistent": 0.7706481564554793,
+      "transient": 0.7439905405044556
+     },
+     "z_full": {
+      "persistent": 0.9109158256085385,
+      "transient": 0.7439905405044556
+     },
+     "randsplit_slow": {
+      "persistent": 0.9109158256085385,
+      "transient": 0.019067347049713135
+     },
+     "randsplit_mix": {
+      "persistent": 0.7706481564554793,
+      "transient": 0.7439905405044556
+     }
+    },
+    "inclusion": 0.9109158256085385,
+    "allocation": 0.7439905405044556,
+    "exclusion": 0.9809326529502869,
+    "sep": 0.6647905731022692,
+    "ceiling": 0.7439905405044556,
+    "null_sep": 0.6647905731022692
+   },
+   "PCA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.9287221089941253,
+      "transient": -0.01630079746246338
+     },
+     "z_mix": {
+      "persistent": 0.9002364221958971,
+      "transient": 0.8375224471092224
+     },
+     "z_full": {
+      "persistent": 0.9287221089941253,
+      "transient": 0.8375224471092224
+     },
+     "randsplit_slow": {
+      "persistent": 0.9287221089941253,
+      "transient": -0.01630079746246338
+     },
+     "randsplit_mix": {
+      "persistent": 0.9002364221958971,
+      "transient": 0.8375224471092224
+     }
+    },
+    "inclusion": 0.9287221089941253,
+    "allocation": 0.8375224471092224,
+    "exclusion": 1.0,
+    "sep": 0.7778256134091979,
+    "ceiling": 0.8375224471092224,
+    "null_sep": 0.7778256134091979
+   },
+   "ICA-slow/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.67305330561042,
+      "transient": 0.02445751428604126
+     },
+     "z_mix": {
+      "persistent": 0.7844700815016151,
+      "transient": 0.7502537965774536
+     },
+     "z_full": {
+      "persistent": 0.67305330561042,
+      "transient": 0.7502537965774536
+     },
+     "randsplit_slow": {
+      "persistent": 0.67305330561042,
+      "transient": 0.02445751428604126
+     },
+     "randsplit_mix": {
+      "persistent": 0.7844700815016151,
+      "transient": 0.7502537965774536
+     }
+    },
+    "inclusion": 0.67305330561042,
+    "allocation": 0.7502537965774536,
+    "exclusion": 0.9755424857139587,
+    "sep": 0.49261071190632594,
+    "ceiling": 0.7502537965774536,
+    "null_sep": 0.49261071190632594
+   },
+   "ICA-slow/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7561764827673381,
+      "transient": 0.19289010763168335
+     },
+     "z_mix": {
+      "persistent": 0.91715146484905,
+      "transient": 0.8774939179420471
+     },
+     "z_full": {
+      "persistent": 0.7561764827673381,
+      "transient": 0.8774939179420471
+     },
+     "randsplit_slow": {
+      "persistent": 0.7561764827673381,
+      "transient": 0.19289010763168335
+     },
+     "randsplit_mix": {
+      "persistent": 0.91715146484905,
+      "transient": 0.8774939179420471
+     }
+    },
+    "inclusion": 0.7561764827673381,
+    "allocation": 0.8774939179420471,
+    "exclusion": 0.8071098923683167,
+    "sep": 0.5355499114780942,
+    "ceiling": 0.8774939179420471,
+    "null_sep": 0.5355499114780942
+   },
+   "SFA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.9122820051035525,
+      "transient": 0.006723781278683338
+     },
+     "z_mix": {
+      "persistent": 0.6627102352269169,
+      "transient": 0.7555288979226076
+     },
+     "z_full": {
+      "persistent": 0.9122820051035525,
+      "transient": 0.7555288979226076
+     },
+     "randsplit_slow": {
+      "persistent": 0.9122820051035525,
+      "transient": 0.006723781278683338
+     },
+     "randsplit_mix": {
+      "persistent": 0.6627102352269169,
+      "transient": 0.7555288979226076
+     }
+    },
+    "inclusion": 0.9122820051035525,
+    "allocation": 0.7555288979226076,
+    "exclusion": 0.9932762187213167,
+    "sep": 0.6846210152353359,
+    "ceiling": 0.7555288979226076,
+    "null_sep": 0.6846210152353359
+   },
+   "SFA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.9197318622895002,
+      "transient": -0.023705624457576846
+     },
+     "z_mix": {
+      "persistent": 0.906892888957089,
+      "transient": 0.8353830994004982
+     },
+     "z_full": {
+      "persistent": 0.9197318622895002,
+      "transient": 0.8353830994004982
+     },
+     "randsplit_slow": {
+      "persistent": 0.9197318622895002,
+      "transient": -0.023705624457576846
+     },
+     "randsplit_mix": {
+      "persistent": 0.906892888957089,
+      "transient": 0.8353830994004982
+     }
+    },
+    "inclusion": 0.9197318622895002,
+    "allocation": 0.8353830994004982,
+    "exclusion": 1.0,
+    "sep": 0.7683284537367948,
+    "ceiling": 0.8353830994004982,
+    "null_sep": 0.7683284537367948
+   }
+  },
+  "hapt/l1": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8075394755620248,
+      "transient": 0.01484912633895874
+     },
+     "z_mix": {
+      "persistent": 0.8674858522214892,
+      "transient": 0.8347418904304504
+     },
+     "z_full": {
+      "persistent": 0.8839090133462878,
+      "transient": 0.8900909423828125
+     },
+     "randsplit_slow": {
+      "persistent": 0.8177457604099948,
+      "transient": 0.18824925997530773
+     },
+     "randsplit_mix": {
+      "persistent": 0.8749231779253454,
+      "transient": 0.8110775897513682
+     }
+    },
+    "inclusion": 0.8075394755620248,
+    "allocation": 0.8347418904304504,
+    "exclusion": 0.9851508736610413,
+    "sep": 0.6640774249792805,
+    "ceiling": 0.8900909423828125,
+    "null_sep": 0.5383979484409579
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8095519260597238,
+      "transient": 0.38154155015945435
+     },
+     "z_mix": {
+      "persistent": 0.8818969577771586,
+      "transient": 0.9666959643363953
+     },
+     "z_full": {
+      "persistent": 0.8804924352777915,
+      "transient": 0.9839920401573181
+     },
+     "randsplit_slow": {
+      "persistent": 0.8274255832255722,
+      "transient": 0.8372081694967175
+     },
+     "randsplit_mix": {
+      "persistent": 0.8710799302053897,
+      "transient": 0.9657994373506855
+     }
+    },
+    "inclusion": 0.8095519260597238,
+    "allocation": 0.9666959643363953,
+    "exclusion": 0.6184584498405457,
+    "sep": 0.4839997568693244,
+    "ceiling": 0.9839920401573181,
+    "null_sep": 0.1300913736255192
+   },
+   "PCA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8185598979811662,
+      "transient": 0.028102099895477295
+     },
+     "z_mix": {
+      "persistent": 0.6711018278468107,
+      "transient": 0.8673129677772522
+     },
+     "z_full": {
+      "persistent": 0.8185598979811662,
+      "transient": 0.8673129677772522
+     },
+     "randsplit_slow": {
+      "persistent": 0.8185598979811662,
+      "transient": 0.028102099895477295
+     },
+     "randsplit_mix": {
+      "persistent": 0.6711018278468107,
+      "transient": 0.8673129677772522
+     }
+    },
+    "inclusion": 0.8185598979811662,
+    "allocation": 0.8673129677772522,
+    "exclusion": 0.9718979001045227,
+    "sep": 0.6899965956404616,
+    "ceiling": 0.8673129677772522,
+    "null_sep": 0.6899965956404616
+   },
+   "PCA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8129313542723859,
+      "transient": 0.5576354265213013
+     },
+     "z_mix": {
+      "persistent": 0.8920669610954092,
+      "transient": 0.9593536257743835
+     },
+     "z_full": {
+      "persistent": 0.8129313542723859,
+      "transient": 0.9593536257743835
+     },
+     "randsplit_slow": {
+      "persistent": 0.8129313542723859,
+      "transient": 0.5576354265213013
+     },
+     "randsplit_mix": {
+      "persistent": 0.8920669610954092,
+      "transient": 0.9593536257743835
+     }
+    },
+    "inclusion": 0.8129313542723859,
+    "allocation": 0.9593536257743835,
+    "exclusion": 0.44236457347869873,
+    "sep": 0.34499510657958116,
+    "ceiling": 0.9593536257743835,
+    "null_sep": 0.34499510657958116
+   },
+   "ICA-slow/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6264977210198098,
+      "transient": 0.030066370964050293
+     },
+     "z_mix": {
+      "persistent": 0.7871969328683467,
+      "transient": 0.8800931572914124
+     },
+     "z_full": {
+      "persistent": 0.6264977210198098,
+      "transient": 0.8800931572914124
+     },
+     "randsplit_slow": {
+      "persistent": 0.6264977210198098,
+      "transient": 0.030066370964050293
+     },
+     "randsplit_mix": {
+      "persistent": 0.7871969328683467,
+      "transient": 0.8800931572914124
+     }
+    },
+    "inclusion": 0.6264977210198098,
+    "allocation": 0.8800931572914124,
+    "exclusion": 0.9699336290359497,
+    "sep": 0.5347984712279625,
+    "ceiling": 0.8800931572914124,
+    "null_sep": 0.5347984712279625
+   },
+   "ICA-slow/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.739036986442184,
+      "transient": 0.3194703459739685
+     },
+     "z_mix": {
+      "persistent": 0.890134274466824,
+      "transient": 0.9698299169540405
+     },
+     "z_full": {
+      "persistent": 0.739036986442184,
+      "transient": 0.9698299169540405
+     },
+     "randsplit_slow": {
+      "persistent": 0.739036986442184,
+      "transient": 0.3194703459739685
+     },
+     "randsplit_mix": {
+      "persistent": 0.890134274466824,
+      "transient": 0.9698299169540405
+     }
+    },
+    "inclusion": 0.739036986442184,
+    "allocation": 0.9698299169540405,
+    "exclusion": 0.6805296540260315,
+    "sep": 0.48776294616881266,
+    "ceiling": 0.9698299169540405,
+    "null_sep": 0.48776294616881266
+   },
+   "SFA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8354218004122046,
+      "transient": 0.0063196435898249526
+     },
+     "z_mix": {
+      "persistent": 0.6242357128477856,
+      "transient": 0.884671293064691
+     },
+     "z_full": {
+      "persistent": 0.8354218004122046,
+      "transient": 0.884671293064691
+     },
+     "randsplit_slow": {
+      "persistent": 0.8354218004122046,
+      "transient": 0.0063196435898249526
+     },
+     "randsplit_mix": {
+      "persistent": 0.6242357128477856,
+      "transient": 0.884671293064691
+     }
+    },
+    "inclusion": 0.8354218004122046,
+    "allocation": 0.884671293064691,
+    "exclusion": 0.993680356410175,
+    "sep": 0.7344030021529119,
+    "ceiling": 0.884671293064691,
+    "null_sep": 0.7344030021529119
+   },
+   "SFA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.8085837891475195,
+      "transient": 0.1457620522792713
+     },
+     "z_mix": {
+      "persistent": 0.8926695554346722,
+      "transient": 0.9604126394777556
+     },
+     "z_full": {
+      "persistent": 0.8085837891475195,
+      "transient": 0.9604126394777556
+     },
+     "randsplit_slow": {
+      "persistent": 0.8085837891475195,
+      "transient": 0.1457620522792713
+     },
+     "randsplit_mix": {
+      "persistent": 0.8926695554346722,
+      "transient": 0.9604126394777556
+     }
+    },
+    "inclusion": 0.8085837891475195,
+    "allocation": 0.9604126394777556,
+    "exclusion": 0.8542379477207287,
+    "sep": 0.6633790578976483,
+    "ceiling": 0.9604126394777556,
+    "null_sep": 0.6633790578976483
+   }
+  },
+  "ptbxl/nce": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7783750964078833,
+      "transient": 0.11201179027557373
+     },
+     "z_mix": {
+      "persistent": 0.7086039719626168,
+      "transient": 0.8779582977294922
+     },
+     "z_full": {
+      "persistent": 0.7904032197174868,
+      "transient": 0.896708071231842
+     },
+     "randsplit_slow": {
+      "persistent": 0.7670547968940903,
+      "transient": 0.47422944565343766
+     },
+     "randsplit_mix": {
+      "persistent": 0.7875905939535207,
+      "transient": 0.8294237892269432
+     }
+    },
+    "inclusion": 0.7783750964078833,
+    "allocation": 0.8779582977294922,
+    "exclusion": 0.8879882097244263,
+    "sep": 0.6068341594290838,
+    "ceiling": 0.896708071231842,
+    "null_sep": 0.33450232257174145
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7848986549598356,
+      "transient": 0.16316848993301392
+     },
+     "z_mix": {
+      "persistent": 0.7560158711634963,
+      "transient": 0.949348509311676
+     },
+     "z_full": {
+      "persistent": 0.7873499733691329,
+      "transient": 0.9589868783950806
+     },
+     "randsplit_slow": {
+      "persistent": 0.7612077280201016,
+      "transient": 0.734449134303938
+     },
+     "randsplit_mix": {
+      "persistent": 0.7759385635543787,
+      "transient": 0.9342907097582596
+     }
+    },
+    "inclusion": 0.7848986549598356,
+    "allocation": 0.949348509311676,
+    "exclusion": 0.8368315100669861,
+    "sep": 0.6235586130675432,
+    "ceiling": 0.9589868783950806,
+    "null_sep": 0.1888569365420745
+   },
+   "PCA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7868226114602065,
+      "transient": 0.43517041206359863
+     },
+     "z_mix": {
+      "persistent": 0.6627588423285198,
+      "transient": 0.797889232635498
+     },
+     "z_full": {
+      "persistent": 0.7868226114602065,
+      "transient": 0.797889232635498
+     },
+     "randsplit_slow": {
+      "persistent": 0.7868226114602065,
+      "transient": 0.43517041206359863
+     },
+     "randsplit_mix": {
+      "persistent": 0.6627588423285198,
+      "transient": 0.797889232635498
+     }
+    },
+    "inclusion": 0.7868226114602065,
+    "allocation": 0.797889232635498,
+    "exclusion": 0.5648295879364014,
+    "sep": 0.35459848443655145,
+    "ceiling": 0.797889232635498,
+    "null_sep": 0.35459848443655145
+   },
+   "PCA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7801816940608097,
+      "transient": 0.6047801375389099
+     },
+     "z_mix": {
+      "persistent": 0.7226560803895419,
+      "transient": 0.9138394594192505
+     },
+     "z_full": {
+      "persistent": 0.7801816940608097,
+      "transient": 0.9138394594192505
+     },
+     "randsplit_slow": {
+      "persistent": 0.7801816940608097,
+      "transient": 0.6047801375389099
+     },
+     "randsplit_mix": {
+      "persistent": 0.7226560803895419,
+      "transient": 0.9138394594192505
+     }
+    },
+    "inclusion": 0.7801816940608097,
+    "allocation": 0.9138394594192505,
+    "exclusion": 0.3952198624610901,
+    "sep": 0.2817762762519907,
+    "ceiling": 0.9138394594192505,
+    "null_sep": 0.2817762762519907
+   },
+   "ICA-slow/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6890256734006734,
+      "transient": 0.2043505311012268
+     },
+     "z_mix": {
+      "persistent": 0.7499821307446009,
+      "transient": 0.8679481744766235
+     },
+     "z_full": {
+      "persistent": 0.6890256734006734,
+      "transient": 0.8679481744766235
+     },
+     "randsplit_slow": {
+      "persistent": 0.6890256734006734,
+      "transient": 0.2043505311012268
+     },
+     "randsplit_mix": {
+      "persistent": 0.7499821307446009,
+      "transient": 0.8679481744766235
+     }
+    },
+    "inclusion": 0.6890256734006734,
+    "allocation": 0.8679481744766235,
+    "exclusion": 0.7956494688987732,
+    "sep": 0.4758290748945205,
+    "ceiling": 0.8679481744766235,
+    "null_sep": 0.4758290748945205
+   },
+   "ICA-slow/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7185399159663866,
+      "transient": 0.2958250641822815
+     },
+     "z_mix": {
+      "persistent": 0.7503481440409239,
+      "transient": 0.9332472085952759
+     },
+     "z_full": {
+      "persistent": 0.7185399159663866,
+      "transient": 0.9332472085952759
+     },
+     "randsplit_slow": {
+      "persistent": 0.7185399159663866,
+      "transient": 0.2958250641822815
+     },
+     "randsplit_mix": {
+      "persistent": 0.7503481440409239,
+      "transient": 0.9332472085952759
+     }
+    },
+    "inclusion": 0.7185399159663866,
+    "allocation": 0.9332472085952759,
+    "exclusion": 0.7041749358177185,
+    "sep": 0.4722023687221395,
+    "ceiling": 0.9332472085952759,
+    "null_sep": 0.4722023687221395
+   },
+   "SFA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7838113797610158,
+      "transient": 0.09251131519845845
+     },
+     "z_mix": {
+      "persistent": 0.6549510676221628,
+      "transient": 0.8838349127440362
+     },
+     "z_full": {
+      "persistent": 0.7838113797610158,
+      "transient": 0.8838349127440362
+     },
+     "randsplit_slow": {
+      "persistent": 0.7838113797610158,
+      "transient": 0.09251131519845845
+     },
+     "randsplit_mix": {
+      "persistent": 0.6549510676221628,
+      "transient": 0.8838349127440362
+     }
+    },
+    "inclusion": 0.7838113797610158,
+    "allocation": 0.8838349127440362,
+    "exclusion": 0.9074886848015415,
+    "sep": 0.628671736447938,
+    "ceiling": 0.8838349127440362,
+    "null_sep": 0.628671736447938
+   },
+   "SFA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.776537453828244,
+      "transient": 0.1301890512403192
+     },
+     "z_mix": {
+      "persistent": 0.7166608721792003,
+      "transient": 0.9472887856137672
+     },
+     "z_full": {
+      "persistent": 0.776537453828244,
+      "transient": 0.9472887856137672
+     },
+     "randsplit_slow": {
+      "persistent": 0.776537453828244,
+      "transient": 0.1301890512403192
+     },
+     "randsplit_mix": {
+      "persistent": 0.7166608721792003,
+      "transient": 0.9472887856137672
+     }
+    },
+    "inclusion": 0.776537453828244,
+    "allocation": 0.9472887856137672,
+    "exclusion": 0.8698109487596808,
+    "sep": 0.6398374757303581,
+    "ceiling": 0.9472887856137672,
+    "null_sep": 0.6398374757303581
+   }
+  },
+  "ptbxl/l1": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7675177678336405,
+      "transient": 0.2703022360801697
+     },
+     "z_mix": {
+      "persistent": 0.7167749428837638,
+      "transient": 0.9294336438179016
+     },
+     "z_full": {
+      "persistent": 0.7572105848720583,
+      "transient": 0.9459307193756104
+     },
+     "randsplit_slow": {
+      "persistent": 0.7535027315129362,
+      "transient": 0.5654644385328185
+     },
+     "randsplit_mix": {
+      "persistent": 0.7641009891896179,
+      "transient": 0.9195231613061018
+     }
+    },
+    "inclusion": 0.7675177678336405,
+    "allocation": 0.9294336438179016,
+    "exclusion": 0.7296977639198303,
+    "sep": 0.52053488785263,
+    "ceiling": 0.9459307193756104,
+    "null_sep": 0.3010737055996674
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7713885634960362,
+      "transient": 0.408383309841156
+     },
+     "z_mix": {
+      "persistent": 0.7469540091763562,
+      "transient": 0.9663747549057007
+     },
+     "z_full": {
+      "persistent": 0.7628852121771756,
+      "transient": 0.9744845628738403
+     },
+     "randsplit_slow": {
+      "persistent": 0.7560171483239205,
+      "transient": 0.7573348952115361
+     },
+     "randsplit_mix": {
+      "persistent": 0.7659372737857071,
+      "transient": 0.9604033562518856
+     }
+    },
+    "inclusion": 0.7713885634960362,
+    "allocation": 0.9663747549057007,
+    "exclusion": 0.591616690158844,
+    "sep": 0.44102091843200053,
+    "ceiling": 0.9744845628738403,
+    "null_sep": 0.1761946206258611
+   },
+   "PCA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7639138883730587,
+      "transient": 0.7129214406013489
+     },
+     "z_mix": {
+      "persistent": 0.6400945185098749,
+      "transient": 0.7337394952774048
+     },
+     "z_full": {
+      "persistent": 0.7639138883730587,
+      "transient": 0.7337394952774048
+     },
+     "randsplit_slow": {
+      "persistent": 0.7639138883730587,
+      "transient": 0.7129214406013489
+     },
+     "randsplit_mix": {
+      "persistent": 0.6400945185098749,
+      "transient": 0.7337394952774048
+     }
+    },
+    "inclusion": 0.7639138883730587,
+    "allocation": 0.7337394952774048,
+    "exclusion": 0.2870785593986511,
+    "sep": 0.16091149161184914,
+    "ceiling": 0.7337394952774048,
+    "null_sep": 0.16091149161184914
+   },
+   "PCA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7640711965503486,
+      "transient": 0.891086220741272
+     },
+     "z_mix": {
+      "persistent": 0.7020746915222397,
+      "transient": 0.8892601132392883
+     },
+     "z_full": {
+      "persistent": 0.7640711965503486,
+      "transient": 0.891086220741272
+     },
+     "randsplit_slow": {
+      "persistent": 0.7640711965503486,
+      "transient": 0.891086220741272
+     },
+     "randsplit_mix": {
+      "persistent": 0.7020746915222397,
+      "transient": 0.8892601132392883
+     }
+    },
+    "inclusion": 0.7640711965503486,
+    "allocation": 0.8892601132392883,
+    "exclusion": 0.10891377925872803,
+    "sep": 0.07400234284986361,
+    "ceiling": 0.891086220741272,
+    "null_sep": 0.07400234284986361
+   },
+   "ICA-slow/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7123073787976303,
+      "transient": 0.2617003321647644
+     },
+     "z_mix": {
+      "persistent": 0.6855495652351733,
+      "transient": 0.9101486802101135
+     },
+     "z_full": {
+      "persistent": 0.7123073787976303,
+      "transient": 0.9101486802101135
+     },
+     "randsplit_slow": {
+      "persistent": 0.7123073787976303,
+      "transient": 0.2617003321647644
+     },
+     "randsplit_mix": {
+      "persistent": 0.6855495652351733,
+      "transient": 0.9101486802101135
+     }
+    },
+    "inclusion": 0.7123073787976303,
+    "allocation": 0.9101486802101135,
+    "exclusion": 0.7382996678352356,
+    "sep": 0.4786438244307736,
+    "ceiling": 0.9101486802101135,
+    "null_sep": 0.4786438244307736
+   },
+   "ICA-slow/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7008520356995374,
+      "transient": 0.4217745065689087
+     },
+     "z_mix": {
+      "persistent": 0.7316194291788094,
+      "transient": 0.9412168264389038
+     },
+     "z_full": {
+      "persistent": 0.7008520356995374,
+      "transient": 0.9412168264389038
+     },
+     "randsplit_slow": {
+      "persistent": 0.7008520356995374,
+      "transient": 0.4217745065689087
+     },
+     "randsplit_mix": {
+      "persistent": 0.7316194291788094,
+      "transient": 0.9412168264389038
+     }
+    },
+    "inclusion": 0.7008520356995374,
+    "allocation": 0.9412168264389038,
+    "exclusion": 0.5782254934310913,
+    "sep": 0.38142860285469166,
+    "ceiling": 0.9412168264389038,
+    "null_sep": 0.38142860285469166
+   },
+   "SFA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7590996280614751,
+      "transient": 0.18499772559987415
+     },
+     "z_mix": {
+      "persistent": 0.6495928552666141,
+      "transient": 0.9144350998170887
+     },
+     "z_full": {
+      "persistent": 0.7590996280614751,
+      "transient": 0.9144350998170887
+     },
+     "randsplit_slow": {
+      "persistent": 0.7590996280614751,
+      "transient": 0.18499772559987415
+     },
+     "randsplit_mix": {
+      "persistent": 0.6495928552666141,
+      "transient": 0.9144350998170887
+     }
+    },
+    "inclusion": 0.7590996280614751,
+    "allocation": 0.9144350998170887,
+    "exclusion": 0.8150022744001258,
+    "sep": 0.5657316642571775,
+    "ceiling": 0.9144350998170887,
+    "null_sep": 0.5657316642571775
+   },
+   "SFA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.7626146788990826,
+      "transient": 0.28617226820765085
+     },
+     "z_mix": {
+      "persistent": 0.6967603839739465,
+      "transient": 0.9465812741108925
+     },
+     "z_full": {
+      "persistent": 0.7626146788990826,
+      "transient": 0.9465812741108925
+     },
+     "randsplit_slow": {
+      "persistent": 0.7626146788990826,
+      "transient": 0.28617226820765085
+     },
+     "randsplit_mix": {
+      "persistent": 0.6967603839739465,
+      "transient": 0.9465812741108925
+     }
+    },
+    "inclusion": 0.7626146788990826,
+    "allocation": 0.9465812741108925,
+    "exclusion": 0.7138277317923492,
+    "sep": 0.5152956605092134,
+    "ceiling": 0.9465812741108925,
+    "null_sep": 0.5152956605092134
+   }
+  },
+  "sleepedf/nce": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6166911520113447,
+      "transient": 0.4157097339630127
+     },
+     "z_mix": {
+      "persistent": 0.3777821282432116,
+      "transient": 0.31407755613327026
+     },
+     "z_full": {
+      "persistent": 0.6222909299360181,
+      "transient": 0.5625561475753784
+     },
+     "randsplit_slow": {
+      "persistent": 0.5412999183250068,
+      "transient": 0.3692439909607364
+     },
+     "randsplit_mix": {
+      "persistent": 0.6178141626456318,
+      "transient": 0.5454656958995946
+     }
+    },
+    "inclusion": 0.6166911520113447,
+    "allocation": 0.31407755613327026,
+    "exclusion": 0.5842902660369873,
+    "sep": 0.11317050964390958,
+    "ceiling": 0.5625561475753784,
+    "null_sep": 0.18623735771754976
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6374981191200408,
+      "transient": 0.5552258491516113
+     },
+     "z_mix": {
+      "persistent": 0.5741822138379418,
+      "transient": 0.6007285118103027
+     },
+     "z_full": {
+      "persistent": 0.6303771007231345,
+      "transient": 0.6523772478103638
+     },
+     "randsplit_slow": {
+      "persistent": 0.5683483034144463,
+      "transient": 0.555758472929116
+     },
+     "randsplit_mix": {
+      "persistent": 0.622124918200019,
+      "transient": 0.6432041445125681
+     }
+    },
+    "inclusion": 0.6374981191200408,
+    "allocation": 0.6007285118103027,
+    "exclusion": 0.44477415084838867,
+    "sep": 0.17033217495389202,
+    "ceiling": 0.6523772478103638,
+    "null_sep": 0.1623987026199337
+   },
+   "PCA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6158828973064242,
+      "transient": 0.42598849534988403
+     },
+     "z_mix": {
+      "persistent": 0.3459722399006714,
+      "transient": 0.27021610736846924
+     },
+     "z_full": {
+      "persistent": 0.6158828973064242,
+      "transient": 0.42598849534988403
+     },
+     "randsplit_slow": {
+      "persistent": 0.6158828973064242,
+      "transient": 0.42598849534988403
+     },
+     "randsplit_mix": {
+      "persistent": 0.3459722399006714,
+      "transient": 0.27021610736846924
+     }
+    },
+    "inclusion": 0.6158828973064242,
+    "allocation": 0.27021610736846924,
+    "exclusion": 0.574011504650116,
+    "sep": 0.095527843627134,
+    "ceiling": 0.42598849534988403,
+    "null_sep": 0.095527843627134
+   },
+   "PCA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6129430884119977,
+      "transient": 0.5903939008712769
+     },
+     "z_mix": {
+      "persistent": 0.544969036351638,
+      "transient": 0.5217471122741699
+     },
+     "z_full": {
+      "persistent": 0.6129430884119977,
+      "transient": 0.5903939008712769
+     },
+     "randsplit_slow": {
+      "persistent": 0.6129430884119977,
+      "transient": 0.5903939008712769
+     },
+     "randsplit_mix": {
+      "persistent": 0.544969036351638,
+      "transient": 0.5217471122741699
+     }
+    },
+    "inclusion": 0.6129430884119977,
+    "allocation": 0.5217471122741699,
+    "exclusion": 0.40960609912872314,
+    "sep": 0.13099255740528656,
+    "ceiling": 0.5903939008712769,
+    "null_sep": 0.13099255740528656
+   },
+   "ICA-slow/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.3515569561370494,
+      "transient": 0.18314188718795776
+     },
+     "z_mix": {
+      "persistent": 0.5546797054138561,
+      "transient": 0.41393017768859863
+     },
+     "z_full": {
+      "persistent": 0.3515569561370494,
+      "transient": 0.41393017768859863
+     },
+     "randsplit_slow": {
+      "persistent": 0.3515569561370494,
+      "transient": 0.18314188718795776
+     },
+     "randsplit_mix": {
+      "persistent": 0.5546797054138561,
+      "transient": 0.41393017768859863
+     }
+    },
+    "inclusion": 0.3515569561370494,
+    "allocation": 0.41393017768859863,
+    "exclusion": 0.8168581128120422,
+    "sep": 0.1188692197953229,
+    "ceiling": 0.41393017768859863,
+    "null_sep": 0.1188692197953229
+   },
+   "ICA-slow/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.4372179857718609,
+      "transient": 0.319624662399292
+     },
+     "z_mix": {
+      "persistent": 0.5992436877151042,
+      "transient": 0.5823351144790649
+     },
+     "z_full": {
+      "persistent": 0.4372179857718609,
+      "transient": 0.5823351144790649
+     },
+     "randsplit_slow": {
+      "persistent": 0.4372179857718609,
+      "transient": 0.319624662399292
+     },
+     "randsplit_mix": {
+      "persistent": 0.5992436877151042,
+      "transient": 0.5823351144790649
+     }
+    },
+    "inclusion": 0.4372179857718609,
+    "allocation": 0.5823351144790649,
+    "exclusion": 0.680375337600708,
+    "sep": 0.1732285860671062,
+    "ceiling": 0.5823351144790649,
+    "null_sep": 0.1732285860671062
+   },
+   "SFA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6176169518409834,
+      "transient": 0.38701141638500414
+     },
+     "z_mix": {
+      "persistent": 0.28728655831899974,
+      "transient": 0.14964512527031681
+     },
+     "z_full": {
+      "persistent": 0.6176169518409834,
+      "transient": 0.38701141638500414
+     },
+     "randsplit_slow": {
+      "persistent": 0.6176169518409834,
+      "transient": 0.38701141638500414
+     },
+     "randsplit_mix": {
+      "persistent": 0.28728655831899974,
+      "transient": 0.14964512527031681
+     }
+    },
+    "inclusion": 0.6176169518409834,
+    "allocation": 0.14964512527031681,
+    "exclusion": 0.6129885836149959,
+    "sep": 0.05665446829531313,
+    "ceiling": 0.38701141638500414,
+    "null_sep": 0.05665446829531313
+   },
+   "SFA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.6290381797636282,
+      "transient": 0.5376511147318438
+     },
+     "z_mix": {
+      "persistent": 0.5532095767796038,
+      "transient": 0.5906390930285765
+     },
+     "z_full": {
+      "persistent": 0.6290381797636282,
+      "transient": 0.5906390930285765
+     },
+     "randsplit_slow": {
+      "persistent": 0.6290381797636282,
+      "transient": 0.5376511147318438
+     },
+     "randsplit_mix": {
+      "persistent": 0.5532095767796038,
+      "transient": 0.5906390930285765
+     }
+    },
+    "inclusion": 0.6290381797636282,
+    "allocation": 0.5906390930285765,
+    "exclusion": 0.4623488852681562,
+    "sep": 0.17177858039649124,
+    "ceiling": 0.5906390930285765,
+    "null_sep": 0.17177858039649124
+   }
+  },
+  "sleepedf/l1": {
+   "linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.5625318444053015,
+      "transient": 0.5344208478927612
+     },
+     "z_mix": {
+      "persistent": 0.44199831347443175,
+      "transient": 0.39659643173217773
+     },
+     "z_full": {
+      "persistent": 0.5810155363356457,
+      "transient": 0.6165206432342529
+     },
+     "randsplit_slow": {
+      "persistent": 0.4891728197787902,
+      "transient": 0.37571283692288376
+     },
+     "randsplit_mix": {
+      "persistent": 0.573118308095702,
+      "transient": 0.5986998791543351
+     }
+    },
+    "inclusion": 0.5625318444053015,
+    "allocation": 0.39659643173217773,
+    "exclusion": 0.46557915210723877,
+    "sep": 0.10386983458310008,
+    "ceiling": 0.6165206432342529,
+    "null_sep": 0.18283355063862203
+   },
+   "mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.5725058249327459,
+      "transient": 0.5927040576934814
+     },
+     "z_mix": {
+      "persistent": 0.5470180097033641,
+      "transient": 0.6190316081047058
+     },
+     "z_full": {
+      "persistent": 0.5830686646679156,
+      "transient": 0.6583147048950195
+     },
+     "randsplit_slow": {
+      "persistent": 0.5120915401345546,
+      "transient": 0.5480146563285131
+     },
+     "randsplit_mix": {
+      "persistent": 0.5786355725556479,
+      "transient": 0.6535469525724711
+     }
+    },
+    "inclusion": 0.5725058249327459,
+    "allocation": 0.6190316081047058,
+    "exclusion": 0.40729594230651855,
+    "sep": 0.1443453567102812,
+    "ceiling": 0.6583147048950195,
+    "null_sep": 0.15126858608344274
+   },
+   "PCA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.5710646630369569,
+      "transient": 0.5056285858154297
+     },
+     "z_mix": {
+      "persistent": 0.368308811936788,
+      "transient": 0.2908986806869507
+     },
+     "z_full": {
+      "persistent": 0.5710646630369569,
+      "transient": 0.5056285858154297
+     },
+     "randsplit_slow": {
+      "persistent": 0.5710646630369569,
+      "transient": 0.5056285858154297
+     },
+     "randsplit_mix": {
+      "persistent": 0.368308811936788,
+      "transient": 0.2908986806869507
+     }
+    },
+    "inclusion": 0.5710646630369569,
+    "allocation": 0.2908986806869507,
+    "exclusion": 0.4943714141845703,
+    "sep": 0.08212594684103038,
+    "ceiling": 0.5056285858154297,
+    "null_sep": 0.08212594684103038
+   },
+   "PCA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.5581661105861768,
+      "transient": 0.6196734309196472
+     },
+     "z_mix": {
+      "persistent": 0.5183886731757955,
+      "transient": 0.5477995872497559
+     },
+     "z_full": {
+      "persistent": 0.5581661105861768,
+      "transient": 0.6196734309196472
+     },
+     "randsplit_slow": {
+      "persistent": 0.5581661105861768,
+      "transient": 0.6196734309196472
+     },
+     "randsplit_mix": {
+      "persistent": 0.5183886731757955,
+      "transient": 0.5477995872497559
+     }
+    },
+    "inclusion": 0.5581661105861768,
+    "allocation": 0.5477995872497559,
+    "exclusion": 0.3803265690803528,
+    "sep": 0.11628985549404397,
+    "ceiling": 0.6196734309196472,
+    "null_sep": 0.11628985549404397
+   },
+   "ICA-slow/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.4175630166461016,
+      "transient": 0.1166536808013916
+     },
+     "z_mix": {
+      "persistent": 0.4666531057661903,
+      "transient": 0.535030722618103
+     },
+     "z_full": {
+      "persistent": 0.4175630166461016,
+      "transient": 0.535030722618103
+     },
+     "randsplit_slow": {
+      "persistent": 0.4175630166461016,
+      "transient": 0.1166536808013916
+     },
+     "randsplit_mix": {
+      "persistent": 0.4666531057661903,
+      "transient": 0.535030722618103
+     }
+    },
+    "inclusion": 0.4175630166461016,
+    "allocation": 0.535030722618103,
+    "exclusion": 0.8833463191986084,
+    "sep": 0.19734755539876447,
+    "ceiling": 0.535030722618103,
+    "null_sep": 0.19734755539876447
+   },
+   "ICA-slow/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.47310238542325445,
+      "transient": 0.3879820704460144
+     },
+     "z_mix": {
+      "persistent": 0.5397819792053966,
+      "transient": 0.614315390586853
+     },
+     "z_full": {
+      "persistent": 0.47310238542325445,
+      "transient": 0.614315390586853
+     },
+     "randsplit_slow": {
+      "persistent": 0.47310238542325445,
+      "transient": 0.3879820704460144
+     },
+     "randsplit_mix": {
+      "persistent": 0.5397819792053966,
+      "transient": 0.614315390586853
+     }
+    },
+    "inclusion": 0.47310238542325445,
+    "allocation": 0.614315390586853,
+    "exclusion": 0.6120179295539856,
+    "sep": 0.1778732658729494,
+    "ceiling": 0.614315390586853,
+    "null_sep": 0.1778732658729494
+   },
+   "SFA/linear": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.5769806563519638,
+      "transient": 0.4829420219122478
+     },
+     "z_mix": {
+      "persistent": 0.2632889918817509,
+      "transient": 0.137195411811609
+     },
+     "z_full": {
+      "persistent": 0.5769806563519638,
+      "transient": 0.4829420219122478
+     },
+     "randsplit_slow": {
+      "persistent": 0.5769806563519638,
+      "transient": 0.4829420219122478
+     },
+     "randsplit_mix": {
+      "persistent": 0.2632889918817509,
+      "transient": 0.137195411811609
+     }
+    },
+    "inclusion": 0.5769806563519638,
+    "allocation": 0.137195411811609,
+    "exclusion": 0.5170579780877522,
+    "sep": 0.040929843549788285,
+    "ceiling": 0.4829420219122478,
+    "null_sep": 0.040929843549788285
+   },
+   "SFA/mlp": {
+    "block_factor": {
+     "z_slow": {
+      "persistent": 0.5804479837398708,
+      "transient": 0.5488729314357983
+     },
+     "z_mix": {
+      "persistent": 0.5207591684603607,
+      "transient": 0.588696409655955
+     },
+     "z_full": {
+      "persistent": 0.5804479837398708,
+      "transient": 0.588696409655955
+     },
+     "randsplit_slow": {
+      "persistent": 0.5804479837398708,
+      "transient": 0.5488729314357983
+     },
+     "randsplit_mix": {
+      "persistent": 0.5207591684603607,
+      "transient": 0.588696409655955
+     }
+    },
+    "inclusion": 0.5804479837398708,
+    "allocation": 0.588696409655955,
+    "exclusion": 0.4511270685642017,
+    "sep": 0.15415356775258707,
+    "ceiling": 0.588696409655955,
+    "null_sep": 0.15415356775258707
+   }
+  }
+ }
+}

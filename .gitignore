@@ -10,3 +10,6 @@ __pycache__/
 *.out
 *.synctex.gz
 report.pdf
+
+# checkpoint cache (850M, regenerable from the run scripts)
+runs_v2/ckpt/

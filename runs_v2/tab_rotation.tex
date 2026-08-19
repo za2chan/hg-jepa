@@ -1,0 +1,20 @@
+\begin{tabular}{lcccccc}
+\toprule
+ & \multicolumn{2}{c}{Synthetic} & \multicolumn{2}{c}{PTB-XL} & \multicolumn{2}{c}{HAPT} \\
+$d_{slow}$=16 subspace by & kept $\uparrow$ & leak $\downarrow$ & kept $\uparrow$ & leak $\downarrow$ & kept $\uparrow$ & leak $\downarrow$ \\
+\midrule
+\multicolumn{7}{l}{\emph{HGLP-Reg}} \\
+\textbf{HGLP gate} & 0.974 & 0.044 & 0.753 & 0.260 & 0.811 & 0.031 \\
+PCA & 0.988 & 0.795 & 0.761 & 0.572 & 0.897 & 0.077 \\
+ICA (slowness-ranked) & 0.988 & 0.795 & 0.761 & 0.572 & 0.897 & 0.077 \\
+SFA & 0.760 & 0.096 & 0.763 & 0.205 & 0.498 & 0.203 \\
+ungated, arbitrary block & 0.988 & 0.698 & 0.751 & 0.445 & 0.871 & 0.108 \\
+\midrule
+\multicolumn{7}{l}{\emph{HGLP-NCE}} \\
+\textbf{HGLP gate} & 0.993 & 0.109 & 0.783 & 0.174 & 0.847 & 0.008 \\
+PCA & 0.992 & 0.877 & 0.786 & 0.270 & 0.918 & 0.013 \\
+ICA (slowness-ranked) & 0.992 & 0.877 & 0.786 & 0.270 & 0.918 & 0.013 \\
+SFA & 0.991 & 0.329 & 0.785 & 0.166 & 0.901 & 0.007 \\
+ungated, arbitrary block & 0.991 & 0.755 & 0.782 & 0.354 & 0.860 & 0.045 \\
+\bottomrule
+\end{tabular}

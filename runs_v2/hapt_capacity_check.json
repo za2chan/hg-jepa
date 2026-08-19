@@ -1,0 +1,181 @@
+{
+ "config": {
+  "caps": {
+   "base": {
+    "D_MODEL": 96,
+    "D_FF": 256
+   },
+   "wide": {
+    "D_MODEL": 192,
+    "D_FF": 512
+   }
+  },
+  "d_z": 64,
+  "d_slow": 16,
+  "seed": 0,
+  "lam": 4.0,
+  "note": "trunk width only; D_Z and d_slow fixed so SEP stays comparable. Other hyper-parameters not retuned."
+ },
+ "results": {
+  "acc3/base/nce": {
+   "macro": 0.8825493831664845,
+   "per_class": {
+    "walking": 0.8945119582709061,
+    "walking upstairs": 0.8392587909148388,
+    "walking downstairs": 0.8847172365091508,
+    "sitting": 0.8375185301648623,
+    "standing": 0.8449875311720698,
+    "lying": 0.9943022519670797
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8825493831664845,
+    "allocation": 0.7201546430587769,
+    "exclusion": 0.992953360080719,
+    "sep": 0.6310933887354342
+   },
+   "z_full_proxy_r2": 0.7634081244468689,
+   "params": 356192
+  },
+  "acc3/base/l1": {
+   "macro": 0.8056620649256719,
+   "per_class": {
+    "walking": 0.7309523809523809,
+    "walking upstairs": 0.6667520984173768,
+    "walking downstairs": 0.762620333411599,
+    "sitting": 0.8531706879540766,
+    "standing": 0.8220657035627988,
+    "lying": 0.9984111852557992
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8056620649256719,
+    "allocation": 0.8352868556976318,
+    "exclusion": 0.9849894046783447,
+    "sep": 0.6628574187557709
+   },
+   "z_full_proxy_r2": 0.8919231295585632,
+   "params": 356192
+  },
+  "acc3/wide/nce": {
+   "macro": 0.8671407075460724,
+   "per_class": {
+    "walking": 0.9112328200888705,
+    "walking upstairs": 0.8148550009863879,
+    "walking downstairs": 0.7817539729252502,
+    "sitting": 0.8787864600402641,
+    "standing": 0.8289720099205345,
+    "lying": 0.9872439813151276
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8671407075460724,
+    "allocation": 0.18485552072525024,
+    "exclusion": 0.9951575398445129,
+    "sep": 0.15951952126737776
+   },
+   "z_full_proxy_r2": 0.20607584714889526,
+   "params": 1400448
+  },
+  "acc3/wide/l1": {
+   "macro": 0.8741534568651642,
+   "per_class": {
+    "walking": 0.821955044432828,
+    "walking upstairs": 0.8309999475643648,
+    "walking downstairs": 0.8811196487376509,
+    "sitting": 0.8676040905770636,
+    "standing": 0.8433783921130196,
+    "lying": 0.999863617766059
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8741534568651642,
+    "allocation": 0.742281436920166,
+    "exclusion": 0.9926242232322693,
+    "sep": 0.6440819793860975
+   },
+   "z_full_proxy_r2": 0.7742867469787598,
+   "params": 1400448
+  },
+  "acc3+gyro3/base/nce": {
+   "macro": 0.889894242937853,
+   "per_class": {
+    "walking": 0.9184185579657614,
+    "walking upstairs": 0.8400415862171394,
+    "walking downstairs": 0.8095885198673697,
+    "sitting": 0.8935954226651901,
+    "standing": 0.880125544193581,
+    "lying": 0.9975958267180767
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.889894242937853,
+    "allocation": 0.5430127382278442,
+    "exclusion": 0.9919759035110474,
+    "sep": 0.4793464743145519
+   },
+   "z_full_proxy_r2": 0.6234450340270996,
+   "params": 357344
+  },
+  "acc3+gyro3/base/l1": {
+   "macro": 0.8907775043871787,
+   "per_class": {
+    "walking": 0.826704835906349,
+    "walking upstairs": 0.832844250041526,
+    "walking downstairs": 0.8624177235511318,
+    "sitting": 0.9137123745819398,
+    "standing": 0.9089858422421265,
+    "lying": 1.0
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8907775043871787,
+    "allocation": 0.6319843530654907,
+    "exclusion": 0.9827734231948853,
+    "sep": 0.5532596151739548
+   },
+   "z_full_proxy_r2": 0.7403398752212524,
+   "params": 357344
+  },
+  "acc3+gyro3/wide/nce": {
+   "macro": 0.8792668412801125,
+   "per_class": {
+    "walking": 0.9353705118411001,
+    "walking upstairs": 0.8457890270081374,
+    "walking downstairs": 0.8401667824878388,
+    "sitting": 0.8567728807288535,
+    "standing": 0.813121169988156,
+    "lying": 0.9843806756265892
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8792668412801125,
+    "allocation": 0.14850252866744995,
+    "exclusion": 0.994377076625824,
+    "sep": 0.12983914536569474
+   },
+   "z_full_proxy_r2": 0.1629301905632019,
+   "params": 1402752
+  },
+  "acc3+gyro3/wide/l1": {
+   "macro": 0.8802692793673725,
+   "per_class": {
+    "walking": 0.8432831645498797,
+    "walking upstairs": 0.8221274091510961,
+    "walking downstairs": 0.8356533700137552,
+    "sitting": 0.9039026437263953,
+    "standing": 0.8773308139823977,
+    "lying": 0.9993182747807117
+   },
+   "n_test": 60000,
+   "sep": {
+    "inclusion": 0.8802692793673725,
+    "allocation": 0.4374958872795105,
+    "exclusion": 0.9931213855743408,
+    "sep": 0.3824651374028416
+   },
+   "z_full_proxy_r2": 0.49467337131500244,
+   "params": 1402752
+  }
+ }
+}

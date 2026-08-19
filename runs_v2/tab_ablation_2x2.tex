@@ -1,0 +1,18 @@
+\begin{tabular}{llcccc}
+\toprule
+ & & \multicolumn{2}{c}{Synthetic} & \multicolumn{2}{c}{HAPT} \\
+gate & xcov & regime acc $\uparrow$ & leak $\downarrow$ & activity macro-F1 $\uparrow$ & leak $\downarrow$ \\
+\midrule
+\multicolumn{6}{l}{\emph{HGLP-Reg}} \\
+-- & -- & 0.993\,\tiny{$\pm$0.001} & 0.702\,\tiny{$\pm$0.117} & 0.870\,\tiny{$\pm$0.013} & 0.116\,\tiny{$\pm$0.025} \\
+\checkmark & -- & 0.993\,\tiny{$\pm$0.000} & 0.444\,\tiny{$\pm$0.052} & 0.886\,\tiny{$\pm$0.029} & 0.144\,\tiny{$\pm$0.027} \\
+-- & \checkmark & 0.679\,\tiny{$\pm$0.062} & 0.333\,\tiny{$\pm$0.242} & 0.556\,\tiny{$\pm$0.046} & 0.402\,\tiny{$\pm$0.072} \\
+\checkmark & \checkmark & \textbf{0.980\,\tiny{$\pm$0.010}} & \textbf{0.046\,\tiny{$\pm$0.027}} & \textbf{0.812\,\tiny{$\pm$0.026}} & \textbf{0.031\,\tiny{$\pm$0.015}} \\
+\midrule
+\multicolumn{6}{l}{\emph{HGLP-NCE}} \\
+-- & -- & 0.994\,\tiny{$\pm$0.001} & 0.758\,\tiny{$\pm$0.073} & 0.860\,\tiny{$\pm$0.040} & 0.044\,\tiny{$\pm$0.005} \\
+\checkmark & -- & 0.994\,\tiny{$\pm$0.001} & 0.791\,\tiny{$\pm$0.015} & 0.866\,\tiny{$\pm$0.019} & 0.015\,\tiny{$\pm$0.002} \\
+-- & \checkmark & 0.601\,\tiny{$\pm$0.062} & 0.048\,\tiny{$\pm$0.057} & 0.512\,\tiny{$\pm$0.018} & 0.235\,\tiny{$\pm$0.064} \\
+\checkmark & \checkmark & \textbf{0.995\,\tiny{$\pm$0.001}} & \textbf{0.138\,\tiny{$\pm$0.045}} & \textbf{0.847\,\tiny{$\pm$0.025}} & \textbf{0.008\,\tiny{$\pm$0.001}} \\
+\bottomrule
+\end{tabular}

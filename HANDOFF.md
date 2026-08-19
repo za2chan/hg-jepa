@@ -1,147 +1,114 @@
-# HG-JEPA — Session Handoff
+# HGLP — Session Handoff (updated 2026-08-04, v2 rewrite)
 
-Progress-report research project. This file lets a fresh session resume without
-re-deriving context. Read this + `report.tex` + `plan.tex` (advisor briefing:
-ICLR gaps/risks/workplan — the CURRENT roadmap) + skim the code, then continue.
+새 세션이 이 대화 없이도 재개할 수 있게 하는 문서. **읽는 순서:**
+`CLAUDE.md` (변하지 않는 맥락·잠긴 결정) → 이 파일 (현재 상태) →
+`docs/PROTOCOL.md` (설계 결정 정본) → `src/` 훑기.
 
-Round-3 additions (2026-07-25): plan.tex (single-message thesis, frank
-ICLR-vs-TMLR verdict, per-section paper plan, Sep workplan); select.py
-retrospective label-free selection (Spearman 0.68, catastrophe filter not a
-tuner); downstream-cost finding (HAPT gated full 0.80->0.76, z_slow 0.71 vs
-ungated full 0.80 — must be owned in paper); README overhauled with
-experiment<->script<->output map. Next per plan.tex W1: Sleep-EDF end-to-end
-(go/no-go for ICLR framing).
+> ⚠️ **브랜치 확인 필수: `v2-rewrite`.** `main`은 v1에서 멈춰 있습니다.
+> ```
+> git checkout v2-rewrite     # 현재 HEAD: 249eed5
+> ```
 
-## What this is
+---
 
-**Horizon-Gated JEPA (HG-JEPA):** label-free separation of slow vs fast
-generative factors in time series. Backbone = horizon-conditioned JEPA (causal
-encoder + multi-horizon predictor + EMA target; CPC/I-JEPA/HEPA lineage). Our
-addition = a **gate** that removes the fast latent block from the predictor at
-long horizons. Because only slow info helps predict the far future, slow factors
-concentrate in the ungated block. NOT NEPA (NEPA is autoregressive next-latent;
-ours is multi-horizon direct — the gate needs the horizon knob).
+## 1. 지금 어디쯤인가
 
-Deliverable: a 2-page LaTeX progress report (`report.tex`) for an advisor, due
-originally 2026-07-24. Compiles on Overleaf (`report.tex` + `fig_main.pdf`); no
-LaTeX in this env. Report language English, format LaTeX.
+**마감:** 2026-08-07 23:59, IEEE 8쪽, Responsible-AI 수업 논문 (D6).
+**결정:** **v2로 마감**합니다. v1 결과는 v2 주장과 어긋나 정직하지 못하므로 씁니다 — `legacy/`·`runs/`에 동결만 해두고 논문에는 v2 결과만 싣습니다.
+**범위:** 실데이터는 **분리 + shift robustness까지**. (HI·이상탐지 등은 범위 밖.)
 
-## Environment
+**STEP 1(프로토콜)·STEP 2(확정) 완료. STEP 3(구현) 진행 중.**
+합성·HAPT·PTB-XL 파이프라인이 돌아가고 결과도 있지만, **아래 §4의 미해결 항목 때문에 현재 수치는 잠정입니다.**
 
-- Dir: `/mnt/workspace/jaechan_lee/hgjepa` (git repo).
-- Remote: `https://github.com/za2chan/hg-jepa.git` (branch `main`). Push needs a
-  PAT the user provides interactively — do NOT commit tokens. Both tokens shared
-  earlier in chat should be revoked by the user.
-- GPU: H200, PyTorch present. `python3 <script>.py`. No `gh`, no LaTeX, no sudo.
-- Data (gitignored, ~5.5G, already prepped in `data/`):
-  - XJTU-SY at `/mnt/workspace/data/MFM_data/awesome_industrial_dataset/XJTU-SY Bearing Datasets/...` (parquet, 2ch vibration).
-  - HAPT + PTB-XL downloaded under `data/`. Prep scripts write `.npz` caches.
+## 2. 저장소 구조
 
-## Current state (commit 5c7f233)
+```
+legacy/          v1 코드 전체 (동결, 수정 금지). 참고용으로만.
+runs/ runs_*/    v1 결과 (동결).
+src/             v2 코드 (아래 §3).
+runs_v2/         v2 결과 (JSON + PNG).
+docs/            설계·문답 문서 (아래).
+data/            hapt_v2.npz, ptbxl_v2.npz (v2 전처리 산출물)
+```
 
-Experiments are leak-free: probes use GROUP splits (HAPT=subject, PTB-XL=patient,
-XJTU=bearing) + disjoint windows; absolute scores + RankMe collapse monitor.
+**문서 읽는 법**
+| 파일 | 내용 |
+|---|---|
+| `docs/PROTOCOL.md` | **정본.** A(데이터)·B(학습)·C(평가)·D(스윕)·E(추가) 전 항목 최종 결정 + 근거 |
+| `docs/PROTOCOL_ko.md` | 위의 한국어 미러 (읽기용, 정본 아님) |
+| `docs/NIGHT_REPORT_2026-08-04_ko.md` | 8/4 야간 작업 보고 (중간 깊이) |
+| `docs/NIGHT_REPORT_2026-08-04_deep_ko.md` | 같은 내용 함수·텐서 수준 (구현 인수인계용) |
+| `docs/NIGHT_REPORT_QA_ko.md` · `QA2_ko.md` | 사용자 질문 답변 2라운드. **버그 발견·주장 철회가 여기 기록됨** |
+| `docs/tau.md` | τ 추정 유도와 실측 |
 
-**Established results (all hold, 3 seeds):**
-- Synthetic: gate+dcor separates — fast leak u 0.79→0.19, phase 0.73→0.27,
-  regime kept 0.80. AR (raw-target) gate does nothing (H3). dcor-alone
-  degenerates. dcor is data-dependent.
-- HAPT (subject-split): gate cuts fast leak 0.56→0.17, activity F1 0.71 (full
-  0.80) — holds on unseen subjects (domain robustness).
-- PTB-XL (patient-split): weaker but consistent (leak 0.61→0.41 with dcor).
-- XJTU: negative — no timescale gap (carrier & envelope T_ac ~1-2 patches);
-  low-pass baseline can't recover fault envelope (R2 -0.19) = motivation confirm.
-- **unmixing.py (#1):** no label-free SFA/PCA/ICA on the ungated embedding
-  matches the gate (they trade regime for leak). Refutes "unmixing suffices."
-- **mech.py (#5):** target masking doesn't help gate-alone (gate has no removal
-  pressure — concede this). Width sweep: separation tracks the ABSOLUTE slow-
-  block size, not total width — fixed 16-dim block separates even at dz=256
-  (leak 0.08). Mechanism = gate ASSIGNS the slow factor to the block; narrow
-  bottleneck + dcor EXCLUDE the fast factor; scales with width if block stays
-  narrow.
+## 3. 구현된 것 (`src/`, 약 970줄)
 
-## The reviewer critique driving all next work
+| 파일 | 역할 | 프로토콜 |
+|---|---|---|
+| `datagen.py` | 합성 2-시간척도 데이터, sha256 해시, 시드 결정론 | A5 |
+| `model.py` | 인코더(채널혼합·**학습형 절대위치**·블록별 LN) + predictor(연속 Δ) | A4·B1·B2·B3 |
+| `train.py` | 합성 학습. Δ-먼저 앵커, 타깃 2종 × 손실 2종 × 타깃인코더 2종 | B4·B5·B6·D2 |
+| `tau.py` | 축별 T_ac → u스케일 → τ | E1·E3 |
+| `prep_hapt.py` | HAPT L=256, **위치별 라벨**, VOID 포함 | A1·A2·A4 |
+| `train_real.py` | 실데이터 학습 + 다위치 프로브 + shift eval | A3·C1·C3 |
+| `pilot_b5.py` | B5 게이트 파일럿 (안정성 + 무해성 곡선) | E4 |
+| `stems_synth.py` · `matrix_v2.py` | 스템 비교 / 3스템×3시드 매트릭스 | D4·D |
+| `run_ptbxl.py` | PTB-XL(static) 학습·프로브·shift | — |
 
-A rigorous review flagged 10 issues (see below). Highest-value ones:
-- #1 rotation symmetry / unmixing baseline — DONE (refuted).
-- #5 no removal pressure + capacity + scaling — DONE (reframed honestly).
-- #2 missing slowness/identifiability literature, zero theorems — DONE:
-  lit in Positioning; theory section with Prop 1 (inclusion: slow belief
-  provably in ungated block, square loss + timescale gap + closed gate) and
-  Prop 2 (exclusion NOT identified by objective — Borel-injection optima;
-  dcor kills linear duplication only). Matches MLP/MINE leak. Full
-  identifiability (uniqueness) stated as open.
-- #3 model selection uses labels (Locatello 2019) — TODO (unsup criterion).
-- #4 linear probe ≠ info; ratio hides collapse — PARTLY DONE (abs+RankMe);
-  still need MLP probe + MINE + DCI/MIG.
-- #7 PTB-XL is static/dynamic (=DSAE setting) — TODO (concede in writing).
-- #8 contrastive rejection self-contradictory; F2 missing latent-contrastive
-  cell — TODO (gated CPC-InfoNCE).
-- #9 anomaly attribution confounds; bad benchmarks (SMAP/PSM) — TODO (redesign).
-- #6 XJTU poster-child fails; naive low-pass strawman vs Hilbert envelope;
-  within-window slowness boomerang — TODO.
-- #10 reproducibility gaps, "guarantee" overclaim — PARTLY DONE.
+실행법은 `docs/NIGHT_REPORT_2026-08-04_deep_ko.md` §8에 있습니다.
 
-## Next steps (ordered; see report for detail)
+## 4. ⚠️ 알려진 문제 — 다음 세션이 가장 먼저 알아야 할 것
 
-1. ~~Report writing~~ DONE (2026-07-24): unmixing table = Tab 1; H2 renamed
-   "assignment asymmetry"; F4 = width sweep ("gate assigns, bottleneck
-   excludes, scales if block stays narrow"); SMAP/PSM dropped. NOT compiled —
-   check 2-page overflow on Overleaf, trim Planned work if needed.
-2. ~~Latent-contrastive cell (#8)~~ DONE: train.py mode=cpc (InfoNCE vs EMA,
-   in-batch negs). **CPC gate+dcor separates BEST: regime 0.81, leak 0.05/0.00**
-   (z_fast keeps 0.85/0.95, no collapse). Gate-alone leaks (0.46/0.81) = F3
-   consistent. F2 reframed: latent-target family, not JEPA-regression-specific.
-3. ~~Competitor (#2 partial)~~ DONE: slowvae.py (arch-matched SlowVAE, Laplace
-   transition prior). Loses the slow factor (regime 0.63 slow / 0.54 FULL) at
-   leak 0.27/0.29 — recon is local, regime needs long integration. Still no
-   theorems of our own (#2 writing/lit part remains).
-4. **Metrics (#4):** DCI/MIG DONE (metrics.py, emb_*.npz): MIG ~0 for all
-   (block codes); DCI ranks SlowVAE (0.66) > ours (0.39) despite SlowVAE not
-   decoding regime — reported honestly as axis-metric failure (Locatello).
-   Remaining: MLP probe + MINE for "displaced".
-5. ~~Anomaly attribution~~ DONE, **NEGATIVE** (anomaly.py, model_*.pt saved by
-   train.py): point detection AUROC 0.93-0.97 (short residual), contextual at
-   CHANCE (~0.50) in both designs (ctx freq shift 1.08 on-manifold and 1.15
-   off-manifold; long residual full-dim AND slow-dim only). Diagnosis: encoder
-   projects unseen dynamics onto normal slow codes — no novelty response.
-   Reported honestly in report ("Anomaly attribution: a negative pilot").
-   Next fix would be novelty-sensitive machinery (density model on z_slow or
-   training-time drift exposure), not more gating.
-   MLP/MINE (#4 remainder) also DONE (nonlinear.py): linear probes overstate
-   exclusion — MLP leak from z_slow u 0.45/phase 0.78 (vs 0.19/0.27 linear;
-   ungated 0.84/0.96); MINE I(z_slow;u) 0.95 vs 1.21 nats ungated. Report
-   reframed: "linear-subspace separation + partial information reduction".
-6. ~~XJTU redesign~~ DONE: hilbert_baseline.py + life probe in raw_am_train.py.
-   FOUND CIRCULARITY: env label IS |hilbert| (xjtu_raw_prep) → envelope-proxy
-   comparison retracted in report. Non-circular target = life (RUL), held-out
-   bearings: Hilbert feats R2 -1.08, lowpass -0.11, learned z_slow +0.18
-   (z_full 0.18, z_fast 0.09). Weak for everyone; z_slow carries what exists.
-7. ~~Literature + honesty~~ DONE in report: Positioning paragraph (SFA /
-   predictive-info + past-future IB / TCL + SlowVAE + Locatello; "no theorem
-   yet" stated as the main gap), expanded Limitations (2-scale assumption,
-   τ=c·T_ac ACF caveat, patch/sampling-rate bound).
+**(1) 위치 임베딩이 아직 12개 굶고 있음.** 앵커 상한이 `L−dmin`이라 뒤쪽 `dmin`개가 앵커도, 앵커의 과거도 아닙니다. **→ RoPE로 전환하기로 확정됨(§5).**
 
-## Repo map
+**(2) PTB-XL 프로브가 학습 안 된 위치를 읽음.** `probe_static`이 위치 99를 읽는데 최대 앵커는 91입니다. 프로토콜 C1의 assert가 미구현. **→ RoPE 전환 + assert로 해결 예정.**
 
-- `datagen.py` synthetic (hard regime: ±5% freq, equal amplitude). `train.py`
-  synthetic HG-JEPA + ablations → `runs/`. `figures.py` → `fig_main.pdf` (reads
-  `runs/`, `runs_hapt/`). `run_all.sh` synthetic sweep; `run_experiments.sh`
-  full re-run.
-- `hapt_prep/train.py`, `ptbxl_prep/train.py` real data (group-split, RankMe).
-- `xjtu_prep.py`+`real_train.py` (snapshot, bearing held-out, negative);
-  `xjtu_raw_prep.py`+`raw_am_train.py` (raw AM + low-pass baseline).
-- `unmixing.py` (#1), `mech.py`+`mech_sweep.sh` (#5).
-- `screen.py`/`screen_model.py`: pre-training suitability screens — a robust
-  cheap universal screen was NOT found (slow factor hides in any descriptor;
-  circular). Model-based screen catches within-window-varying factors only.
-- Probe protocol everywhere: fit on train group, test on held-out group,
-  absolute scores. Never random-split overlapping windows (that was the leak).
+**(3) 게이트/xcov ablation 미실행.** 현재 모든 결과가 "게이트+xcov 동시 ON"이라 **"게이트가 분리를 만든다"를 아직 주장할 수 없습니다.** z_full은 같은 게이트 모델의 전체 차원이지 ungated 모델이 아닙니다. **→ 최우선 실험.**
 
-## Gotchas
+**(4) 외부 베이스라인 없음.** 사후 회전(PCA/ICA/SFA)이 1순위 — "게이트 대신 사후 분리로 충분하지 않나"라는 반론을 막아야 합니다.
 
-- Report figure uses ABSOLUTE scores (not ratios) after reviewer #4; z_slow can
-  beat z_full on the slow task (selective-use payoff, not a bug).
-- τ sweep is weak under leak-free (report honestly). Dim/width sweep is the
-  strong mechanism evidence.
-- dcor helps synthetic + PTB-XL, HURTS HAPT — data-dependent, say so.
+**(5) "자동 τ" 주장 철회됨.** 이중지수·3성분 피팅 둘 다 실패(잡음 0.35p를 보행 6.9p 대신 잡음). HAPT는 시간척도가 3개(잡음/보행/자세)라 D1의 최솟값 규칙(2개 가정)이 깨집니다. **τ는 하이퍼파라미터 + 민감도 plateau로 서술.** 현재 τ는 하드코딩(HAPT 40, PTB-XL 16).
+
+**(6) 현재 수치는 전부 RoPE 전환 전 값** → §5 실행 후 재측정 필요.
+
+## 5. 다음에 할 일 (확정된 순서)
+
+| 단계 | 작업 | 시간 |
+|---|---|---|
+| **1** | 리팩터링(`src/hglp` `src/prep` `src/exp`) + **RoPE 구현** + 앵커 전범위 + 프로브 문맥하한 `C_min=64` | ~2h |
+| **2** | 재실행: 스템 매트릭스 3데이터셋 (기준선 재확보) | ~20m |
+| **3** | **게이트 × xcov 2×2 ablation** ← 핵심 주장 | ~20m |
+| **4** | 도메인 강건성: A_fit / A_test(시간분할) / B(피험자분할), **B에서는 학습 안 함**. 분할은 **A 24명 / B 6명**, B 구성을 바꿔 반복해 오차막대 | ~40m |
+| **5** | 사후 회전 베이스라인 포팅 | ~1h |
+| **6** | L1 실험 + predictor 분산 실험 + variance-only | ~40m |
+| **7** | PatchTST 오토인코더 / TS2Vec (교란 실험도 베이스라인에 동일 적용) | ~2.5h |
+
+1~4가 논문 핵심 주장에 필수(~3.5h).
+
+## 6. 남은 결정 2개
+
+- **스템 확정** — 27런에서 `nce+ema`가 우세했으나 **RoPE 전 수치**. 1~3단계 후 확정.
+- **`C_min`** — 64로 시작, 문맥 길이별 곡선 보고 사후 조정 가능.
+
+## 7. 잠긴 결정과 그 변경 이력
+
+`CLAUDE.md` §3의 D1~D7이 잠긴 결정입니다. v2에서 바뀐 것:
+- **D1** τ 앵커 — 2026-08-02 개정(u스케일 환산, c=ln(1/ε)). 이후 **자동 추정 주장 철회**(§4-5).
+- **D4** Part-2 스템 — v1에서 Reg로 확정됐으나 **v2 27런에서 nce+ema가 두 지표 다 우세**. 재확정 대기.
+- **D7** vfloor — 제거 확정(붕괴 없음, RankMe 13.8→22).
+- **D2** NCE online 타깃 — **충돌 중.** nce+online은 leak이 낮지만 z_fast가 fast를 0.246밖에 안 담아 부분 공허. 승인 필요.
+- **CLAUDE.md §5** 백본 서술 — "point target" 부정확 → 수정 완료(사용자 승인).
+
+## 8. 하드 규칙 (변함없음)
+
+- 숫자 조작·수기 전사 금지. 모든 수치는 `runs_v2/*.json`에서 재생성.
+- `legacy/`·`runs/` 수정·삭제 금지 (v1 안전망).
+- 결정 이탈은 사용자 명시 승인 필요. 자가 승인 금지.
+- 미완 작업은 "in progress"로 정직하게 표기. 뒷받침 없는 주장은 삭제.
+- 푸시는 `v2-rewrite` 브랜치로만. 토큰은 인라인 사용 후 저장 금지.
+
+## 9. 환경
+
+H200 1대, PyTorch 2.6. `python3 <script>.py` (스크립트는 `src/`에서 실행).
+합성 학습 1회 ~35초, HAPT ~3분, PTB-XL ~30초. 27런 매트릭스 ~15분.
+LaTeX 없음(Overleaf에서 컴파일). `gh` 없음.

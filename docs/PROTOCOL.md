@@ -1,11 +1,16 @@
 # HGLP v2 — Protocol (FINAL — frozen for implementation)
 
-**Status: STEP 2 complete; STEP 3 begun.** Every item is decided; items marked
-SWEEP have a decided *default* plus a grid. **The B5 gate is CLEARED —** the
-pilot (`src/pilot_b5.py`, 2026-08-04) confirmed the RF-bounded target is stable
-and materially better than the v1 cumulative target, so B5 is adopted. Core
-`src/` pipeline exists (`datagen`, `model`, `train`); next is E3 (HAPT τ) then
-the full matrix.
+**Status: STEP 2 complete; STEP 3 in progress.** Stems amended 2026-08-04
+(user-approved): HGLP-Reg = **L1**+EMA, HGLP-NCE = InfoNCE+**EMA**, and BOTH are
+carried in Part 1 and Part 2 (D4's "pick one" was a compute-cost rule that no
+longer applies). B1 is now **RoPE**. See CLAUDE.md §2 for the evidence.
+
+Every item is decided; items marked SWEEP have a decided *default* plus a grid.
+**The B5 gate is CLEARED** — the pilot (`src/pilot_b5.py`) confirmed the
+RF-bounded target is stable and materially better than the v1 cumulative target.
+`src/` is refactored into `hglp/` · `prep/` · `exp/`. Done: B5 pilot, 4-stem ×
+3-seed matrix on all three datasets, gate×xcov ablation for both stems.
+Next: domain robustness (Part 2), then post-hoc-rotation and Part-2 baselines.
 
 This document supersedes the STEP 1 draft. It was finalized over three review
 rounds (`PROTOCOL_QA_ko.md`, `PROTOCOL_QA2_ko.md`, `PROTOCOL_QA3_ko.md`) plus a
@@ -38,16 +43,16 @@ Measured anchors used throughout (patch units unless noted; source
 | A3 normalization | **Dataset-global, per-channel**, fit on the training split. Synthetic raw |
 | A4 channels | HAPT acc 3-axis / PTB-XL lead II / XJTU horizontal. **Channel-mixing is a deliberate design** |
 | A5 synthetic data | Persist with sha256; deterministic given seed; pin cudnn + record versions |
-| B1 position encoding | Learned absolute is the default; problem is fixed by B4, not the encoding. B5 weakened the premise → RoPE is the fallback if the B5 pilot shows position instability |
+| B1 position encoding | **RoPE (adopted 2026-08-04).** No per-position parameter exists → starvation impossible; prefix-invariance makes B5's variable-length slices in-distribution (asserted in `model.py`) |
 | B2 output norm | **Per-block LayerNorm** (after the split) |
 | B3 Δ conditioning | **Continuous** — log₂Δ expanded to a vector. Not claimed as novel |
 | B4 anchor / Δ sampling | **Sample Δ first, then anchor over `[min_context, L − Δ)`** (fixes the starvation bug); Δ continuous in log space; dense (anchor × Δ) pairs |
-| B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. EMA (Reg) / online (NCE) unchanged. **GATED — pilot before locking.** Slice indexed from 0 (or RoPE), not absolute |
-| B6 loss | L2 + λ·xcov, **no variance floor**. Optimizer/schedule defaults swept |
+| B5 target | **RF-bounded point target**, `w_eff = min(w, Δ)`. **Gate CLEARED — adopted.** EMA target for both stems. With RoPE no slice-indexing convention is needed |
+| B6 loss | **L1** + λ·xcov, **no variance floor** (L2 demoted to ablation: unstable, 0.641±0.239). Optimizer/schedule defaults swept |
 | C1 probe position | **Multi-position: probe every labeled position, one score each.** Last-position readout kept for the usage protocol |
 | C2 probe label | Label at the probed position (follows A2) |
 | C3 splits | Group split + disjoint eval windows + asserts |
-| C4 metrics | Absolute scores, chance stated, linear + MLP + MINE, RankMe |
+| C4 metrics | **Block × factor matrix + dimension-matched random-subspace null**; absolute scores, chance stated, linear + MLP + MINE, RankMe (amended 2026-08-05) |
 | E1 τ channel | **Per-axis T_ac, min rule** (extends D1) |
 | E2 channel design | Channel-mixing, documented with rationale |
 | E3 HAPT τ | **Re-estimate at L=256** before fixing the Δ set |
@@ -173,12 +178,31 @@ figure↔text drift incidents (CLAUDE.md §4).
 
 ### B1 — Position encoding
 
-**Decision.** **Learned absolute position embeddings are the default.** The
-problem this item was opened for is fixed by B4 (anchor range), not by changing
-the encoding. **But B5 weakened the premise:** feeding the target encoder a
-short slice raises a position-tagging question that absolute embeddings answer
-awkwardly (see B5). **RoPE is the explicit fallback** if the B5 pilot shows
-position-related instability.
+**Decision (revised 2026-08-04 — RoPE adopted).** **Rotary position encoding.**
+The fallback branch below was taken: B5's variable-length slices made the
+position-tagging question unavoidable, and RoPE removes it rather than answering
+it. Two properties are asserted in `model.py`:
+
+1. **No per-position parameter exists**, so starvation is impossible by
+   construction (the learned-absolute run left 12 positions untrained even after
+   B4, because the anchor upper bound `L − Δ_min` never reaches the tail).
+2. **Prefix invariance** — `enc(x[:, :k]) == enc(x)[:, :k]` to 1e-5. A slice
+   encoded standalone equals the same slice as the prefix of a longer sequence,
+   which is exactly what makes B5's variable-length target slices
+   in-distribution with no indexing convention. This is FALSE for learned
+   absolute embeddings.
+
+Measured effect (single seed, synthetic slow-kept): reg+ema 0.535 → 0.583,
+nce+ema 0.972 → 0.994, nce+online 0.972 → 0.992. Anchors per window were raised
+8 → 16 at the same time, since with no per-position parameters anchor density is
+purely about training signal rather than coverage.
+
+**Superseded decision (kept for the record).** **Learned absolute position
+embeddings are the default.** The problem this item was opened for is fixed by
+B4 (anchor range), not by changing the encoding. **But B5 weakened the
+premise:** feeding the target encoder a short slice raises a position-tagging
+question that absolute embeddings answer awkwardly (see B5). **RoPE is the
+explicit fallback** if the B5 pilot shows position-related instability.
 
 **Why.** v1 sampled anchors only from `[64, 128)`, so `pos[128:256]` received
 no gradient, targets at long Δ were computed on untrained position embeddings,
@@ -445,32 +469,132 @@ the review touched it; the asserts are added to protect it.
 
 ### C4 — Metric definitions
 
-**Decision.**
+**Decision (amended 2026-08-05).** The unit of reporting is the **block × factor
+matrix with a dimension-matched random-subspace null**, not a pair of `z_slow`
+numbers. Every row is scored on **both** factors:
+
+| row | expected |
+|---|---|
+| `z_slow` (d_slow) | slow ↑, fast ↓ |
+| `z_fast` (D_Z − d_slow) | slow ↓, **fast ↑** |
+| `rand<d>` — a random d-dim subspace of the SAME embedding, both block widths | the reference |
+| `z_full` | ceiling |
+
 - **slow-kept** — slow-factor score from `z_slow` (activity F1 / regime acc /
   life R²).
 - **leak** — *fast*-factor score from `z_slow` (u R² / accmag R² / phase R²);
-  lower is better. Report **linear probe and MLP probe and MINE**, because
-  linear probes overstate exclusion (v1 finding).
+  lower is better **only when read against `rand<d_slow>`**. Report **linear probe
+  and MLP probe and MINE**, because linear probes overstate exclusion (v1 finding).
+- **SEP** = inclusion × allocation × exclusion, each a RAW score clipped to
+  [0,1]. **No denominators anywhere** (revised 2026-08-07):
+  1. **inclusion** — is the slow factor in `z_slow`? Its slow score.
+  2. **allocation** — is the fast factor recoverable from `z_mix`? Its fast score.
+  3. **exclusion** — is `z_slow` free of the fast factor? `1 − z_slow_fast`.
+- **Why no denominator.** Inclusion and allocation never had one: SEP is a product,
+  so a denominator shared by every cell in a table is a constant factor that cannot
+  change the ranking and only adds a "do not compare across tables" caveat.
+  Exclusion kept one until 2026-08-07, justified as stopping a model that encoded
+  the fast factor NOWHERE from collecting a perfect exclusion for free. **That job
+  belongs to allocation, which does it alone**: the vacuous `nce+online` cell on
+  HAPT carries the fast proxy at 0.164 in its complement against 0.625 for
+  `nce+ema`, and the product collapses on that term by itself (SEP 0.129 vs 0.525).
+  Keeping the denominator as well made **two of the three terms move with the same
+  property** — how much fast information the model represents at all — so a model
+  was rewarded for it twice. Measured across the six post-hoc-rotation tables,
+  dropping it **changes no winner and no top-3**, and shifts values by 0.001–0.037.
+- **Two things fall out of this.** (a) `sep_index` no longer reads `z_full`, so
+  "which model's `z_full`" stops being a question — it was answered wrong once,
+  from a different training run. (b) The index applies **across architectures**:
+  TS2Vec's 320 dims and PatchTST's `C*128` need no shared reference encoder.
+- **The random-subspace row stays.** Exclusion is not normalised by
+  `rand<d_slow>` either — over 30 draws its CV is 0.2–0.7% (synthetic) but 18–19%
+  (PTB-XL) and 45–49% (HAPT, range [0.013, 0.222], a factor of 17), so dividing by
+  it would inject that noise everywhere. It is reported as a **row**, where its
+  spread is visible. On datasets where 16 dims naturally carry little of the fast
+  factor, exclusion is high for everything (HAPT's random 16-dim readout already
+  scores 0.042–0.109); **only the random row makes that readable.**
+- **SEP is a summary, not a verdict.** Report the raw four numbers — (`z_slow`
+  slow, `z_slow` fast, `z_mix` slow, `z_mix` fast) — beside it, and never settle a
+  comparison on the scalar alone. In particular **always show the inclusion
+  column**: SEP is a product, so a high exclusion can buy back lost inclusion, and
+  exclusion is capped at 1.0 while inclusion is bounded by what the task allows.
+  Measured: a representation holding 0.518 of the slow factor with a near-perfect
+  exclusion ties one holding 0.754 with a partial exclusion.
+- **Naming (`z_mix`, adopted 2026-08-06; code rename deferred to post-deadline
+  per §4-6).** The complement block is called **`z_mix`** in the paper; the code
+  keeps `z_fast` and every stored JSON key is `z_fast`. `z_fast` is a misnomer:
+  the gate exposes that block only for Δ < τ, and near-horizon prediction needs
+  the current slow state as well as the fast one, so it holds **both** factors
+  (measured slow score 0.36–0.87). Nothing constrains its content; only its
+  horizon availability is constrained. Naming it "fast" invites the reader to
+  expect a symmetric split that the method never claims.
 - **chance stated explicitly per metric**: balanced macro-F1 chance = 1/k;
   R² chance = 0. Never implied.
 - **RankMe** effective rank as the collapse monitor (it replaces the removed
   variance floor as the *check*).
 - **Absolute scores, never ratios.**
 
-**Why.** Each element traces to a specific v1 review finding: ratios hid
-collapse (#4), linear probes overstated exclusion (nonlinear.py: MLP leak 0.45
-vs linear 0.19), and the variance floor's removal left collapse unmonitored
-unless RankMe is reported.
+**Why.** The original one-sided form (slow high, leak low, both from `z_slow`)
+cannot distinguish separation from three impostors that all produce a low leak:
+a model that never encoded the fast factor anywhere (nce+online: HAPT `z_fast`
+carries the proxy at 0.163), a subspace that drops it by accident because it
+sits in low-variance directions (PCA on HAPT), and a fast proxy too weakly
+represented for ANY subspace to score on. The `z_fast` row catches the first
+two; the random null catches the third and makes "leak 0.045" readable — on
+HAPT an arbitrary 16-dim readout already scores only 0.188, so a low leak there
+means far less than the same number on PTB-XL, where the null is 0.445.
+
+**Correction (2026-08-05, same day).** An earlier draft of this section claimed
+that post-hoc rotations pass the allocation test "by construction" because they
+are full-rank. **That is wrong, and the first two-sided run refuted it.** A
+full-rank split guarantees the two halves *jointly* retain everything; it says
+nothing about either half alone. Measured on synthetic (nce+ema, 3 seeds): PCA's
+top-16 carries the fast factor at 0.879 — *above* the random-16 null of 0.852,
+i.e. variance ranking actively concentrates it — while its complement carries
+−0.006. PCA fails **both** sides. So allocation is a real constraint on the
+baselines too, and the two-sided matrix is informative for them, not just for us.
+
+The asymmetry that does survive is narrower: the gate is compared against a
+*differently trained* encoder, so its `z_full` can differ from the ungated one,
+whereas every post-hoc method is a re-basis of one fixed embedding and shares its
+`z_full` exactly.
+
+The rest traces to specific v1 review findings: ratios hid collapse (#4), linear
+probes overstated exclusion (nonlinear.py: MLP leak 0.45 vs linear 0.19), and
+the variance floor's removal left collapse unmonitored unless RankMe is reported.
+
+**Caveat surfaced by the null (2026-08-05):** B2's per-block LayerNorm is applied
+to the two blocks separately *regardless of gate/xcov*, so the `g0_x0` cell is
+not a mechanism-free control — it privileges the coordinate split, and it
+normalises away each block's magnitude, which is what HAPT's fast proxy is. The
+random subspace is the genuinely mechanism-free reference; the gap between the
+ungated block and the null measures per-block LN's own contribution.
 
 ---
 
 ## D. Sweeps
 
-**Held fixed** (decided above, not swept): loss form (L2 + xcov, no vfloor);
-RF-bounded point target with `w_eff = min(w,Δ)` (**pending the B5 pilot**);
-continuous Δ conditioning; dataset-global normalization; Δ-then-anchor sampling
-over `[min_context, L−Δ)`; per-block LayerNorm; group-split leak-free
-evaluation; per-position multi-position probing.
+**Held fixed** (decided above, not swept): the two stems (`l1+ema`, `nce+ema`;
+L2 and `nce+online` are ablation cells, not the loss form — amended 2026-08-04);
+xcov, no vfloor; RF-bounded point target with `w_eff = min(w,Δ)`; continuous Δ
+conditioning; dataset-global normalization; Δ-then-anchor sampling over
+`[min_context, L−Δ)`; per-block LayerNorm **wherever λ > 0**; group-split
+leak-free evaluation; per-position multi-position probing.
+
+**The mechanism-free control is `g0_x0_noBlockLN`** (added 2026-08-07). Per-block
+LayerNorm normalises the two blocks separately, which privileges the coordinate
+split on its own — a control that keeps it is not mechanism-free. Since the LN
+exists to stop block coupling from fighting xcov, it travels with the xcov arm,
+which fixes the reported 2×2 as
+
+```
+g0_x0_noBlockLN | g1_x0_noBlockLN
+g0_x1_LN        | g1_x1_LN
+```
+
+Corollary: the λ sweep's domain is **λ > 0** ({1, 4, 16, 64}). The λ = 0 point
+would need LN off to be consistent, and that cell is already the ablation's
+`g1_x0_noBlockLN`.
 
 **Swept:**
 
@@ -487,8 +611,14 @@ evaluation; per-position multi-position probing.
 | D_MODEL / D_Z | around 96/64 | never justified; the current ratio is atypical |
 | train overlap, anchor count, Δ density | TBD | throughput vs variance |
 
-Seeds: **3 per reported cell** (data-resampling, D3). Every run JSON records
-the full config, the data content hash, and library versions (A5).
+Seeds: **5 per reported cell** (data-resampling, D3) — raised from 3 on
+2026-08-07 because HGLP-NCE's across-seed sd is ~2.4× HGLP-Reg's (±0.079 vs
+±0.033 on SEP), so 3 seeds could not separate the stems. Tables that still carry
+3 seeds (τ and d_slow sweeps on real data) **state n in the caption**; mixing n
+inside one table is not allowed. Every run JSON records the full config, the
+data content hash, and library versions (A5) — **including `n_seed`**, and where
+practical the per-seed values, since a paired test needs them and averaging them
+away made one run unusable.
 
 ---
 

@@ -32,12 +32,48 @@ Everything else in the paper is a footnote to one of these five.
 - Project: **HGLP** (Horizon-Gated Latent Prediction). "JEPA" appears only as
   a searchable keyword in README subtitle/abstract, never as the method name.
 - Two stems, same backbone/gate/penalty, different loss layer:
-  - **HGLP-Reg** = `loss=reg target=ema` (L2 to an EMA target encoder;
+  - **HGLP-Reg** = `loss=l1 target=ema` (L1 to an EMA target encoder;
     collapse handled by EMA asymmetry)
-  - **HGLP-NCE** = `loss=nce target=online` (InfoNCE vs in-batch negatives,
-    both-sided gradients, no EMA, no stop-grad; collapse handled by negatives)
+  - **HGLP-NCE** = `loss=nce target=ema` (InfoNCE vs in-batch negatives,
+    same-window negatives masked; collapse handled by negatives + EMA)
+  - **Amended 2026-08-04 (user-approved), evidence: 4 stems × 3 seeds × 3
+    datasets + gate×xcov ablation.** Both stems are carried in BOTH Part 1 and
+    Part 2 — D4's "pick one" existed only to avoid a real-data re-run, and a
+    full matrix is 6–9 min on the H200, so that cost rationale is void.
+    - Reg's loss L2 → **L1**: L2 is unstable across seeds (synthetic slow-kept
+      0.641±0.239; per-seed 0.513/0.975/0.434) and loses the slow factor. L1
+      repairs it (0.980±0.010). The defect is **specific to L2**, whose
+      squared-error gradient is dominated by large residuals and drowns a weak
+      slow signal; L1 (constant gradient magnitude) and InfoNCE (ranking) each
+      avoid it differently. Independently reproduces HEPA's stated reason for
+      L1. **L2 is retained as an ablation, not as the stem.**
+    - NCE's target online → **EMA**: the online form's low leak is partly
+      vacuous — z_fast carries the fast proxy at only 0.163 (HAPT) / 0.615
+      (PTB-XL) vs nce+ema's 0.628 / 0.881, i.e. the fast factor is weakly
+      represented anywhere rather than excluded from z_slow. **online is
+      retained as an ablation.** This supersedes D2's target choice; D2's
+      ⛔ condition (instability) was never triggered — online trains fine, it
+      just separates worse.
 - Penalty: **`L_xcov`** (squared cross-covariance between blocks). The old
   name `dcor` collides with Székely's distance correlation — do not reuse it.
+- **Blocks: `z_slow` / `z_mix` (paper text only, adopted 2026-08-06).** The
+  complement block is **`z_mix`** in prose, figures and tables. **Code and every
+  stored JSON key stay `z_fast`** — the rename is post-deadline backlog per
+  §4-6, so during the sprint do NOT touch `probes.BLOCKS`, `block_factor`, or
+  any run file. Reason: the gate exposes that block only for Δ < τ, and
+  near-horizon prediction needs the current slow state as much as the fast one,
+  so it holds **both** factors (measured slow score 0.36–0.87 across the three
+  datasets). Its content is unconstrained; only its horizon availability is
+  constrained. Calling it "fast" promises a symmetric split the method never
+  claims — cf. §5 "Separation is one-directional by design".
+- **Prose terms: persistent / transient, not slow / fast (adopted 2026-08-07).**
+  The axis we cut on is PERSISTENCE (predictable beyond tau), not spectral
+  slowness; the two coincide only under the mixing assumption, and the synthetic
+  generator deliberately breaks it -- the persistent factor sets the carrier
+  FREQUENCY, so a low-pass reading cannot recover it. This matters because we
+  compare against Slow Feature Analysis: writing "slow factor" invites the reader
+  to assume we are doing SFA's job with another algorithm. Keep `z_slow` / `z_mix`
+  as the symbols; introduce them once as "the persistent block" / "the rest".
 - Theory sections: **Gating / Exclusion** (informal arguments). Never
   "Prop. 1 / Prop. 2" — these are not theorems.
 - Old CLI names (`nepa`, `cpc`, `dcor=`) survive one commit as deprecated
@@ -60,11 +96,21 @@ Everything else in the paper is a footnote to one of these five.
   lifetime — a spec error, corrected here.
 - **D2** NCE online target: **both-sided gradients, no EMA, no stop-grad.**
   If unstable → ⛔ stop and report; no autonomous fallback.
+  **SUPERSEDED 2026-08-04 (user-approved) → the NCE stem uses an EMA target.**
+  ⛔ was never triggered (online trains stably); it separates worse — its low
+  leak is partly vacuous (z_fast carries the fast proxy at 0.163 on HAPT).
+  online is kept as an ablation. See §2 for the evidence.
 - **D3** `make_dataset(..., seed=seed)`: seeds vary the data; all synthetic
   error bars regenerate; the re-run is folded into the overnight matrix.
 - **D4** Part-2 stem rule: the stem dominant on BOTH slow-kept and leak
   carries Part 2; metrics disagree → keep Reg. Apply mechanically.
-  **RESOLVED 2026-08-03 → Reg carries Part 2.** NCE-online (D2 pure form)
+  **SUPERSEDED 2026-08-04 (user-approved) → BOTH stems carry Part 2.** D4's
+  rule existed to avoid a real-data re-run ("avoids the real-data re-run"); a
+  full matrix is 6–9 min on the H200, so the cost rationale is void and
+  CLAUDE.md §2 defines two canonical stems in the first place. Reporting both
+  is also a stronger claim: the gate/xcov mechanism holds across two loss
+  families. Superseded reasoning follows.
+  **(2026-08-03, now historical) → Reg carries Part 2.** NCE-online (D2 pure form)
   trains stably but its embeddings are linearly uninformative on synthetic
   (slow-kept 0.456 vs Reg 0.776) and its low leak is vacuous (z_fast carries
   u at R²≈0). Metrics disagree → keep Reg. Three-point evidence
@@ -73,8 +119,11 @@ Everything else in the paper is a footnote to one of these five.
   latent target**, the loss form is secondary. No real-data NCE re-runs.
 - **D5** Cut order (approved): NCE d_slow → coherence sweep (keep reject
   demo) → HI → HSIC → TS2Vec (only if the classical baseline is answered).
-- **D6** Near-term deliverable: **Aug 7, 23:59 — IEEE 8pp course paper
+- **D6** Near-term deliverable: **Aug 8, 23:59 EASTERN — IEEE 8pp course paper
   (Responsible-AI course).** Workshop version extends afterwards.
+  **Amended 2026-08-07 by the user: Aug 7 -> Aug 8.** The user's clock is
+  `America/Toronto`; this box runs UTC, 4h ahead. Run `TZ=America/Toronto date`
+  before quoting any time or computing time-to-deadline.
 - **D7** vfloor rule: RankMe collapse at `vfloor=0` → the term enters the
   paper's loss equation; no collapse → default off and remove.
   **RESOLVED 2026-08-03 → removed.** No collapse at vfloor=0 (RankMe rises
@@ -179,7 +228,17 @@ Everything else in the paper is a footnote to one of these five.
   thresholds (Δ_max/fast, Δ_max/dwell) are post-hoc observations, NOT design
   criteria — never present a ratio as a hypothesis. The Δ SET itself is
   underived (synthetic {1,4,16,64,128} vs real {1,2,4,8,16,32}, no recorded
-  justification) — same gap class as the old hardcoded τ. Draft rule (not
+  justification) — same gap class as the old hardcoded τ. **Δ_max, however, DID have
+  a de facto rule (found 2026-08-13): three of four datasets put it at half the window
+  — 128/256 synthetic, 128/256 HAPT, 48/100 PTB-XL. Sleep-EDF's 64 (a quarter) was the
+  lone exception with nothing recorded to justify it. Re-running τ=16 at dmax=128
+  (`run_sleepedf_p10_dmax.sh`) left every term inside the seed spread with the optimal
+  λ still 0 on both stems, so it changes no conclusion — but NEW Sleep-EDF work uses
+  dmax=128.** The p10A/p10C results and everything derived from them (term_breakdown,
+  mlp_probe_rotation, label_free_lambda) were produced at 64 and stay at 64; that
+  re-run is now their sensitivity check. Switching the stored default means re-running
+  config A, whose τ=9 is the only rule-derived threshold on real data — post-deadline
+  backlog. Draft rule for the Δ SET (not
   implemented): log-span T_ac(min)→T_ac(max) with ≥2 horizons each side of τ;
   HAPT cannot satisfy it (segments shorter than the required window — a real
   applicability limit). Detail + numbers in `docs/tau.md`.
